@@ -1,0 +1,73 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ROMVault — design tokens.  Estética terminal/dev retro: escuro, quadrado,
+   mono para dados + Inter para leitura.  Ver DESIGN.md.
+   Dark-only por ora, mas estruturado para um tema claro futuro via data-theme.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Paleta — dark (padrão). Também aplicada em [data-theme='dark']. */
+:root,
+:root[data-theme='dark'] {
+  --bg: #0b0e10;
+  --panel: #10151a;
+  --panel-2: #141b1f;
+  --line: #1c262c;
+  --line-bright: #2c3d45;
+
+  --ink: #d6e2dc;
+  --ink-bright: #eaf3ee;
+  --muted: #7f948c;
+
+  --accent: #34e2a0;
+  --accent-dim: rgba(52, 226, 160, 0.12);
+  --amber: #ffb454;
+  --red: #ff6b6b;
+  --blue: #7db8ff;
+
+  color-scheme: dark;
+}
+
+/* Placeholder do tema claro futuro (ative preenchendo estes valores).
+:root[data-theme='light'] {
+  --bg: #f5f7f6;  --panel: #ffffff;  --panel-2: #eef2f0;
+  --line: #d7dedb; --line-bright: #b9c4bf;
+  --ink: #1c2622; --ink-bright: #0d1512; --muted: #5c6b64;
+  color-scheme: light;
+}
+*/
+
+:root {
+  /* Tipografia — "Inter Variable" (carregada via @fontsource) primeiro, com
+     os fallbacks exatos do design em seguida. */
+  --sans: 'Inter Variable', 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'Cascadia Code', ui-monospace, monospace;
+
+  /* Escala de espaçamento (base 4px) */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 64px;
+
+  /* Cantos: TUDO QUADRADO — regra do dono, sem exceção. */
+  --radius: 0;
+
+  /* z-index semântico */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-backdrop: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+
+  /* Layout */
+  --header-h: 60px;
+  --content-max: 1180px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 110ms;
+  --t-base: 190ms;
+}

@@ -1,0 +1,40 @@
+# ── dependências ──────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.*
+.npm
+
+# ── builds / saída ────────────────────────────────────────────
+dist/
+build/
+*.tsbuildinfo
+
+# ── env (NUNCA commitar segredos) ─────────────────────────────
+# Ignora todo .env em qualquer pasta, exceto o exemplo.
+.env
+.env.*
+!.env.example
+
+# ── deploy / caches de tooling ────────────────────────────────
+.vercel/
+.turbo/
+.eslintcache
+coverage/
+
+# ── logs ──────────────────────────────────────────────────────
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.log
+
+# ── editor / SO ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# ── supabase (CLI local) ──────────────────────────────────────
+supabase/.branches/
+supabase/.temp/
