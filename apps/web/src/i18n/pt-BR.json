@@ -6,6 +6,7 @@
     "searchPlaceholder": "Buscar jogos, romhacks, ferramentas…",
     "viewAll": "Ver tudo",
     "readMore": "Ler mais",
+    "close": "Fechar",
     "backHome": "Voltar ao início",
     "comingSoonTitle": "Em construção",
     "comingSoonText": "Esta área ainda é um placeholder do alicerce. O design está no lugar; os dados e as ações chegam nos próximos milestones."
@@ -84,6 +85,7 @@
     "platforms": "Plataformas",
     "genres": "Gêneros",
     "franchise": "Franquia",
+    "related": "Jogos relacionados",
     "ageRating": "Classificação",
     "completionTitle": "Tempo de conclusão",
     "completionMain": "História principal",

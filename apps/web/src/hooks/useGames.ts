@@ -147,6 +147,30 @@ export function useGame(slug: string | undefined) {
   });
 }
 
+/** Jogos relacionados: mesma franquia; senão, com gênero em comum. */
+export function useRelatedGames(game: Game | null | undefined) {
+  return useQuery({
+    queryKey: ['games', 'related', game?.id],
+    enabled: env.configured && Boolean(game?.id),
+    queryFn: async (): Promise<Game[]> => {
+      const g = game as Game;
+      if (g.franchise) {
+        const { data } = await getSupabase()
+          .from('games').select('*')
+          .eq('franchise', g.franchise).neq('id', g.id).limit(6);
+        if (data && data.length) return data;
+      }
+      if (g.genres && g.genres.length) {
+        const { data } = await getSupabase()
+          .from('games').select('*')
+          .overlaps('genres', g.genres).neq('id', g.id).limit(6);
+        return data ?? [];
+      }
+      return [];
+    },
+  });
+}
+
 /** Utilitário para invalidar as queries de jogos após uma mutação. */
 export function useInvalidateGames() {
   const qc = useQueryClient();

@@ -6,6 +6,7 @@
     "searchPlaceholder": "Search games, romhacks, tools…",
     "viewAll": "View all",
     "readMore": "Read more",
+    "close": "Close",
     "backHome": "Back home",
     "comingSoonTitle": "Under construction",
     "comingSoonText": "This area is still a scaffold placeholder. The design is in place; data and actions land in upcoming milestones."
@@ -84,6 +85,7 @@
     "platforms": "Platforms",
     "genres": "Genres",
     "franchise": "Franchise",
+    "related": "Related games",
     "ageRating": "Age rating",
     "completionTitle": "Completion time",
     "completionMain": "Main story",

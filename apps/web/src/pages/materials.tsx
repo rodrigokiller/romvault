@@ -13,6 +13,7 @@ import { MaterialCard } from '@/components/entities/MaterialCard';
 import { Reviews } from '@/components/entities/Reviews';
 import { FavoriteButton } from '@/components/entities/FavoriteButton';
 import { ShareButton } from '@/components/entities/ShareButton';
+import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { KIND_META, type Kind } from '@/components/entities/kinds';
 import {
   useInfiniteMaterials,
@@ -302,13 +303,7 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
       {screenshots.length > 0 && (
         <section className="section">
           <div className="section-head"><h2>{t('games:tabImages')}</h2></div>
-          <div className="shot-grid">
-            {screenshots.map((src) => (
-              <a key={src} href={src} target="_blank" rel="noopener noreferrer" className="shot">
-                <img src={src} alt="" loading="lazy" />
-              </a>
-            ))}
-          </div>
+          <ScreenshotGrid images={screenshots} />
         </section>
       )}
 

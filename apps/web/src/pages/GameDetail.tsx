@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Gamepad2 } from 'lucide-react';
-import { useGame } from '@/hooks/useGames';
+import { useGame, useRelatedGames } from '@/hooks/useGames';
 import { useGameRomhacks, useGameTranslations, useGameDocuments } from '@/hooks/useMaterials';
 import { MaterialCard } from '@/components/entities/MaterialCard';
+import { GameCard } from '@/components/entities/GameCard';
 import { Reviews } from '@/components/entities/Reviews';
 import { FavoriteButton } from '@/components/entities/FavoriteButton';
 import { ShareButton } from '@/components/entities/ShareButton';
+import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
@@ -29,6 +31,7 @@ export function GameDetail() {
   const romhacks = useGameRomhacks(gameId);
   const translations = useGameTranslations(gameId);
   const documents = useGameDocuments(gameId);
+  const related = useRelatedGames(game);
 
   const rc = romhacks.data?.length ?? 0;
   const tc = translations.data?.length ?? 0;
@@ -98,13 +101,7 @@ export function GameDetail() {
 
         {tab === 'images' && (
           screenshots.length > 0 ? (
-            <div className="shot-grid">
-              {screenshots.map((src) => (
-                <a key={src} href={src} target="_blank" rel="noopener noreferrer" className="shot">
-                  <img src={src} alt="" loading="lazy" />
-                </a>
-              ))}
-            </div>
+            <ScreenshotGrid images={screenshots} />
           ) : (
             <EmptyState title={t('games:tabImages')} text={t('common:comingSoonText')} />
           )
@@ -125,6 +122,17 @@ export function GameDetail() {
         {tab === 'romhacks' && <RelatedGrid kind="romhack" query={romhacks} />}
         {tab === 'docs' && <RelatedGrid kind="doc" query={documents} />}
       </div>
+
+      {game && (related.data?.length ?? 0) > 0 && (
+        <section className="section">
+          <div className="section-head"><h2>{t('games:related')}</h2></div>
+          <div className="card-grid card-grid-cover">
+            {related.data!.map((r) => (
+              <GameCard key={r.id} game={r} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {game && <Reviews subjectType="game" subjectId={game.id} />}
     </div>
