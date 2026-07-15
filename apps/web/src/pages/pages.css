@@ -1287,6 +1287,69 @@
   line-height: 1.55;
 }
 
+/* ── Barra de progresso do backlog (perfil) ───────────────────────────────── */
+.backlog-progress {
+  margin-top: var(--s4);
+  max-width: 360px;
+}
+.backlog-progress-label {
+  font-size: 0.74rem;
+  color: var(--muted);
+  margin-bottom: var(--s1);
+}
+.backlog-progress-bar {
+  height: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+.backlog-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--t-base) var(--ease);
+}
+
+/* ── Coleções curadas ─────────────────────────────────────────────────────── */
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--s4);
+}
+.collection-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  transition: border-color var(--t-fast), transform var(--t-base) var(--ease);
+}
+.collection-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.collection-cover {
+  aspect-ratio: 21 / 9;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 120% at 0% 0%, var(--accent-dim), transparent 60%), var(--panel-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--line-bright);
+  overflow: hidden;
+}
+.collection-cover img { width: 100%; height: 100%; object-fit: cover; }
+.collection-cover svg { width: 30px; height: 30px; }
+.collection-body {
+  padding: var(--s4);
+}
+.collection-body h2,
+.collection-body h3 {
+  font-size: 1.02rem;
+}
+.collection-body p {
+  margin-top: var(--s2);
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 /* ── Biblioteca / Estante ─────────────────────────────────────────────────── */
 .lib-stats {
   display: flex;

@@ -29,6 +29,7 @@ export const NAMESPACES = [
   'community',
   'apidocs',
   'library',
+  'collections',
 ] as const;
 
 // Recursos empacotados no bundle: init é síncrono, sem Suspense de rede.

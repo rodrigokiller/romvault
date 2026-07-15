@@ -86,6 +86,8 @@
     "genres": "Genres",
     "franchise": "Franchise",
     "related": "Related games",
+    "highlightsKicker": "// hot for this game",
+    "highlightsTitle": "Top picks",
     "ageRating": "Age rating",
     "completionTitle": "Completion time",
     "completionMain": "Main story",
@@ -250,7 +252,17 @@
     "statFinished_one": "{{count}} finished",
     "statFinished_other": "{{count}} finished",
     "emptyTitle": "Empty shelf",
-    "emptyText": "Add games from their pages: \"Add to library\"."
+    "emptyText": "Add games from their pages: \"Add to library\".",
+    "progressLabel": "Backlog: {{finished}}/{{total}} finished ({{pct}}%)"
+  },
+  "collections": {
+    "kicker": "// curated",
+    "homeKicker": "// hand-picked",
+    "title": "Collections",
+    "subtitle": "Hand-picked selections: the best hacks, translations and tools by theme.",
+    "emptyTitle": "No collections yet",
+    "emptyText": "Curated collections will show up here.",
+    "emptyItemsTitle": "This collection is empty."
   },
   "apidocs": {
     "title": "ROMVault API",

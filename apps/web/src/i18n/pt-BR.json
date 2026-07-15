@@ -86,6 +86,8 @@
     "genres": "Gêneros",
     "franchise": "Franquia",
     "related": "Jogos relacionados",
+    "highlightsKicker": "// em alta neste jogo",
+    "highlightsTitle": "Destaques",
     "ageRating": "Classificação",
     "completionTitle": "Tempo de conclusão",
     "completionMain": "História principal",
@@ -250,7 +252,17 @@
     "statFinished_one": "{{count}} terminado",
     "statFinished_other": "{{count}} terminados",
     "emptyTitle": "Estante vazia",
-    "emptyText": "Adicione jogos pela página de cada um: \"Adicionar à biblioteca\"."
+    "emptyText": "Adicione jogos pela página de cada um: \"Adicionar à biblioteca\".",
+    "progressLabel": "Backlog: {{finished}}/{{total}} terminados ({{pct}}%)"
+  },
+  "collections": {
+    "kicker": "// curadoria",
+    "homeKicker": "// escolhidos a dedo",
+    "title": "Coleções",
+    "subtitle": "Seleções feitas à mão: os melhores hacks, traduções e ferramentas por tema.",
+    "emptyTitle": "Nenhuma coleção ainda",
+    "emptyText": "As coleções curadas aparecem aqui.",
+    "emptyItemsTitle": "Esta coleção está vazia."
   },
   "apidocs": {
     "title": "API do ROMVault",

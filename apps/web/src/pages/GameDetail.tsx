@@ -95,6 +95,8 @@ export function GameDetail() {
         </div>
       </div>
 
+      <Highlights romhacks={romhacks.data} translations={translations.data} />
+
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
       <div className="tab-panel" role="tabpanel">
         {tab === 'overview' && (
@@ -138,6 +140,40 @@ export function GameDetail() {
 
       {game && <Reviews subjectType="game" subjectId={game.id} />}
     </div>
+  );
+}
+
+/** "Em destaque": os hacks/traduções mais baixados DESTE jogo, acima das abas. */
+function Highlights({
+  romhacks,
+  translations,
+}: {
+  romhacks?: unknown[];
+  translations?: unknown[];
+}) {
+  const { t } = useTranslation();
+  const top = [
+    ...((romhacks ?? []) as Row[]).map((item) => ({ kind: 'romhack' as Kind, item })),
+    ...((translations ?? []) as Row[]).map((item) => ({ kind: 'translation' as Kind, item })),
+  ]
+    .filter((x) => Number(x.item.downloads) > 0)
+    .sort((a, b) => Number(b.item.downloads) - Number(a.item.downloads))
+    .slice(0, 3);
+  if (top.length === 0) return null;
+  return (
+    <section style={{ marginBottom: 'var(--s5)' }}>
+      <div className="section-head">
+        <div>
+          <span className="kicker">// {t('games:highlightsKicker')}</span>
+          <h2>{t('games:highlightsTitle')}</h2>
+        </div>
+      </div>
+      <div className="card-grid">
+        {top.map(({ kind, item }) => (
+          <MaterialCard key={`${kind}-${String(item.id)}`} kind={kind} item={item} />
+        ))}
+      </div>
+    </section>
   );
 }
 

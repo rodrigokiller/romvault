@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Upload, TrendingUp, Newspaper, Download } from 'lucide-react';
+import { ArrowRight, Upload, TrendingUp, Newspaper, Download, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, Skeleton } from '@/components/ui/feedback';
 import { useStats, useTrending } from '@/hooks/useHome';
 import { useArticles } from '@/hooks/useArticles';
+import { useCollections } from '@/hooks/useCollections';
 import { KIND_META, type Kind } from '@/components/entities/kinds';
 
 const STAT_KEYS = [
@@ -28,6 +29,7 @@ export function Home() {
   const { data: stats } = useStats();
   const { data: trending = [], isLoading: trendingLoading } = useTrending(8);
   const { data: articles = [], isLoading: articlesLoading } = useArticles(3);
+  const { data: collections = [] } = useCollections(3);
 
   return (
     <>
@@ -103,6 +105,32 @@ export function Home() {
             </div>
           )}
         </section>
+
+        {/* Coleções curadas */}
+        {collections.length > 0 && (
+          <section className="section">
+            <div className="section-head">
+              <div>
+                <span className="kicker">{t('collections:homeKicker')}</span>
+                <h2>{t('collections:title')}</h2>
+              </div>
+              <Link to="/collections" className="section-link">{t('common:viewAll')}</Link>
+            </div>
+            <div className="collection-grid">
+              {collections.map((col) => (
+                <Link key={col.id} to={`/collections/${col.slug}`} className="collection-card">
+                  <div className="collection-cover">
+                    {col.cover_url ? <img src={col.cover_url} alt="" loading="lazy" /> : <Layers aria-hidden />}
+                  </div>
+                  <div className="collection-body">
+                    <h3>{col.title}</h3>
+                    {col.description && <p>{col.description}</p>}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Últimos artigos */}
         <section className="section">

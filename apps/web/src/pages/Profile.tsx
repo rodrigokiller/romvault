@@ -14,6 +14,7 @@ import {
   useProfileByUsername, useMyProfile, useContributions, useUpdateProfile,
 } from '@/hooks/useProfile';
 import { useMyFavorites } from '@/hooks/useFavorites';
+import { useLibrary } from '@/hooks/useTracks';
 import type { Kind } from '@/components/entities/kinds';
 import type { Game } from '@romvault/core';
 
@@ -26,6 +27,7 @@ export function Profile() {
   const { data: me } = useMyProfile();
   const { data: contrib } = useContributions(profile?.id);
   const { data: favorites = [] } = useMyFavorites(profile?.id);
+  const { data: libTracks = [] } = useLibrary(profile?.id);
 
   if (isLoading) return <LoadingPage />;
   if (!profile) {
@@ -65,6 +67,7 @@ export function Profile() {
           <Link to={`/u/${profile.username}/library`} className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 'var(--s3)' }}>
             <LibraryIcon aria-hidden style={{ width: 15, height: 15 }} /> {t('library:viewLibrary')}
           </Link>
+          <BacklogProgress tracks={libTracks} />
         </div>
         {isMe && <ProfileEditor profile={profile} />}
       </div>
@@ -106,6 +109,25 @@ export function Profile() {
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+/** Barra de progresso do backlog: terminados / total da biblioteca. */
+function BacklogProgress({ tracks }: { tracks: { status: string }[] }) {
+  const { t } = useTranslation();
+  const total = tracks.length;
+  if (total === 0) return null;
+  const finished = tracks.filter((x) => x.status === 'finished').length;
+  const pct = Math.round((finished / total) * 100);
+  return (
+    <div className="backlog-progress">
+      <div className="backlog-progress-label mono">
+        {t('library:progressLabel', { finished, total, pct })}
+      </div>
+      <div className="backlog-progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className="backlog-progress-fill" style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
