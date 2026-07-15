@@ -115,7 +115,7 @@ const SECTIONS = {
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export async function importPobre(ctx) {
-  const { sb, flag, DRY, log, c, step, slugifyText } = ctx;
+  const { sb, flag, DRY, log, c, step, slugifyText, itemLog } = ctx;
   const source = 'romhackers.org';
   const only = String(flag('section', 'all'));
   const limit = Number(flag('limit', 0)) || 0;
@@ -258,8 +258,8 @@ export async function importPobre(ctx) {
       }
 
       if (DRY) {
-        if (count < 8) log(`  ${c.dim('[dry]')} ${row.title}${gameRef ? c.dim(` -> ${gameRef.title} [${platform ?? '?'}]`) : ''}`);
         stats.importados++; count++; seen.add(dedupeKey);
+        itemLog(count, `  ${c.dim('[dry]')} ${row.title}${gameRef ? c.dim(` -> ${gameRef.title} [${platform ?? '?'}]`) : ''}`);
         continue;
       }
 
@@ -271,7 +271,7 @@ export async function importPobre(ctx) {
       );
       seen.add(dedupeKey);
       stats.importados++; count++;
-      if (count % 50 === 0) log(c.dim(`  … ${count} (fila: ${queue.length})`));
+      itemLog(count, `  ${c.green('+')} ${row.title}${gameRef ? c.dim(` -> ${gameRef.title}`) : ''}`);
     }
     log(`  ${c.green('✓')} ${secName}: ${count} importados`);
 

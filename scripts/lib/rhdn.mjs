@@ -134,7 +134,7 @@ function findSqlRecursive(dir) {
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export async function importRhdn(ctx) {
-  const { sb, flag, DRY, log, c, step, slugifyText } = ctx;
+  const { sb, flag, DRY, log, c, step, slugifyText, itemLog } = ctx;
   const source = 'romhacking.net';
 
   const file = flag('file');
@@ -338,10 +338,12 @@ export async function importRhdn(ctx) {
 
       row.data_source = source;
       row.source_url = `https://www.romhacking.net/${sec.urlPart}/${extId}/`;
+      // endpoint de download do RHDN (site read-only segue servindo os arquivos)
+      row.file_url = `https://www.romhacking.net/download/${sec.urlPart}/${extId}/`;
 
       if (DRY) {
-        if (count < 8) log(`  ${c.dim('[dry]')} ${row.title}${gameRef ? c.dim(` -> ${gameRef.title} [${gameRef.platform ?? '?'}]`) : ''}`);
         stats.importados++; count++; seen.add(dedupeKey);
+        itemLog(count, `  ${c.dim('[dry]')} ${row.title}${gameRef ? c.dim(` -> ${gameRef.title} [${gameRef.platform ?? '?'}]`) : ''}`);
         continue;
       }
 
@@ -353,7 +355,7 @@ export async function importRhdn(ctx) {
       );
       seen.add(dedupeKey);
       stats.importados++; count++;
-      if (count % 500 === 0) log(c.dim(`  … ${count}`));
+      itemLog(count, `  ${c.green('+')} ${row.title}${gameRef ? c.dim(` -> ${gameRef.title}`) : ''}`);
     }
     log(`  ${c.green('✓')} ${sec.key}: ${count} processados`);
 

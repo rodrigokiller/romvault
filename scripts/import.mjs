@@ -9,7 +9,8 @@
  *
  * Uso:
  *   npm run import                 # modo dataset (catalogo curado)
- *   npm run import -- --dry        # simula, nao escreve
+ *   npm run import -- --dry        # simula, nao escreve (implica --verbose)
+ *   npm run import -- --verbose    # mostra CADA item (padrao: progresso a cada 250)
  *   npm run import -- --source=igdb --platform=snes --limit=500       # 500 num run
  *   npm run import -- --source=igdb --platform=ps1 --pages=4          # 4 paginas
  *   npm run import -- --source=igdb --platform=snes --all             # TUDO da plataforma
@@ -56,9 +57,11 @@ const flag = (name, def = undefined) => {
   const next = args[idx + 1];
   return next && !next.startsWith('--') ? next : true;
 };
-const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section'];
+const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section', 'verbose'];
 const DRY = Boolean(flag('dry', false));
 const SOURCE = String(flag('source', 'dataset'));
+// --dry implica --verbose (dry-run existe pra inspecionar o que seria feito)
+const VERBOSE = Boolean(flag('verbose', false)) || DRY;
 
 /* ── env loader (sem dependencia): le .env da raiz e mescla com process.env ── */
 function loadEnv() {
@@ -92,6 +95,16 @@ const c = {
 };
 const log = (...a) => console.log(...a);
 const step = (s) => log(`\n${c.cyan('▸')} ${s}`);
+
+/**
+ * Log de item PADRONIZADO em todas as fontes:
+ *   padrao  -> silencioso, progresso `… N` a cada 250 (erros sempre aparecem)
+ *   --verbose -> mostra cada item importado
+ */
+const itemLog = (count, msg) => {
+  if (VERBOSE) log(msg);
+  else if (count % 250 === 0) log(c.dim(`  … ${count}`));
+};
 
 /* ── slug (identico a packages/core/src/domain/slug.ts) ─────────────────────── */
 function stripDiacritics(input) {
@@ -154,8 +167,8 @@ async function importDataset(sb) {
       continue;
     }
     slugToId.set(data.slug, data.id);
-    log(`  ${c.green('✓')} ${data.slug}`);
     stats.games++;
+    itemLog(stats.games, `  ${c.green('✓')} ${data.slug}`);
 
     // filhos ligados a este jogo
     await insertChildren(sb, 'romhacks', romhacks, data.id, stats, 'romhacks');
@@ -207,11 +220,11 @@ async function insertUniqueByTitle(sb, table, items, gameId, stats, statKey) {
   for (const item of items) {
     if (existing.has(item.title)) { stats.skipped++; continue; }
     const row = gameId ? { ...item, game_id: gameId } : { ...item };
-    if (DRY) { log(`  ${c.dim('[dry]')} ${table}: ${item.title}`); stats[statKey]++; continue; }
+    if (DRY) { itemLog(stats[statKey] + 1, `  ${c.dim('[dry]')} ${table}: ${item.title}`); stats[statKey]++; continue; }
     const { error } = await sb.from(table).insert(row);
     if (error) { log(c.red(`  ✖ ${table} "${item.title}": ${error.message}`)); continue; }
-    log(`  ${c.green('+')} ${c.dim(table)} ${item.title}`);
     stats[statKey]++;
+    itemLog(stats[statKey], `  ${c.green('+')} ${c.dim(table)} ${item.title}`);
   }
 }
 
@@ -375,8 +388,8 @@ async function importIgdb(sb) {
             cover_url: row.cover_url, thumbnail: row.thumbnail, screenshots: row.screenshots,
           }).eq('id', existingByIgdb.id);
           existingByIgdb.cover_url = row.cover_url;
-          log(`  ${c.cyan('~')} ${row.slug} ${c.dim('(capa preenchida)')}`);
           stats.enriched++;
+          itemLog(stats.enriched, `  ${c.cyan('~')} ${row.slug} ${c.dim('(capa preenchida)')}`);
         } else {
           stats.skipped++;
         }
@@ -384,7 +397,7 @@ async function importIgdb(sb) {
       }
       if (bySlug.has(row.slug)) { stats.skipped++; continue; }
 
-      if (DRY) { log(`  ${c.dim('[dry]')} ${row.slug} ${c.dim('igdb:' + g.id)}`); stats.games++; continue; }
+      if (DRY) { stats.games++; itemLog(stats.games, `  ${c.dim('[dry]')} ${row.slug} ${c.dim('igdb:' + g.id)}`); continue; }
 
       const { data: ins, error } = await sb.from('games').upsert(row, { onConflict: 'slug' }).select('id').single();
       if (error) {
@@ -395,8 +408,8 @@ async function importIgdb(sb) {
       }
       byIgdb.set(g.id, { id: ins.id, cover_url: row.cover_url });
       bySlug.set(row.slug, ins.id);
-      log(`  ${c.green('✓')} ${row.slug} ${c.dim('igdb:' + g.id)}`);
       stats.games++;
+      itemLog(stats.games, `  ${c.green('✓')} ${row.slug} ${c.dim('igdb:' + g.id)}`);
 
       // id_map: igdb_id -> romvault_id
       const { error: mErr } = await sb.from('id_map').upsert(
@@ -518,13 +531,13 @@ async function importSmwc(sb) {
         is_public: true,
       };
 
-      if (DRY) { log(`  ${c.dim('[dry]')} ${row.title}`); stats.romhacks++; seen.add(extId); continue; }
+      if (DRY) { stats.romhacks++; itemLog(stats.romhacks, `  ${c.dim('[dry]')} ${row.title}`); seen.add(extId); continue; }
 
       const { data: ins, error } = await sb.from('romhacks').insert(row).select('id').single();
       if (error) { log(c.red(`  ✖ ${row.title}: ${error.message}`)); continue; }
       seen.add(extId);
-      log(`  ${c.green('+')} ${row.title} ${c.dim('smwc:' + extId)}`);
       stats.romhacks++;
+      itemLog(stats.romhacks, `  ${c.green('+')} ${row.title} ${c.dim('smwc:' + extId)}`);
 
       const { error: mErr } = await sb.from('id_map').upsert(
         { romvault_id: ins.id, source, entity, external_id: extId, confidence: 1, match_type: 'external_id' },
@@ -566,10 +579,10 @@ async function main() {
   else if (SOURCE === 'smwc' || SOURCE === 'smwcentral') stats = await importSmwc(sb);
   else if (SOURCE === 'rhdn' || SOURCE === 'romhacking') {
     const { importRhdn } = await import('./lib/rhdn.mjs');
-    stats = await importRhdn({ sb, flag, DRY, log, c, step, slugifyText });
+    stats = await importRhdn({ sb, flag, DRY, log, c, step, slugifyText, itemLog });
   } else if (SOURCE === 'pobre' || SOURCE === 'romhackers') {
     const { importPobre } = await import('./lib/pobre.mjs');
-    stats = await importPobre({ sb, flag, DRY, log, c, step, slugifyText });
+    stats = await importPobre({ sb, flag, DRY, log, c, step, slugifyText, itemLog });
   } else stats = await importDataset(sb);
 
   step('Resumo');
