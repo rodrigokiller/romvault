@@ -25,6 +25,10 @@
  *   (baixe o romhacking.sql.zip LOGADO no Internet Archive:
  *    https://archive.org/details/romhacking.net-20240801)
  *
+ *   npm run import -- --source=pobre --section=traducoes --limit=5 --dry
+ *   npm run import -- --source=pobre                   # PO.B.R.E (traducoes PT-BR + hacks
+ *                                                        + utilitarios + tutoriais, scrape)
+ *
  * Variaveis (.env na raiz do repo — copie de .env.example):
  *   SUPABASE_URL              (= a mesma URL do projeto)
  *   SUPABASE_SERVICE_KEY      (sb_secret_... — server-only!)
@@ -563,6 +567,9 @@ async function main() {
   else if (SOURCE === 'rhdn' || SOURCE === 'romhacking') {
     const { importRhdn } = await import('./lib/rhdn.mjs');
     stats = await importRhdn({ sb, flag, DRY, log, c, step, slugifyText });
+  } else if (SOURCE === 'pobre' || SOURCE === 'romhackers') {
+    const { importPobre } = await import('./lib/pobre.mjs');
+    stats = await importPobre({ sb, flag, DRY, log, c, step, slugifyText });
   } else stats = await importDataset(sb);
 
   step('Resumo');
