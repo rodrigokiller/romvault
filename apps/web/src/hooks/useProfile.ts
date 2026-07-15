@@ -1,8 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Profile, Romhack, Translation, Document, Tool } from '@romvault/core';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
 import { useAuth } from '@/auth/AuthProvider';
+
+/** Shim sem tipagem de tabela (colunas novas até o próximo db:types). */
+const db = () => getSupabase() as unknown as SupabaseClient;
 
 export const profileKeys = {
   me: ['profile', 'me'] as const,
@@ -87,10 +91,10 @@ export function useUpdateProfile() {
   const { user } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (patch: Partial<Pick<Profile, 'username' | 'bio' | 'avatar_url'>>) => {
+    mutationFn: async (patch: Partial<Pick<Profile, 'username' | 'bio' | 'avatar_url'>> & { yearly_goal?: number | null }) => {
       const uid = user?.id;
       if (!uid) throw new Error('Não autenticado.');
-      const { data, error } = await getSupabase()
+      const { data, error } = await db()
         .from('profiles')
         .update(patch)
         .eq('id', uid)

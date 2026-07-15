@@ -23,15 +23,26 @@ export function CopiesWidget({ gameId, platforms }: { gameId: string; platforms:
   const [platform, setPlatform] = useState(platforms[0] ?? '');
   const [distribution, setDistribution] = useState<'physical' | 'digital'>('physical');
   const [store, setStore] = useState('');
+  const [acquiredAt, setAcquiredAt] = useState('');
+  const [price, setPrice] = useState('');
   const [adding, setAdding] = useState(false);
 
   if (disabled || !user) return null;
 
+  // scanner de duplicatas: já tem este jogo? em quais plataformas?
+  const ownedPlatforms = [...new Set(copies.map((c) => c.platform))];
+
   async function add() {
     if (!platform) return;
     try {
-      await addCopy.mutateAsync({ platform, distribution, store: store.trim() || null });
-      setStore('');
+      await addCopy.mutateAsync({
+        platform,
+        distribution,
+        store: store.trim() || null,
+        acquired_at: acquiredAt || null,
+        price_paid: price ? Number(price) : null,
+      });
+      setStore(''); setAcquiredAt(''); setPrice('');
       setAdding(false);
       toast.success(t('library:copyAdded'));
     } catch (err) {
@@ -75,19 +86,34 @@ export function CopiesWidget({ gameId, platforms }: { gameId: string; platforms:
       )}
 
       {adding && (
-        <div className="copies-form">
-          <Select value={platform} onChange={(e) => setPlatform(e.target.value)} aria-label={t('browse:filterPlatform')}>
-            {platforms.map((p) => <option key={p} value={p}>{p}</option>)}
-          </Select>
-          <Select value={distribution} onChange={(e) => setDistribution(e.target.value as 'physical' | 'digital')} aria-label="tipo">
-            <option value="physical">{t('library:dist_physical')}</option>
-            <option value="digital">{t('library:dist_digital')}</option>
-          </Select>
-          <Input value={store} onChange={(e) => setStore(e.target.value)} placeholder={t('library:copyStorePh')} />
-          <Button size="sm" variant="primary" onClick={() => void add()} disabled={addCopy.isPending}>
-            <Plus /> {t('library:copyConfirm')}
-          </Button>
-        </div>
+        <>
+          {ownedPlatforms.length > 0 && (
+            <p className="copies-dup mono">
+              {t('library:dupWarning', { platforms: ownedPlatforms.join(', ') })}
+            </p>
+          )}
+          <div className="copies-form">
+            <Select value={platform} onChange={(e) => setPlatform(e.target.value)} aria-label={t('browse:filterPlatform')}>
+              {platforms.map((p) => <option key={p} value={p}>{p}</option>)}
+            </Select>
+            <Select value={distribution} onChange={(e) => setDistribution(e.target.value as 'physical' | 'digital')} aria-label="tipo">
+              <option value="physical">{t('library:dist_physical')}</option>
+              <option value="digital">{t('library:dist_digital')}</option>
+            </Select>
+            <Input value={store} onChange={(e) => setStore(e.target.value)} placeholder={t('library:copyStorePh')} />
+            <Input
+              type="date" value={acquiredAt} onChange={(e) => setAcquiredAt(e.target.value)}
+              aria-label={t('library:copyAcquired')} title={t('library:copyAcquired')}
+            />
+            <Input
+              type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)}
+              placeholder={t('library:copyPricePh')} aria-label={t('library:copyPricePh')}
+            />
+            <Button size="sm" variant="primary" onClick={() => void add()} disabled={addCopy.isPending}>
+              <Plus /> {t('library:copyConfirm')}
+            </Button>
+          </div>
+        </>
       )}
     </div>
   );

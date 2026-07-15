@@ -31,6 +31,26 @@ export function useIsFavorite(subjectType: FavoriteSubject, subjectId: string | 
   });
 }
 
+/**
+ * IDs de jogos favoritados pelo usuário logado — UMA query compartilhada por
+ * todos os cards do grid (não uma por card).
+ */
+export function useMyFavoriteGameIds() {
+  const { user } = useAuth();
+  const uid = user?.id;
+  return useQuery({
+    queryKey: ['favoriteGameIds', uid],
+    enabled: env.configured && Boolean(uid),
+    queryFn: async (): Promise<Set<string>> => {
+      const { data, error } = await db()
+        .from('favorites').select('subject_id')
+        .eq('user_id', uid as string).eq('subject_type', 'game').range(0, 9999);
+      if (error) throw error;
+      return new Set((data ?? []).map((r) => r.subject_id as string));
+    },
+  });
+}
+
 export function useToggleFavorite(subjectType: FavoriteSubject, subjectId: string | undefined) {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -51,6 +71,7 @@ export function useToggleFavorite(subjectType: FavoriteSubject, subjectId: strin
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['favorite', subjectType, subjectId] });
       void qc.invalidateQueries({ queryKey: ['favorites', 'mine'] });
+      void qc.invalidateQueries({ queryKey: ['favoriteGameIds'] });
     },
   });
 }

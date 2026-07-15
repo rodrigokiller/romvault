@@ -63,6 +63,7 @@ export function useSetTrack(gameId: string | undefined) {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['track', gameId] });
+      void qc.invalidateQueries({ queryKey: ['trackMap'] });
       void qc.invalidateQueries({ queryKey: ['library'] });
     },
   });
@@ -81,6 +82,7 @@ export function useRemoveTrack(gameId: string | undefined) {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['track', gameId] });
+      void qc.invalidateQueries({ queryKey: ['trackMap'] });
       void qc.invalidateQueries({ queryKey: ['library'] });
     },
   });
@@ -97,6 +99,8 @@ export interface GameCopy {
   edition: string | null;
   region: string | null;
   notes: string | null;
+  acquired_at: string | null;
+  price_paid: number | null;
 }
 
 /** Cópias do usuário logado para um jogo. */
@@ -162,6 +166,26 @@ export function useLibraryCopies(userId: string | undefined) {
   });
 }
 
+/**
+ * Mapa game_id -> status do usuário logado — UMA query compartilhada por todos
+ * os cards do grid (não uma por card).
+ */
+export function useMyTrackMap() {
+  const { user } = useAuth();
+  const uid = user?.id;
+  return useQuery({
+    queryKey: ['trackMap', uid],
+    enabled: env.configured && Boolean(uid),
+    queryFn: async (): Promise<Map<string, TrackStatus>> => {
+      const { data, error } = await db()
+        .from('game_tracks').select('game_id, status')
+        .eq('user_id', uid as string).range(0, 9999);
+      if (error) throw error;
+      return new Map((data ?? []).map((r) => [r.game_id as string, r.status as TrackStatus]));
+    },
+  });
+}
+
 /* ── Zeradas (playthroughs): N por usuário+jogo, data obrigatória ───────────── */
 export interface Playthrough {
   id: string;
@@ -198,7 +222,24 @@ export function useAddPlaythrough(gameId: string | undefined) {
         .insert({ ...p, user_id: uid, game_id: gameId });
       if (error) throw error;
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['playthroughs', gameId] }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['playthroughs', gameId] }); void qc.invalidateQueries({ queryKey: ['userPlaythroughs'] }); },
+  });
+}
+
+/** Todas as zeradas de um usuário (timeline por ano, meta anual, badge ×N). */
+export function useUserPlaythroughs(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['userPlaythroughs', userId],
+    enabled: env.configured && Boolean(userId),
+    queryFn: async (): Promise<{ game_id: string; finished_on: string }[]> => {
+      const { data, error } = await db()
+        .from('game_playthroughs').select('game_id, finished_on')
+        .eq('user_id', userId as string)
+        .order('finished_on', { ascending: false })
+        .range(0, 9999);
+      if (error) throw error;
+      return (data ?? []) as { game_id: string; finished_on: string }[];
+    },
   });
 }
 
@@ -209,7 +250,7 @@ export function useRemovePlaythrough(gameId: string | undefined) {
       const { error } = await db().from('game_playthroughs').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['playthroughs', gameId] }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['playthroughs', gameId] }); void qc.invalidateQueries({ queryKey: ['userPlaythroughs'] }); },
   });
 }
 

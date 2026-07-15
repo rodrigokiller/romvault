@@ -3,6 +3,7 @@ import { Gamepad2 } from 'lucide-react';
 import type { Game } from '@romvault/core';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { QuickActions } from './QuickActions';
 
 /**
  * Card de jogo. É o formato "resumido" da entidade Game; a página completa
@@ -19,6 +20,7 @@ export function GameCard({ game }: { game: Game }) {
             ) : (
               <Gamepad2 aria-hidden />
             )}
+            <QuickActions game={game} />
           </div>
           <div className="tile-body">
             <span className="tile-title">{game.title}</span>

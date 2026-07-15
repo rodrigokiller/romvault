@@ -14,7 +14,7 @@ import {
   useProfileByUsername, useMyProfile, useContributions, useUpdateProfile,
 } from '@/hooks/useProfile';
 import { useMyFavorites } from '@/hooks/useFavorites';
-import { useLibrary } from '@/hooks/useTracks';
+import { useLibrary, useUserPlaythroughs } from '@/hooks/useTracks';
 import type { Kind } from '@/components/entities/kinds';
 import type { Game } from '@romvault/core';
 
@@ -28,6 +28,7 @@ export function Profile() {
   const { data: contrib } = useContributions(profile?.id);
   const { data: favorites = [] } = useMyFavorites(profile?.id);
   const { data: libTracks = [] } = useLibrary(profile?.id);
+  const { data: playthroughs = [] } = useUserPlaythroughs(profile?.id);
 
   if (isLoading) return <LoadingPage />;
   if (!profile) {
@@ -93,6 +94,8 @@ export function Profile() {
         )}
       </section>
 
+      {playthroughs.length > 0 && <RunsTimeline playthroughs={playthroughs} />}
+
       {isMe && favorites.length > 0 && (
         <section className="section">
           <div className="section-head">
@@ -110,6 +113,36 @@ export function Profile() {
         </section>
       )}
     </div>
+  );
+}
+
+/** Linha do tempo de zeradas: "2024 ▓▓▓▓ 12" por ano (estilo Year in Review). */
+function RunsTimeline({ playthroughs }: { playthroughs: { finished_on: string }[] }) {
+  const { t } = useTranslation();
+  const byYear = new Map<string, number>();
+  for (const p of playthroughs) {
+    const y = p.finished_on.slice(0, 4);
+    byYear.set(y, (byYear.get(y) ?? 0) + 1);
+  }
+  const years = [...byYear.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  const max = Math.max(...byYear.values());
+  return (
+    <section className="section">
+      <div className="section-head">
+        <h2>{t('library:timelineTitle')}</h2>
+      </div>
+      <div className="runs-timeline">
+        {years.map(([year, count]) => (
+          <div key={year} className="runs-year">
+            <span className="runs-year-label mono">{year}</span>
+            <div className="runs-year-bar">
+              <div className="runs-year-fill" style={{ width: `${(count / max) * 100}%` }} />
+            </div>
+            <span className="runs-year-count mono">{t('library:timelineCount', { count })}</span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -132,17 +165,22 @@ function BacklogProgress({ tracks }: { tracks: { status: string }[] }) {
   );
 }
 
-function ProfileEditor({ profile }: { profile: { username: string | null; bio: string | null } }) {
+function ProfileEditor({ profile }: { profile: { username: string | null; bio: string | null; yearly_goal?: number | null } }) {
   const { t } = useTranslation();
   const toast = useToast();
   const update = useUpdateProfile();
   const [editing, setEditing] = useState(false);
   const [username, setUsername] = useState(profile.username ?? '');
   const [bio, setBio] = useState(profile.bio ?? '');
+  const [goal, setGoal] = useState(profile.yearly_goal ? String(profile.yearly_goal) : '');
 
   async function save() {
     try {
-      await update.mutateAsync({ username: username.trim() || null, bio: bio.trim() || null });
+      await update.mutateAsync({
+        username: username.trim() || null,
+        bio: bio.trim() || null,
+        yearly_goal: goal ? Math.max(1, Math.min(999, Number(goal))) : null,
+      });
       toast.success(t('profile:saved'));
       setEditing(false);
     } catch (err) {
@@ -165,6 +203,11 @@ function ProfileEditor({ profile }: { profile: { username: string | null; bio: s
       </Field>
       <Field label={t('profile:bio')}>
         {(id) => <Textarea id={id} value={bio} onChange={(e) => setBio(e.target.value)} rows={3} />}
+      </Field>
+      <Field label={t('library:goalField')} hint={t('library:goalHint')}>
+        {(id) => (
+          <Input id={id} type="number" min={1} max={999} value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="20" />
+        )}
       </Field>
       <div className="submit-actions">
         <Button variant="ghost" size="sm" onClick={() => setEditing(false)}><X /> {t('forms:actionReset')}</Button>
