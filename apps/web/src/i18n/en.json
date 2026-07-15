@@ -234,7 +234,15 @@
     "apiRevoke": "Revoke",
     "apiRevokeConfirm": "Revoke this key? Apps using it will stop working.",
     "apiUsed": "uses",
-    "apiDocsLink": "Read the API docs"
+    "apiDocsLink": "Read the API docs",
+    "steamTitle": "Import from Steam",
+    "steamHint": "Brings your Steam library (games + hours) into your tracks. Never overwrites manual statuses.",
+    "steamId": "SteamID64 or vanity URL",
+    "steamIdHint": "profile must be public",
+    "steamRun": "Import",
+    "steamDone": "Steam: {{games}} games read, {{tracks}} added to your library ({{created}} new catalog games).",
+    "steamNote": "Requires the steam-import Edge Function deployed (supabase functions deploy steam-import --no-verify-jwt) and the STEAM_API_KEY secret.",
+    "steamNotDeployed": "Couldn't reach the function. Deploy: supabase functions deploy steam-import --no-verify-jwt"
   },
   "library": {
     "kicker": "// game shelf",
@@ -295,7 +303,8 @@
     "runsBadge": "Finished {{count}} times",
     "timelineTitle": "Completions by year",
     "timelineCount_one": "{{count}} game",
-    "timelineCount_other": "{{count}} games"
+    "timelineCount_other": "{{count}} games",
+    "runReviewPh": "Mini-review for this completion (optional — with stars it becomes your game review)"
   },
   "collections": {
     "kicker": "// curated",

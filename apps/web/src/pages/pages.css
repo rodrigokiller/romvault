@@ -1470,6 +1470,21 @@
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: var(--s6) var(--s5);
 }
+/* Tema por plataforma: o accent da estante muda pro "espírito" do console */
+.shelf-themed .shelf-item:hover .shelf-cover {
+  border-color: var(--shelf-accent, var(--accent));
+}
+.shelf-themed .shelf-badge {
+  border-color: var(--shelf-accent, var(--line-bright));
+}
+.shelf-themed .shelf-badge svg {
+  color: var(--shelf-accent, var(--accent));
+}
+.shelf-themed .shelf-cover {
+  box-shadow: 0 0 0 0 transparent;
+  border-color: color-mix(in srgb, var(--shelf-accent, var(--line)) 35%, var(--line));
+}
+
 .shelf-runs {
   position: absolute;
   bottom: 6px;
@@ -1559,6 +1574,13 @@
 }
 .copies-form select { max-width: 150px; }
 .copies-form input { flex: 1; min-width: 160px; }
+.run-review {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.run-review textarea { width: 100%; }
 
 /* ── Biblioteca / Estante ─────────────────────────────────────────────────── */
 .lib-stats {

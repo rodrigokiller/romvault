@@ -215,7 +215,7 @@ export function useAddPlaythrough(gameId: string | undefined) {
   const { user } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: { finished_on: string; precision: Playthrough['precision'] }) => {
+    mutationFn: async (p: { finished_on: string; precision: Playthrough['precision']; notes?: string | null }) => {
       const uid = user?.id;
       if (!uid || !gameId) throw new Error('Não autenticado.');
       const { error } = await db().from('game_playthroughs')

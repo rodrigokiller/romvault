@@ -77,3 +77,20 @@ curl "https://<project>.supabase.co/functions/v1/public-api/games?q=metroid&limi
 Rotas: `/games`, `/games/:slug`, `/romhacks?game=`, `/translations?game=`,
 `/documents?game=`, `/tools`. Query: `limit` (≤100), `offset`, `q`, `platform`.
 A doc navegável fica em **/api** no app.
+
+---
+
+## `steam-import` — importa a biblioteca Steam do usuário logado
+
+Puxa jogos + horas via Steam Web API, casa com o catálogo (por
+`external_ids.steam` ou título), cria jogos mínimos (`data_source='steam'`)
+quando faltam, e grava `game_tracks` (source `steam`, sem sobrescrever status
+manual) + `game_copies` (digital/Steam). Disparado em **Configurações →
+Importar da Steam** (SteamID64 ou vanity URL; o perfil precisa ser público).
+
+### Deploy
+
+```bash
+supabase secrets set STEAM_API_KEY=xxxx   # gratis: steamcommunity.com/dev/apikey
+supabase functions deploy steam-import --no-verify-jwt
+```

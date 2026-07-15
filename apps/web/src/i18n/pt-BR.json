@@ -234,7 +234,15 @@
     "apiRevoke": "Revogar",
     "apiRevokeConfirm": "Revogar esta chave? Apps que a usam vão parar de funcionar.",
     "apiUsed": "usos",
-    "apiDocsLink": "Ver a documentação da API"
+    "apiDocsLink": "Ver a documentação da API",
+    "steamTitle": "Importar da Steam",
+    "steamHint": "Traz sua biblioteca Steam (jogos + horas) pros seus tracks. Não sobrescreve status marcados à mão.",
+    "steamId": "SteamID64 ou vanity URL",
+    "steamIdHint": "perfil precisa ser público",
+    "steamRun": "Importar",
+    "steamDone": "Steam: {{games}} jogos lidos, {{tracks}} adicionados à biblioteca ({{created}} jogos novos no catálogo).",
+    "steamNote": "Requer a Edge Function steam-import deployada (supabase functions deploy steam-import --no-verify-jwt) e o secret STEAM_API_KEY.",
+    "steamNotDeployed": "Não consegui alcançar a função. Deploy: supabase functions deploy steam-import --no-verify-jwt"
   },
   "library": {
     "kicker": "// estante de jogos",
@@ -295,7 +303,8 @@
     "runsBadge": "Zerado {{count}} vezes",
     "timelineTitle": "Zeradas por ano",
     "timelineCount_one": "{{count}} jogo",
-    "timelineCount_other": "{{count}} jogos"
+    "timelineCount_other": "{{count}} jogos",
+    "runReviewPh": "Mini-review desta zerada (opcional — com estrelas vira sua avaliação do jogo)"
   },
   "collections": {
     "kicker": "// curadoria",

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trophy, Plus, X } from 'lucide-react';
+import { Trophy, Plus, X, Star } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
-import { Input } from '@/components/ui/Input';
+import { Input, Textarea } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/auth/AuthProvider';
 import { useMyPlaythroughs, useAddPlaythrough, useRemovePlaythrough, type Playthrough } from '@/hooks/useTracks';
+import { useUpsertReview } from '@/hooks/useReviews';
 
 /** Exibe a data respeitando a precisão registrada. */
 function fmt(p: Playthrough): string {
@@ -24,10 +25,13 @@ export function PlaythroughsWidget({ gameId }: { gameId: string }) {
   const { data: runs = [] } = useMyPlaythroughs(gameId);
   const add = useAddPlaythrough(gameId);
   const remove = useRemovePlaythrough(gameId);
+  const upsertReview = useUpsertReview('game', gameId);
 
   const [adding, setAdding] = useState(false);
   const [precision, setPrecision] = useState<Playthrough['precision']>('day');
   const [value, setValue] = useState('');
+  const [review, setReview] = useState('');
+  const [rating, setRating] = useState(0);
 
   if (disabled || !user) return null;
 
@@ -39,8 +43,10 @@ export function PlaythroughsWidget({ gameId }: { gameId: string }) {
     else if (precision === 'year' && /^\d{4}$/.test(value)) iso = `${value}-01-01`;
     if (!iso) { toast.error(t('library:runDateRequired')); return; }
     try {
-      await add.mutateAsync({ finished_on: iso, precision });
-      setValue(''); setAdding(false);
+      await add.mutateAsync({ finished_on: iso, precision, notes: review.trim() || null });
+      // nota opcional vira review pública do jogo (upsert: 1 por usuário)
+      if (rating > 0) await upsertReview.mutateAsync({ rating, comment: review.trim() });
+      setValue(''); setReview(''); setRating(0); setAdding(false);
       toast.success(t('library:runAdded'));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('forms:submitError'));
@@ -61,7 +67,10 @@ export function PlaythroughsWidget({ gameId }: { gameId: string }) {
           {runs.map((p) => (
             <li key={p.id} className="copies-item">
               <Trophy aria-hidden />
-              <span className="copies-item-main">{fmt(p)}</span>
+              <span className="copies-item-main">
+                {fmt(p)}
+                {p.notes && <span className="muted-text"> — “{p.notes}”</span>}
+              </span>
               <button
                 type="button" className="copies-remove" aria-label={t('library:runRemove')}
                 onClick={() => void remove.mutateAsync(p.id).catch(() => toast.error(t('forms:submitError')))}
@@ -89,6 +98,26 @@ export function PlaythroughsWidget({ gameId }: { gameId: string }) {
           {precision === 'year' && (
             <Input type="number" min={1970} max={2100} placeholder="2024" value={value} onChange={(e) => setValue(e.target.value)} />
           )}
+          <div className="run-review">
+            <span className="stars" role="radiogroup" aria-label={t('community:yourRating')}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n} type="button" className="star-btn"
+                  aria-label={String(n)}
+                  onClick={() => setRating(rating === n ? 0 : n)}
+                >
+                  <Star
+                    aria-hidden width={18} height={18}
+                    style={{ fill: n <= rating ? 'var(--amber)' : 'none', color: n <= rating ? 'var(--amber)' : 'var(--line-bright)' }}
+                  />
+                </button>
+              ))}
+            </span>
+            <Textarea
+              value={review} onChange={(e) => setReview(e.target.value)} rows={2}
+              placeholder={t('library:runReviewPh')}
+            />
+          </div>
           <Button size="sm" variant="primary" onClick={() => void save()} disabled={add.isPending}>
             <Plus /> {t('library:runConfirm')}
           </Button>

@@ -9,6 +9,21 @@ import {
 import { STATUS_ICON } from '@/components/entities/TrackButton';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 
+/**
+ * Cor-tema por plataforma: filtrar a estante por uma plataforma muda o accent
+ * (borda/hover/badges) pra "cara" daquele console.
+ */
+const PLATFORM_THEMES: Record<string, string> = {
+  SNES: '#a191dd', NES: '#e05a5a', N64: '#3aa655', GameCube: '#7a5fd0',
+  Wii: '#9db7d4', 'Wii U': '#1fa8c9', Switch: '#e60012',
+  'Game Boy': '#8bac0f', GBC: '#7b4fd8', GBA: '#5c67d8', NDS: '#8f9aa6', '3DS': '#d94a4a',
+  Genesis: '#3b6fd4', 'Master System': '#d43b3b', 'Game Gear': '#333c8f',
+  'Sega CD': '#4a90d9', Saturn: '#5b7d9e', Dreamcast: '#f0862e',
+  PS1: '#8f9aa6', PS2: '#3b53a8', PS3: '#5b6f8f', PS4: '#2e6db4', PS5: '#e8ecf2', PSP: '#4a5d78', 'PS Vita': '#2e6db4',
+  Xbox: '#107c10', 'Xbox 360': '#7ab648', 'Xbox One': '#107c10',
+  PC: '#66c0f4', DOS: '#c4b26a', Arcade: '#f0c02e', 'TG-16': '#f07d2e', 'Neo Geo': '#2e6db4', FDS: '#c9302c',
+};
+
 /** Estante de jogos do usuário: abas por status + prateleira de capas. */
 export function Library() {
   const { t } = useTranslation();
@@ -176,6 +191,9 @@ export function Library() {
               key={p}
               type="button"
               className={`search-chip ${platform === p ? 'is-active' : ''}`}
+              style={platform === p && PLATFORM_THEMES[p]
+                ? { color: PLATFORM_THEMES[p], borderColor: PLATFORM_THEMES[p] }
+                : undefined}
               onClick={() => setPlatform(platform === p ? null : p)}
             >
               {p}
@@ -198,7 +216,12 @@ export function Library() {
       {shown.length === 0 ? (
         <EmptyState icon={LibraryIcon} title={t('library:emptyTitle')} text={t('library:emptyText')} />
       ) : (
-        <div className={`shelf ${showcase ? 'shelf-showcase' : ''}`}>
+        <div
+          className={`shelf ${showcase ? 'shelf-showcase' : ''} ${platform ? 'shelf-themed' : ''}`}
+          style={platform && PLATFORM_THEMES[platform]
+            ? ({ '--shelf-accent': PLATFORM_THEMES[platform] } as React.CSSProperties)
+            : undefined}
+        >
           {shown.map((track) => (
             <ShelfItem key={track.game_id} track={track} runs={runsByGame.get(track.game_id) ?? 0} showcase={showcase} />
           ))}

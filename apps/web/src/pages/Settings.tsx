@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Key, Copy, Trash2, Plus, BookOpen } from 'lucide-react';
+import { Key, Copy, Trash2, Plus, BookOpen, Gamepad2 } from 'lucide-react';
+import { getSupabase } from '@/lib/supabase';
+import { Spinner } from '@/components/ui/feedback';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -91,8 +93,59 @@ export function Settings() {
         )}
       </Card>
 
+      {session && !disabled && <SteamImportSection />}
       {session && !disabled && <ApiKeysSection />}
     </div>
+  );
+}
+
+/** Import da biblioteca Steam (jogos, horas) para os tracks do usuário. */
+function SteamImportSection() {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const [steamid, setSteamid] = useState('');
+  const [running, setRunning] = useState(false);
+
+  async function run() {
+    if (!steamid.trim()) return;
+    setRunning(true);
+    try {
+      const { data, error } = await getSupabase().functions.invoke('steam-import', {
+        body: { steamid: steamid.trim() },
+      });
+      if (error) throw error;
+      const d = data as { error?: string; steam_games?: number; tracks_added?: number; games_created?: number };
+      if (d?.error) throw new Error(d.error);
+      toast.success(t('settings:steamDone', {
+        games: d?.steam_games ?? 0, tracks: d?.tracks_added ?? 0, created: d?.games_created ?? 0,
+      }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      const notDeployed = /failed to send|fetch|networkerror/i.test(msg);
+      toast.error(notDeployed ? t('settings:steamNotDeployed') : (msg || t('forms:submitError')));
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('settings:steamTitle')}</div>
+        <div className="card-sub">{t('settings:steamHint')}</div>
+      </div>
+      <div className="api-create">
+        <Field label={t('settings:steamId')} hint={t('settings:steamIdHint')}>
+          {(id) => (
+            <Input id={id} value={steamid} onChange={(e) => setSteamid(e.target.value)} placeholder="76561198... ou vanity" />
+          )}
+        </Field>
+        <Button variant="primary" onClick={() => void run()} disabled={running || !steamid.trim()}>
+          {running ? <Spinner /> : <><Gamepad2 /> {t('settings:steamRun')}</>}
+        </Button>
+      </div>
+      <p className="field-hint">{t('settings:steamNote')}</p>
+    </Card>
   );
 }
 
