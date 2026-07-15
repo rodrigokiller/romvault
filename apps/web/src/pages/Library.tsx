@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useFlip } from '@/hooks/useFlip';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Target, Download } from 'lucide-react';
@@ -64,6 +65,8 @@ export function Library() {
   const [status, setStatus] = useState<TrackStatus | 'all'>('all');
   const [platform, setPlatform] = useState<string | null>(null);
   const [onlyDupes, setOnlyDupes] = useState(false);
+  const [order, setOrder] = useState<'recent' | 'az' | 'platform'>('recent');
+  const shelfRef = useRef<HTMLDivElement | null>(null);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: tracks.length };
@@ -96,8 +99,18 @@ export function Library() {
     }
     // "repetidos": jogos com mais de uma cópia
     if (onlyDupes) list = list.filter((x) => (copiesByGame.get(x.game_id) ?? []).length > 1);
+    // reordenar a coleção (o FLIP anima a troca de lugares)
+    if (order === 'az') list = [...list].sort((a, b) => a.game.title.localeCompare(b.game.title));
+    else if (order === 'platform') {
+      list = [...list].sort((a, b) =>
+        (a.game.platforms?.[0] ?? '').localeCompare(b.game.platforms?.[0] ?? '') ||
+        a.game.title.localeCompare(b.game.title));
+    }
     return list;
-  }, [tracks, status, platform, copiesByGame, onlyDupes]);
+  }, [tracks, status, platform, copiesByGame, onlyDupes, order]);
+
+  // anima a reorganização da estante (filtros/ordenação)
+  useFlip(shelfRef, `${status}|${platform}|${onlyDupes}|${order}|${shown.length}`);
 
   const totalHours = useMemo(
     () => tracks.reduce((sum, x) => sum + (x.hours_played ?? 0), 0),
@@ -248,6 +261,17 @@ export function Library() {
               {t('library:dupesChip', { count: dupeCount })}
             </button>
           )}
+          <span className="chips-sep" aria-hidden>·</span>
+          {(['recent', 'az', 'platform'] as const).map((o) => (
+            <button
+              key={o}
+              type="button"
+              className={`search-chip ${order === o ? 'is-active' : ''}`}
+              onClick={() => setOrder(o)}
+            >
+              {t(`library:order_${o}`)}
+            </button>
+          ))}
         </div>
       )}
 
@@ -255,7 +279,8 @@ export function Library() {
         <EmptyState icon={LibraryIcon} title={t('library:emptyTitle')} text={t('library:emptyText')} />
       ) : (
         <div
-          className={`shelf ${showcase ? 'shelf-showcase' : ''} ${platform ? 'shelf-themed' : ''}`}
+          ref={shelfRef}
+          className={`shelf ${showcase ? 'shelf-showcase shelf-physical' : ''} ${platform ? 'shelf-themed' : ''}`}
           style={platform && PLATFORM_THEMES[platform]
             ? ({ '--shelf-accent': PLATFORM_THEMES[platform] } as React.CSSProperties)
             : undefined}
@@ -274,7 +299,7 @@ function ShelfItem({ track, runs, showcase }: { track: TrackWithGame; runs: numb
   const g = track.game;
   const SIcon = STATUS_ICON[track.status];
   return (
-    <Link to={`/games/${g.slug}`} className="shelf-item" title={g.title}>
+    <Link to={`/games/${g.slug}`} className="shelf-item" title={g.title} data-flip={track.game_id}>
       <div className={`shelf-cover status-${track.status}`}>
         {g.cover_url || g.thumbnail ? (
           <img src={g.cover_url ?? g.thumbnail ?? ''} alt={g.title} loading="lazy" />

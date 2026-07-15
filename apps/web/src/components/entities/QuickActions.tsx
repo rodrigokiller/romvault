@@ -17,7 +17,7 @@ import { STATUS_ICON } from './TrackButton';
  * biblioteca (menu de status) e quick-view. No desktop aparecem no hover; no
  * touch ficam sempre visíveis (@media hover:none).
  */
-export function QuickActions({ game }: { game: Game }) {
+export function QuickActions({ game, translationBadges }: { game: Game; translationBadges?: string[] }) {
   const { t } = useTranslation();
   const toast = useToast();
   const navigate = useNavigate();
@@ -165,6 +165,11 @@ export function QuickActions({ game }: { game: Game }) {
                   {(game.platforms ?? []).slice(0, 4).map((p) => (
                     <Badge key={p} tone="accent">{p}</Badge>
                   ))}
+                  {translationBadges && translationBadges.length > 0 && (
+                    <span className="chip" title={t('games:hasTranslations')}>
+                      {translationBadges.slice(0, 4).join(' ')}
+                    </span>
+                  )}
                 </div>
                 <div className="tile-meta" style={{ marginTop: 'var(--s2)' }}>
                   {game.release_date && <span>{game.release_date.slice(0, 4)}</span>}

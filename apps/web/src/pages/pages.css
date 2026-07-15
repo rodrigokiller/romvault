@@ -1681,6 +1681,77 @@
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: var(--s6) var(--s5);
 }
+/* ── Estante FÍSICA (modo vitrine): prateleiras + caixinhas 3D ────────────── */
+.shelf-physical {
+  /* grade rígida: linhas de altura fixa para as "tábuas" caírem certas */
+  --box-h: 232px;
+  --board-h: 14px;
+  --row-gap: 34px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-auto-rows: var(--box-h);
+  column-gap: var(--s5);
+  row-gap: calc(var(--board-h) + var(--row-gap));
+  padding: var(--s4) var(--s5) calc(var(--board-h) + var(--s4));
+  border: 1px solid var(--line);
+  background:
+    /* tábua sob cada fileira, no passo exato da grade */
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent var(--box-h),
+      #241a12 var(--box-h),
+      #3a2b1d calc(var(--box-h) + 3px),
+      #2b1f15 calc(var(--box-h) + var(--board-h) - 3px),
+      #15100b calc(var(--box-h) + var(--board-h)),
+      transparent calc(var(--box-h) + var(--board-h)),
+      transparent calc(var(--box-h) + var(--board-h) + var(--row-gap))
+    ) local,
+    radial-gradient(120% 100% at 50% 0%, #141b1f 0%, #0b0e10 70%);
+  background-origin: content-box;
+}
+.shelf-physical .shelf-item {
+  perspective: 700px;
+  align-self: end;
+  animation: none; /* o FLIP cuida do movimento */
+}
+.shelf-physical .shelf-cover {
+  height: calc(var(--box-h) - 10px);
+  aspect-ratio: auto;
+  transform-style: preserve-3d;
+  transform-origin: left center;
+  border: none;
+  /* lombada: sombra interna à esquerda simula a espessura da caixinha */
+  box-shadow:
+    inset 6px 0 8px -4px rgba(0, 0, 0, 0.75),
+    inset -2px 0 3px -2px rgba(255, 255, 255, 0.12),
+    4px 6px 14px rgba(0, 0, 0, 0.55);
+  transition: transform 380ms var(--ease), box-shadow 380ms var(--ease);
+}
+.shelf-physical .shelf-item:hover .shelf-cover {
+  transform: rotateY(-16deg) translateY(-8px);
+  box-shadow:
+    inset 6px 0 8px -4px rgba(0, 0, 0, 0.75),
+    14px 16px 28px rgba(0, 0, 0, 0.6);
+}
+/* reflexo sutil no "vidro" da prateleira */
+.shelf-physical .shelf-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.07) 45%, transparent 60%);
+  pointer-events: none;
+}
+.shelf-physical .shelf-title {
+  display: none; /* na vitrine física, só as caixinhas — como numa estante real */
+}
+@media (prefers-reduced-motion: reduce) {
+  .shelf-physical .shelf-item:hover .shelf-cover { transform: none; }
+}
+.chips-sep {
+  color: var(--line-bright);
+  align-self: center;
+}
+
 /* Tema por plataforma: o accent da estante muda pro "espírito" do console */
 .shelf-themed .shelf-item:hover .shelf-cover {
   border-color: var(--shelf-accent, var(--accent));

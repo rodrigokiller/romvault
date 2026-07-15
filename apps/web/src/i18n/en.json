@@ -94,6 +94,7 @@
     "highlightsTitle": "Top picks",
     "quickView": "Quick view",
     "openFull": "Open full page",
+    "hasTranslations": "Translations available",
     "ageRating": "Age rating",
     "completionTitle": "Completion time",
     "completionMain": "Main story",
@@ -313,7 +314,10 @@
     "batchConfirm": "Add {{count}}",
     "batchDone": "{{count}} games added to your library!",
     "export": "Export",
-    "exportHint": "Downloads your library (games, statuses, hours, copies) as JSON"
+    "exportHint": "Downloads your library (games, statuses, hours, copies) as JSON",
+    "order_recent": "Recent",
+    "order_az": "A–Z",
+    "order_platform": "By platform"
   },
   "users": {
     "kicker": "// community",

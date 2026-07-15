@@ -34,6 +34,8 @@
  *   npm run import -- --source=covers-libretro --platform=snes --dry
  *   npm run import -- --source=covers-libretro         # BOX ART real (libretro CDN
  *                                                        -> copiada pro nosso Storage)
+ *   npm run import -- --source=screenscraper --inspect # box 3D/verso/manual (requer
+ *                                                        SS_DEVID/SS_USER no .env)
  *   npm run import -- --source=dedupe --dry            # FUNDE jogos duplicados
  *   npm run import -- --source=dedupe                  #   (sempre --dry primeiro!)
  *
@@ -678,6 +680,9 @@ async function main() {
   } else if (SOURCE === 'covers-libretro' || SOURCE === 'libretro') {
     const { importCoversLibretro } = await import('./lib/libretro.mjs');
     stats = await importCoversLibretro({ sb, flag, DRY, log, c, step, itemLog, fetchAll });
+  } else if (SOURCE === 'screenscraper' || SOURCE === 'ss') {
+    const { importScreenscraper } = await import('./lib/screenscraper.mjs');
+    stats = await importScreenscraper({ sb, flag, DRY, log, c, step, itemLog, fetchAll, ENV });
   } else if (SOURCE === 'dedupe') {
     const { dedupeGames } = await import('./lib/dedupe-games.mjs');
     stats = await dedupeGames({ sb, flag, DRY, log, c, step, itemLog, fetchAll });

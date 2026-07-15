@@ -22,7 +22,7 @@ export function GameCard({ game, translationBadges }: { game: Game; translationB
             ) : (
               <Gamepad2 aria-hidden />
             )}
-            <QuickActions game={game} />
+            <QuickActions game={game} translationBadges={translationBadges} />
             {translationBadges && translationBadges.length > 0 && (
               <span className="tile-langs" title={translationBadges.join(' ')}>
                 {translationBadges.slice(0, 3).join('')}

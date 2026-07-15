@@ -94,6 +94,7 @@
     "highlightsTitle": "Destaques",
     "quickView": "Detalhes rápidos",
     "openFull": "Ver página completa",
+    "hasTranslations": "Traduções disponíveis",
     "ageRating": "Classificação",
     "completionTitle": "Tempo de conclusão",
     "completionMain": "História principal",
@@ -313,7 +314,10 @@
     "batchConfirm": "Adicionar {{count}}",
     "batchDone": "{{count}} jogos adicionados à biblioteca!",
     "export": "Exportar",
-    "exportHint": "Baixa sua biblioteca (jogos, status, horas, cópias) em JSON"
+    "exportHint": "Baixa sua biblioteca (jogos, status, horas, cópias) em JSON",
+    "order_recent": "Recentes",
+    "order_az": "A–Z",
+    "order_platform": "Por plataforma"
   },
   "users": {
     "kicker": "// comunidade",
