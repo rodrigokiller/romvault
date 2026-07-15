@@ -280,7 +280,8 @@
     "syncPages": "Páginas",
     "syncRun": "Sincronizar",
     "syncDone": "Sync concluído: {{imported}} importados, {{skipped}} pulados.",
-    "syncNote": "Requer a Edge Function igdb-sync deployada e os secrets do TWITCH configurados."
+    "syncNote": "Requer: supabase functions deploy igdb-sync --no-verify-jwt (e os secrets do TWITCH).",
+    "syncNotDeployed": "Não consegui alcançar a função. Faça o deploy: supabase functions deploy igdb-sync --no-verify-jwt"
   },
   "community": {
     "reviewsTitle": "Avaliações",

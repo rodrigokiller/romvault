@@ -22,8 +22,14 @@ injetados automaticamente pelo runtime — não precisa setar.
 ### 2. Deploy
 
 ```bash
-supabase functions deploy igdb-sync
+supabase functions deploy igdb-sync --no-verify-jwt
 ```
+
+> **`--no-verify-jwt` é obrigatório.** Sem ele, a plataforma bloqueia o
+> **preflight `OPTIONS`** do navegador (que não carrega o token) com 401 e o
+> `functions.invoke` falha com **"Failed to send a request to the Edge Function"**.
+> A autenticação continua: a própria função lê o JWT do usuário e exige
+> `is_admin` — só admins conseguem rodar.
 
 ### 3. Uso
 

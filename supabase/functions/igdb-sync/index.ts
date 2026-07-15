@@ -7,7 +7,10 @@
 // Segredos (supabase secrets set): TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET.
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY são injetados.
 //
-// Deploy:  supabase functions deploy igdb-sync
+// Deploy:  supabase functions deploy igdb-sync --no-verify-jwt
+//   (--no-verify-jwt é obrigatório: sem ele a plataforma bloqueia o preflight
+//    OPTIONS do navegador -> "Failed to send a request". A auth é feita AQUI:
+//    lemos o JWT do caller e exigimos is_admin.)
 // Invoke:  supabase.functions.invoke('igdb-sync', { body: { platform, limit, pages } })
 // ─────────────────────────────────────────────────────────────────────────────
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';

@@ -44,7 +44,10 @@ function IgdbSyncPanel() {
       toast.success(t('admin:syncDone', { imported: d?.imported ?? 0, skipped: d?.skipped ?? 0 }));
       void qc.invalidateQueries();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+      // erro de rede/preflight = função não deployada (ou sem --no-verify-jwt)
+      const msg = err instanceof Error ? err.message : '';
+      const notDeployed = /failed to send|fetch|networkerror/i.test(msg) || (err as { name?: string })?.name === 'FunctionsFetchError';
+      toast.error(notDeployed ? t('admin:syncNotDeployed') : (msg || t('forms:submitError')));
     } finally {
       setRunning(false);
     }
