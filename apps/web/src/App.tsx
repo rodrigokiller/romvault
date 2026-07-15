@@ -36,6 +36,7 @@ const SubmitRomhack = lazy(() => import('./pages/SubmitRomhack').then((m) => ({ 
 const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })));
 const ApiDocs = lazy(() => import('./pages/ApiDocs').then((m) => ({ default: m.ApiDocs })));
 const Library = lazy(() => import('./pages/Library').then((m) => ({ default: m.Library })));
+const YearReview = lazy(() => import('./pages/YearReview').then((m) => ({ default: m.YearReview })));
 const CollectionsList = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionsList })));
 const CollectionDetail = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionDetail })));
 
@@ -72,6 +73,7 @@ export function App() {
 
                       <Route path="u/:username" element={<Profile />} />
                       <Route path="u/:username/library" element={<Library />} />
+                      <Route path="u/:username/year/:year" element={<YearReview />} />
                       <Route path="settings" element={<Settings />} />
                       <Route path="api" element={<ApiDocs />} />
                       <Route path="search" element={<Search />} />

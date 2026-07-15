@@ -1,7 +1,7 @@
 import { useState, type MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Heart, Library, Eye, Gamepad2 } from 'lucide-react';
+import { Heart, Library, Eye, Gamepad2, Disc3 } from 'lucide-react';
 import type { Game } from '@romvault/core';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/auth/AuthProvider';
 import { useMyFavoriteGameIds, useToggleFavorite } from '@/hooks/useFavorites';
-import { useMyTrackMap, useSetTrack, TRACK_STATUSES, type TrackStatus } from '@/hooks/useTracks';
+import { useMyTrackMap, useSetTrack, useAddCopy, TRACK_STATUSES, type TrackStatus } from '@/hooks/useTracks';
 import { STATUS_ICON } from './TrackButton';
 
 /**
@@ -26,6 +26,7 @@ export function QuickActions({ game }: { game: Game }) {
   const { data: trackMap } = useMyTrackMap();
   const toggleFav = useToggleFavorite('game', game.id);
   const setTrack = useSetTrack(game.id);
+  const addCopy = useAddCopy(game.id);
   const [menuOpen, setMenuOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
 
@@ -64,6 +65,22 @@ export function QuickActions({ game }: { game: Game }) {
     try {
       await setTrack.mutateAsync({ status: s });
       toast.success(t(`library:added_${s}`));
+    } catch {
+      toast.error(t('forms:submitError'));
+    }
+  }
+
+  async function ownCopy(e: MouseEvent) {
+    halt(e);
+    setMenuOpen(false);
+    if (requireLogin()) return;
+    try {
+      await addCopy.mutateAsync({
+        platform: game.platforms?.[0] ?? 'PC',
+        distribution: 'physical',
+        store: null,
+      });
+      toast.success(t('library:copyAdded'));
     } catch {
       toast.error(t('forms:submitError'));
     }
@@ -109,6 +126,14 @@ export function QuickActions({ game }: { game: Game }) {
                   </button>
                 );
               })}
+              <button
+                type="button"
+                role="menuitem"
+                className="qa-menu-item qa-menu-copy"
+                onClick={(e) => void ownCopy(e)}
+              >
+                <Disc3 aria-hidden /> {t('library:ownThis')}
+              </button>
             </div>
           )}
         </div>

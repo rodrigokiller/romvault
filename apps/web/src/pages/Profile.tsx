@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { User, Pencil, Check, X, Library as LibraryIcon } from 'lucide-react';
+import { User, Pencil, Check, X, Library as LibraryIcon, UserPlus, UserMinus, Trophy } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
@@ -15,6 +15,8 @@ import {
 } from '@/hooks/useProfile';
 import { useMyFavorites } from '@/hooks/useFavorites';
 import { useLibrary, useUserPlaythroughs } from '@/hooks/useTracks';
+import { useIsFollowing, useToggleFollow, useFollowCounts, useFriendsFeed } from '@/hooks/useFollows';
+import { useAuth } from '@/auth/AuthProvider';
 import type { Kind } from '@/components/entities/kinds';
 import type { Game } from '@romvault/core';
 
@@ -29,6 +31,7 @@ export function Profile() {
   const { data: favorites = [] } = useMyFavorites(profile?.id);
   const { data: libTracks = [] } = useLibrary(profile?.id);
   const { data: playthroughs = [] } = useUserPlaythroughs(profile?.id);
+  const { data: followCounts } = useFollowCounts(profile?.id);
 
   if (isLoading) return <LoadingPage />;
   if (!profile) {
@@ -64,14 +67,19 @@ export function Profile() {
           {profile.bio && <p className="page-sub">{profile.bio}</p>}
           <p className="muted-text mono profile-joined">
             {t('profile:joined')} {new Date(profile.created_at).toLocaleDateString()}
+            {followCounts && (
+              <> · {t('profile:followers', { count: followCounts.followers })} · {t('profile:following', { count: followCounts.following })}</>
+            )}
           </p>
           <Link to={`/u/${profile.username}/library`} className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 'var(--s3)' }}>
             <LibraryIcon aria-hidden style={{ width: 15, height: 15 }} /> {t('library:viewLibrary')}
           </Link>
           <BacklogProgress tracks={libTracks} />
         </div>
-        {isMe && <ProfileEditor profile={profile} />}
+        {isMe ? <ProfileEditor profile={profile} /> : <FollowButton userId={profile.id} />}
       </div>
+
+      {isMe && <FriendsFeed />}
 
       <section className="section">
         <div className="section-head">
@@ -116,9 +124,57 @@ export function Profile() {
   );
 }
 
+/** Botão seguir/deixar de seguir (só em perfis alheios). */
+function FollowButton({ userId }: { userId: string }) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const { user } = useAuth();
+  const { data: isFollowing = false } = useIsFollowing(userId);
+  const toggle = useToggleFollow(userId);
+  if (!user) return null;
+  return (
+    <Button
+      variant={isFollowing ? 'secondary' : 'primary'}
+      size="sm"
+      onClick={() => void toggle.mutateAsync(isFollowing).catch(() => toast.error(t('forms:submitError')))}
+      disabled={toggle.isPending}
+    >
+      {isFollowing ? <><UserMinus /> {t('profile:unfollow')}</> : <><UserPlus /> {t('profile:follow')}</>}
+    </Button>
+  );
+}
+
+/** Feed: zeradas recentes de quem eu sigo. */
+function FriendsFeed() {
+  const { t } = useTranslation();
+  const { data: feed = [] } = useFriendsFeed();
+  if (feed.length === 0) return null;
+  return (
+    <section className="section">
+      <div className="section-head">
+        <h2>{t('profile:feedTitle')}</h2>
+      </div>
+      <ul className="feed-list">
+        {feed.map((item, i) => (
+          <li key={`${item.game_slug}-${i}`} className="feed-item">
+            <Trophy aria-hidden className="feed-icon" />
+            <span className="feed-text">
+              <Link to={`/u/${item.username}`} className="feed-user">@{item.username}</Link>
+              {' '}{t('profile:feedFinished')}{' '}
+              <Link to={`/games/${item.game_slug}`} className="feed-game">{item.game_title}</Link>
+            </span>
+            <span className="feed-date mono">{new Date(item.finished_on).toLocaleDateString()}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /** Linha do tempo de zeradas: "2024 ▓▓▓▓ 12" por ano (estilo Year in Review). */
 function RunsTimeline({ playthroughs }: { playthroughs: { finished_on: string }[] }) {
   const { t } = useTranslation();
+  const { username } = useParams<{ username: string }>();
   const byYear = new Map<string, number>();
   for (const p of playthroughs) {
     const y = p.finished_on.slice(0, 4);
@@ -134,7 +190,9 @@ function RunsTimeline({ playthroughs }: { playthroughs: { finished_on: string }[
       <div className="runs-timeline">
         {years.map(([year, count]) => (
           <div key={year} className="runs-year">
-            <span className="runs-year-label mono">{year}</span>
+            <Link to={`/u/${username}/year/${year}`} className="runs-year-label mono" title={t('wrapped:kicker')}>
+              {year}
+            </Link>
             <div className="runs-year-bar">
               <div className="runs-year-fill" style={{ width: `${(count / max) * 100}%` }} />
             </div>

@@ -304,7 +304,24 @@
     "timelineTitle": "Completions by year",
     "timelineCount_one": "{{count}} game",
     "timelineCount_other": "{{count}} games",
-    "runReviewPh": "Mini-review for this completion (optional — with stars it becomes your game review)"
+    "runReviewPh": "Mini-review for this completion (optional — with stars it becomes your game review)",
+    "ownThis": "I own this game (+ copy)",
+    "batchAdd": "Add several",
+    "batchTitle": "Add several games",
+    "batchStatus": "Status for all",
+    "batchConfirm": "Add {{count}}",
+    "batchDone": "{{count}} games added to your library!"
+  },
+  "wrapped": {
+    "kicker": "// year in review",
+    "title": "{{user}}'s year in games",
+    "finished_one": "game finished",
+    "finished_other": "games finished",
+    "topPlatform": "platform of the year",
+    "topMonth": "most active month",
+    "emptyTitle": "No completions this year",
+    "emptyText": "Nothing logged in {{year}} — go finish something!",
+    "shareTitle": "{{user}} finished {{count}} games in {{year}} on ROMVault!"
   },
   "collections": {
     "kicker": "// curated",
@@ -341,6 +358,13 @@
     "notConfiguredProd": "Production (Vercel): set them in Settings → Environment Variables and redeploy."
   },
   "profile": {
+    "follow": "Follow",
+    "unfollow": "Unfollow",
+    "followers_one": "{{count}} follower",
+    "followers_other": "{{count}} followers",
+    "following": "follows {{count}}",
+    "feedTitle": "Completions from people you follow",
+    "feedFinished": "finished",
     "joined": "Joined",
     "empty": "This user hasn't published anything yet.",
     "notFound": "Profile not found.",

@@ -96,11 +96,28 @@ Deno.serve(async (req: Request) => {
     }
     for (let i = 0; i < toCreate.length; i += 200) {
       const chunk = toCreate.slice(i, i + 200);
+      // DO NOTHING no conflito de slug: nunca sobrescreve um jogo existente
+      // (ex.: um registro do IGDB com o mesmo slug). Depois re-seleciona por
+      // slug para mapear ids — inclusive os que já existiam.
       const { data: ins } = await admin
-        .from('games').upsert(chunk, { onConflict: 'slug' }).select('id, external_ids');
-      for (const g of ins ?? []) {
+        .from('games').upsert(chunk, { onConflict: 'slug', ignoreDuplicates: true })
+        .select('id, external_ids');
+      created += (ins ?? []).length;
+      const { data: all } = await admin
+        .from('games').select('id, external_ids, title')
+        .in('slug', chunk.map((c) => c.slug));
+      for (const g of all ?? []) {
         const appid = Number((g.external_ids as Record<string, unknown>)?.steam);
-        if (appid) { gameIdOf.set(appid, g.id); created++; }
+        if (appid) gameIdOf.set(appid, g.id);
+        else byTitle.set(norm(g.title as string), g.id); // slug colidiu com jogo não-steam
+      }
+      // fallback: mapeia por título os que colidiram sem external_ids.steam
+      for (const c of chunk) {
+        const appid = c.external_ids.steam;
+        if (!gameIdOf.has(appid)) {
+          const hit = byTitle.get(norm(c.title));
+          if (hit) gameIdOf.set(appid, hit);
+        }
       }
     }
 

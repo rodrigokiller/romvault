@@ -7,6 +7,8 @@ import {
   useLibrary, useLibraryCopies, useUserPlaythroughs, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
 } from '@/hooks/useTracks';
 import { STATUS_ICON } from '@/components/entities/TrackButton';
+import { BatchAdd } from '@/components/entities/BatchAdd';
+import { useAuth } from '@/auth/AuthProvider';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 
 /**
@@ -30,7 +32,9 @@ export function Library() {
   const { username } = useParams<{ username: string }>();
   const [params, setParams] = useSearchParams();
   const showcase = params.get('view') === 'showcase';
+  const { user } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfileByUsername(username);
+  const isMe = Boolean(user && profile && user.id === profile.id);
   const { data: tracks = [], isLoading } = useLibrary(profile?.id);
   const { data: copies = [] } = useLibraryCopies(profile?.id);
   const { data: playthroughs = [] } = useUserPlaythroughs(profile?.id);
@@ -143,6 +147,7 @@ export function Library() {
           >
             <Sparkles aria-hidden /> {t('library:showcase')}
           </button>
+          {isMe && !showcase && <BatchAdd />}
         </div>
         {goal && (
           <div className="backlog-progress" style={{ marginTop: 'var(--s3)' }}>

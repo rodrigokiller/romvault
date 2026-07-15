@@ -304,7 +304,24 @@
     "timelineTitle": "Zeradas por ano",
     "timelineCount_one": "{{count}} jogo",
     "timelineCount_other": "{{count}} jogos",
-    "runReviewPh": "Mini-review desta zerada (opcional — com estrelas vira sua avaliação do jogo)"
+    "runReviewPh": "Mini-review desta zerada (opcional — com estrelas vira sua avaliação do jogo)",
+    "ownThis": "Tenho este jogo (+ cópia)",
+    "batchAdd": "Adicionar vários",
+    "batchTitle": "Adicionar vários jogos",
+    "batchStatus": "Status para todos",
+    "batchConfirm": "Adicionar {{count}}",
+    "batchDone": "{{count}} jogos adicionados à biblioteca!"
+  },
+  "wrapped": {
+    "kicker": "// ano em retrospecto",
+    "title": "O ano de {{user}} nos games",
+    "finished_one": "jogo zerado",
+    "finished_other": "jogos zerados",
+    "topPlatform": "plataforma do ano",
+    "topMonth": "mês mais ativo",
+    "emptyTitle": "Nenhuma zerada neste ano",
+    "emptyText": "Nada registrado em {{year}} — bora zerar algo?",
+    "shareTitle": "{{user}} zerou {{count}} jogos em {{year}} no ROMVault!"
   },
   "collections": {
     "kicker": "// curadoria",
@@ -341,6 +358,13 @@
     "notConfiguredProd": "Produção (Vercel): defina em Settings → Environment Variables e faça um novo deploy."
   },
   "profile": {
+    "follow": "Seguir",
+    "unfollow": "Deixar de seguir",
+    "followers_one": "{{count}} seguidor",
+    "followers_other": "{{count}} seguidores",
+    "following": "segue {{count}}",
+    "feedTitle": "Zeradas de quem você segue",
+    "feedFinished": "zerou",
     "joined": "Entrou em",
     "empty": "Este usuário ainda não publicou nada.",
     "notFound": "Perfil não encontrado.",
