@@ -242,5 +242,24 @@
     "delete": "Deletar",
     "deleted": "\"{{title}}\" deletado.",
     "confirmDelete": "Deletar \"{{title}}\"? Isso não pode ser desfeito."
+  },
+  "community": {
+    "reviewsTitle": "Avaliações",
+    "ratingCount_one": "{{count}} avaliação",
+    "ratingCount_other": "{{count}} avaliações",
+    "yourRating": "Sua nota",
+    "commentPh": "Conte o que achou (opcional)…",
+    "postReview": "Publicar avaliação",
+    "updateReview": "Atualizar avaliação",
+    "removeReview": "Remover",
+    "reviewSaved": "Avaliação salva.",
+    "reviewRemoved": "Avaliação removida.",
+    "loginToReview": "Entre para avaliar →",
+    "noReviews": "Ainda sem avaliações. Seja o primeiro.",
+    "pickRating": "Escolha uma nota primeiro.",
+    "anon": "anônimo",
+    "favorite": "Favoritar",
+    "favorited": "Favoritado",
+    "favoritesTitle": "Favoritos"
   }
 }

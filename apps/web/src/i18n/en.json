@@ -242,5 +242,24 @@
     "delete": "Delete",
     "deleted": "\"{{title}}\" deleted.",
     "confirmDelete": "Delete \"{{title}}\"? This can't be undone."
+  },
+  "community": {
+    "reviewsTitle": "Reviews",
+    "ratingCount_one": "{{count}} rating",
+    "ratingCount_other": "{{count}} ratings",
+    "yourRating": "Your rating",
+    "commentPh": "Share what you think (optional)…",
+    "postReview": "Post review",
+    "updateReview": "Update review",
+    "removeReview": "Remove",
+    "reviewSaved": "Review saved.",
+    "reviewRemoved": "Review removed.",
+    "loginToReview": "Sign in to leave a review →",
+    "noReviews": "No reviews yet. Be the first.",
+    "pickRating": "Pick a rating first.",
+    "anon": "anonymous",
+    "favorite": "Favorite",
+    "favorited": "Favorited",
+    "favoritesTitle": "Favorites"
   }
 }

@@ -8,11 +8,14 @@ import { Field } from '@/components/ui/Field';
 import { Input, Textarea } from '@/components/ui/Input';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 import { MaterialCard } from '@/components/entities/MaterialCard';
+import { GameCard } from '@/components/entities/GameCard';
 import { useToast } from '@/components/ui/Toast';
 import {
   useProfileByUsername, useMyProfile, useContributions, useUpdateProfile,
 } from '@/hooks/useProfile';
+import { useMyFavorites } from '@/hooks/useFavorites';
 import type { Kind } from '@/components/entities/kinds';
+import type { Game } from '@romvault/core';
 
 type Row = Record<string, unknown>;
 
@@ -22,6 +25,7 @@ export function Profile() {
   const { data: profile, isLoading } = useProfileByUsername(username);
   const { data: me } = useMyProfile();
   const { data: contrib } = useContributions(profile?.id);
+  const { data: favorites = [] } = useMyFavorites(profile?.id);
 
   if (isLoading) return <LoadingPage />;
   if (!profile) {
@@ -82,6 +86,23 @@ export function Profile() {
           )
         )}
       </section>
+
+      {isMe && favorites.length > 0 && (
+        <section className="section">
+          <div className="section-head">
+            <h2>{t('community:favoritesTitle')}</h2>
+          </div>
+          <div className="card-grid">
+            {favorites.map((f) =>
+              f.kind === 'game' ? (
+                <GameCard key={`g-${String(f.item.id)}`} game={f.item as unknown as Game} />
+              ) : (
+                <MaterialCard key={`${f.kind}-${String(f.item.id)}`} kind={f.kind} item={f.item} />
+              ),
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

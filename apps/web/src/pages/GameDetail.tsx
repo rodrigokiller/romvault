@@ -5,6 +5,8 @@ import { Gamepad2 } from 'lucide-react';
 import { useGame } from '@/hooks/useGames';
 import { useGameRomhacks, useGameTranslations, useGameDocuments } from '@/hooks/useMaterials';
 import { MaterialCard } from '@/components/entities/MaterialCard';
+import { Reviews } from '@/components/entities/Reviews';
+import { FavoriteButton } from '@/components/entities/FavoriteButton';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
@@ -78,6 +80,11 @@ export function GameDetail() {
               ))}
             </div>
           )}
+          {game && (
+            <div className="detail-actions">
+              <FavoriteButton subjectType="game" subjectId={game.id} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -116,6 +123,8 @@ export function GameDetail() {
         {tab === 'romhacks' && <RelatedGrid kind="romhack" query={romhacks} />}
         {tab === 'docs' && <RelatedGrid kind="doc" query={documents} />}
       </div>
+
+      {game && <Reviews subjectType="game" subjectId={game.id} />}
     </div>
   );
 }

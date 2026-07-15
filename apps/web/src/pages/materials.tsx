@@ -10,6 +10,8 @@ import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 import { MaterialCard } from '@/components/entities/MaterialCard';
+import { Reviews } from '@/components/entities/Reviews';
+import { FavoriteButton } from '@/components/entities/FavoriteButton';
 import { KIND_META, type Kind } from '@/components/entities/kinds';
 import {
   useRomhacks, useRomhack,
@@ -244,6 +246,7 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
                 <Button variant="secondary">{t('entities:sourceCode')}</Button>
               </a>
             )}
+            {SUBJECT_OF[kind] && <FavoriteButton subjectType={SUBJECT_OF[kind]} subjectId={String(item.id)} />}
           </div>
         </div>
       </div>
@@ -299,6 +302,8 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
           <div className="prose"><p>{str(item.changelog)}</p></div>
         </section>
       )}
+
+      {SUBJECT_OF[kind] && <Reviews subjectType={SUBJECT_OF[kind]} subjectId={String(item.id)} />}
     </div>
   );
 }
