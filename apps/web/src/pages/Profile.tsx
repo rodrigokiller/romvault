@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { User, Pencil, Check, X } from 'lucide-react';
+import { User, Pencil, Check, X, Library as LibraryIcon } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
@@ -62,6 +62,9 @@ export function Profile() {
           <p className="muted-text mono profile-joined">
             {t('profile:joined')} {new Date(profile.created_at).toLocaleDateString()}
           </p>
+          <Link to={`/u/${profile.username}/library`} className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 'var(--s3)' }}>
+            <LibraryIcon aria-hidden style={{ width: 15, height: 15 }} /> {t('library:viewLibrary')}
+          </Link>
         </div>
         {isMe && <ProfileEditor profile={profile} />}
       </div>

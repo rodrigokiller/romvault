@@ -35,6 +35,7 @@ const AuthCallback = lazy(() => import('./pages/AuthCallback').then((m) => ({ de
 const SubmitRomhack = lazy(() => import('./pages/SubmitRomhack').then((m) => ({ default: m.SubmitRomhack })));
 const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })));
 const ApiDocs = lazy(() => import('./pages/ApiDocs').then((m) => ({ default: m.ApiDocs })));
+const Library = lazy(() => import('./pages/Library').then((m) => ({ default: m.Library })));
 
 export function App() {
   return (
@@ -66,6 +67,7 @@ export function App() {
                       <Route path="articles/:slug" element={<ArticleDetail />} />
 
                       <Route path="u/:username" element={<Profile />} />
+                      <Route path="u/:username/library" element={<Library />} />
                       <Route path="settings" element={<Settings />} />
                       <Route path="api" element={<ApiDocs />} />
                       <Route path="search" element={<Search />} />

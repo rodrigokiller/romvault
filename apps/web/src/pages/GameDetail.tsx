@@ -9,6 +9,7 @@ import { GameCard } from '@/components/entities/GameCard';
 import { Reviews } from '@/components/entities/Reviews';
 import { FavoriteButton } from '@/components/entities/FavoriteButton';
 import { ShareButton } from '@/components/entities/ShareButton';
+import { TrackButton } from '@/components/entities/TrackButton';
 import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { Badge } from '@/components/ui/Badge';
@@ -86,6 +87,7 @@ export function GameDetail() {
           )}
           {game && (
             <div className="detail-actions">
+              <TrackButton gameId={game.id} />
               <FavoriteButton subjectType="game" subjectId={game.id} />
               <ShareButton title={title} />
             </div>
