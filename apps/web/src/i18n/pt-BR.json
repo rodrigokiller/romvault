@@ -242,7 +242,15 @@
     "forbiddenText": "Sua conta não tem permissão de admin.",
     "delete": "Deletar",
     "deleted": "\"{{title}}\" deletado.",
-    "confirmDelete": "Deletar \"{{title}}\"? Isso não pode ser desfeito."
+    "confirmDelete": "Deletar \"{{title}}\"? Isso não pode ser desfeito.",
+    "syncTitle": "Sync IGDB",
+    "syncHint": "Puxa jogos do IGDB direto pro catálogo (cursor incremental por plataforma).",
+    "syncPlatform": "Plataforma",
+    "syncLimit": "Limite",
+    "syncPages": "Páginas",
+    "syncRun": "Sincronizar",
+    "syncDone": "Sync concluído: {{imported}} importados, {{skipped}} pulados.",
+    "syncNote": "Requer a Edge Function igdb-sync deployada e os secrets do TWITCH configurados."
   },
   "community": {
     "reviewsTitle": "Avaliações",

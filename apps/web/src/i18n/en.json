@@ -242,7 +242,15 @@
     "forbiddenText": "Your account doesn't have admin rights.",
     "delete": "Delete",
     "deleted": "\"{{title}}\" deleted.",
-    "confirmDelete": "Delete \"{{title}}\"? This can't be undone."
+    "confirmDelete": "Delete \"{{title}}\"? This can't be undone.",
+    "syncTitle": "IGDB sync",
+    "syncHint": "Pull games from IGDB straight into the catalog (incremental cursor per platform).",
+    "syncPlatform": "Platform",
+    "syncLimit": "Limit",
+    "syncPages": "Pages",
+    "syncRun": "Sync now",
+    "syncDone": "Sync done: {{imported}} imported, {{skipped}} skipped.",
+    "syncNote": "Requires the igdb-sync Edge Function deployed and TWITCH secrets set."
   },
   "community": {
     "reviewsTitle": "Reviews",

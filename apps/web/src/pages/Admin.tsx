@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
-import { Trash2, ShieldAlert, Database as DbIcon } from 'lucide-react';
+import { Trash2, ShieldAlert, Database as DbIcon, DownloadCloud } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { EmptyState, LoadingPage } from '@/components/ui/feedback';
+import { Field } from '@/components/ui/Field';
+import { Select } from '@/components/ui/Select';
+import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { EmptyState, LoadingPage, Spinner } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/Toast';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
@@ -12,6 +16,68 @@ import { useIsAdmin, useMyProfile } from '@/hooks/useProfile';
 import { useDeleteEntity } from '@/hooks/useMutations';
 
 const db = () => getSupabase() as unknown as SupabaseClient;
+
+const IGDB_PLATFORMS = [
+  'snes', 'nes', 'n64', 'gb', 'gbc', 'gba', 'nds',
+  'ps1', 'ps2', 'genesis', 'saturn', 'dreamcast', 'master', 'gamegear', 'tg16', 'arcade',
+];
+
+/** Dispara a Edge Function `igdb-sync` (só admin; requer deploy + secrets). */
+function IgdbSyncPanel() {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [platform, setPlatform] = useState('snes');
+  const [limit, setLimit] = useState(50);
+  const [pages, setPages] = useState(1);
+  const [running, setRunning] = useState(false);
+
+  async function run() {
+    setRunning(true);
+    try {
+      const { data, error } = await getSupabase().functions.invoke('igdb-sync', {
+        body: { platform, limit, pages },
+      });
+      if (error) throw error;
+      const d = data as { imported?: number; skipped?: number; error?: string };
+      if (d?.error) throw new Error(d.error);
+      toast.success(t('admin:syncDone', { imported: d?.imported ?? 0, skipped: d?.skipped ?? 0 }));
+      void qc.invalidateQueries();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <Card className="sync-panel">
+      <div>
+        <div className="card-title">{t('admin:syncTitle')}</div>
+        <div className="card-sub">{t('admin:syncHint')}</div>
+      </div>
+      <div className="sync-row">
+        <Field label={t('admin:syncPlatform')}>
+          {(id) => (
+            <Select id={id} value={platform} onChange={(e) => setPlatform(e.target.value)}>
+              {IGDB_PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </Select>
+          )}
+        </Field>
+        <Field label={t('admin:syncLimit')}>
+          {(id) => <Input id={id} type="number" min={1} max={500} value={limit} onChange={(e) => setLimit(Number(e.target.value))} />}
+        </Field>
+        <Field label={t('admin:syncPages')}>
+          {(id) => <Input id={id} type="number" min={1} max={20} value={pages} onChange={(e) => setPages(Number(e.target.value))} />}
+        </Field>
+        <Button variant="primary" onClick={() => void run()} disabled={running}>
+          {running ? <Spinner /> : <><DownloadCloud /> {t('admin:syncRun')}</>}
+        </Button>
+      </div>
+      <p className="field-hint">{t('admin:syncNote')}</p>
+    </Card>
+  );
+}
 
 const TABLES = ['games', 'romhacks', 'translations', 'documents', 'tools', 'articles'] as const;
 type AdminTable = (typeof TABLES)[number];
@@ -72,7 +138,9 @@ export function Admin() {
         <p className="page-sub">{t('admin:subtitle')}</p>
       </header>
 
-      <div className="type-seg" role="tablist">
+      <IgdbSyncPanel />
+
+      <div className="type-seg" role="tablist" style={{ marginTop: 'var(--s6)' }}>
         {TABLES.map((tbl) => (
           <button
             key={tbl}
