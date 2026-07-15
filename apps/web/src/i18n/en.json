@@ -215,7 +215,32 @@
     "sectionAccount": "Account",
     "signedInAs": "Signed in as",
     "signedOut": "You are not signed in.",
-    "signInCta": "Sign in"
+    "signInCta": "Sign in",
+    "apiTitle": "API keys",
+    "apiHint": "Keys to read the catalog from the public API. We store only a hash — copy it now, it won't be shown again.",
+    "apiName": "Key name",
+    "apiNamePh": "e.g. my-importer",
+    "apiCreate": "Create key",
+    "apiCreated": "Your new key (copy it now):",
+    "apiCopy": "Copy",
+    "apiCopied": "Key copied.",
+    "apiRevoke": "Revoke",
+    "apiRevokeConfirm": "Revoke this key? Apps using it will stop working.",
+    "apiUsed": "uses",
+    "apiDocsLink": "Read the API docs"
+  },
+  "apidocs": {
+    "title": "ROMVault API",
+    "intro": "Read the catalog programmatically. Public, read-only, key-authenticated.",
+    "baseTitle": "Base URL",
+    "authTitle": "Authentication",
+    "authText": "Send your API key in the x-api-key header on every request.",
+    "authManage": "Create and manage keys in Settings.",
+    "endpointsTitle": "Endpoints",
+    "exampleTitle": "Example",
+    "notesTitle": "Notes",
+    "noteRead": "Read-only for now (GET). Writes go through the app or the importer.",
+    "noteDeploy": "Requires the public-api Edge Function deployed (see supabase/functions/README.md)."
   },
   "errors": {
     "notFoundTitle": "Page not found",

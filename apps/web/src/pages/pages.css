@@ -1080,6 +1080,111 @@
   min-width: 160px;
 }
 
+/* ── API keys (settings) ──────────────────────────────────────────────────── */
+.api-create {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s3);
+}
+.api-create .field {
+  flex: 1;
+  max-width: 320px;
+}
+.api-fresh {
+  padding: var(--s3) var(--s4);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+}
+.api-fresh-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s2);
+  flex-wrap: wrap;
+}
+.api-key-plain {
+  flex: 1;
+  min-width: 220px;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--ink-bright);
+  background: var(--bg);
+  border: 1px solid var(--line-bright);
+  padding: 6px var(--s3);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.api-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+}
+.api-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--line);
+}
+.api-row:last-child { border-bottom: none; }
+.api-row-icon { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; }
+.api-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.api-row-name { color: var(--ink-bright); font-size: 0.9rem; }
+.api-row-meta { font-size: 0.72rem; color: var(--muted); }
+
+/* ── API docs ─────────────────────────────────────────────────────────────── */
+.code-block {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--ink-bright);
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  padding: var(--s3) var(--s4);
+  overflow-x: auto;
+  white-space: pre;
+  margin-top: var(--s2);
+}
+.api-endpoints {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  margin-top: var(--s2);
+}
+.api-endpoint {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.api-endpoint:last-child { border-bottom: none; }
+.api-method {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #06110c;
+  background: var(--accent);
+  padding: 2px 7px;
+  flex-shrink: 0;
+}
+.api-path {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--ink-bright);
+}
+.api-desc { font-size: 0.78rem; margin-left: auto; }
+.api-notes {
+  list-style: square;
+  margin-top: var(--s2);
+}
+.api-notes li {
+  margin-left: var(--s5);
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-bottom: var(--s2);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Reviews / estrelas / favoritos
    ═══════════════════════════════════════════════════════════════════════════ */

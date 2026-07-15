@@ -34,6 +34,7 @@ const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login
 const AuthCallback = lazy(() => import('./pages/AuthCallback').then((m) => ({ default: m.AuthCallback })));
 const SubmitRomhack = lazy(() => import('./pages/SubmitRomhack').then((m) => ({ default: m.SubmitRomhack })));
 const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })));
+const ApiDocs = lazy(() => import('./pages/ApiDocs').then((m) => ({ default: m.ApiDocs })));
 
 export function App() {
   return (
@@ -66,6 +67,7 @@ export function App() {
 
                       <Route path="u/:username" element={<Profile />} />
                       <Route path="settings" element={<Settings />} />
+                      <Route path="api" element={<ApiDocs />} />
                       <Route path="search" element={<Search />} />
                       <Route path="login" element={<Login />} />
                       <Route

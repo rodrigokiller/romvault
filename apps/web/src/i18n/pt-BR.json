@@ -215,7 +215,32 @@
     "sectionAccount": "Conta",
     "signedInAs": "Conectado como",
     "signedOut": "Você não está conectado.",
-    "signInCta": "Entrar"
+    "signInCta": "Entrar",
+    "apiTitle": "API keys",
+    "apiHint": "Chaves para ler o catálogo pela API pública. Guardamos só um hash — copie agora, não será mostrada de novo.",
+    "apiName": "Nome da chave",
+    "apiNamePh": "ex.: meu-importador",
+    "apiCreate": "Criar chave",
+    "apiCreated": "Sua nova chave (copie agora):",
+    "apiCopy": "Copiar",
+    "apiCopied": "Chave copiada.",
+    "apiRevoke": "Revogar",
+    "apiRevokeConfirm": "Revogar esta chave? Apps que a usam vão parar de funcionar.",
+    "apiUsed": "usos",
+    "apiDocsLink": "Ver a documentação da API"
+  },
+  "apidocs": {
+    "title": "API do ROMVault",
+    "intro": "Leia o catálogo programaticamente. Pública, somente leitura, autenticada por chave.",
+    "baseTitle": "URL base",
+    "authTitle": "Autenticação",
+    "authText": "Envie sua API key no header x-api-key em toda requisição.",
+    "authManage": "Crie e gerencie chaves nas Configurações.",
+    "endpointsTitle": "Endpoints",
+    "exampleTitle": "Exemplo",
+    "notesTitle": "Notas",
+    "noteRead": "Somente leitura por ora (GET). Escrita é pelo app ou pelo importador.",
+    "noteDeploy": "Requer a Edge Function public-api deployada (ver supabase/functions/README.md)."
   },
   "errors": {
     "notFoundTitle": "Página não encontrada",

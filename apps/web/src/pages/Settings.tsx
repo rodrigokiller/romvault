@@ -1,9 +1,15 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Key, Copy, Trash2, Plus, BookOpen } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { Field } from '@/components/ui/Field';
+import { Input } from '@/components/ui/Input';
+import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/auth/AuthProvider';
+import { useApiKeys, useCreateApiKey, useRevokeApiKey } from '@/hooks/useApiKeys';
 import { SUPPORTED_LANGS } from '@/i18n/config';
 
 export function Settings() {
@@ -84,6 +90,98 @@ export function Settings() {
           </div>
         )}
       </Card>
+
+      {session && !disabled && <ApiKeysSection />}
     </div>
+  );
+}
+
+/** Gerenciamento de API keys do usuário (hash no cliente; texto plano só 1x). */
+function ApiKeysSection() {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const { data: keys = [] } = useApiKeys();
+  const create = useCreateApiKey();
+  const revoke = useRevokeApiKey();
+  const [name, setName] = useState('');
+  const [fresh, setFresh] = useState<string | null>(null);
+
+  async function onCreate() {
+    try {
+      const key = await create.mutateAsync(name);
+      setFresh(key);
+      setName('');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    }
+  }
+
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(t('settings:apiCopied'));
+    } catch {
+      toast.error(t('forms:submitError'));
+    }
+  }
+
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('settings:apiTitle')}</div>
+        <div className="card-sub">{t('settings:apiHint')}</div>
+      </div>
+
+      {fresh && (
+        <div className="api-fresh">
+          <span className="card-sub">{t('settings:apiCreated')}</span>
+          <div className="api-fresh-row">
+            <code className="api-key-plain">{fresh}</code>
+            <Button size="sm" variant="secondary" onClick={() => void copy(fresh)}>
+              <Copy /> {t('settings:apiCopy')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="api-create">
+        <Field label={t('settings:apiName')}>
+          {(id) => (
+            <Input id={id} value={name} onChange={(e) => setName(e.target.value)} placeholder={t('settings:apiNamePh')} />
+          )}
+        </Field>
+        <Button variant="primary" onClick={() => void onCreate()} disabled={create.isPending}>
+          <Plus /> {t('settings:apiCreate')}
+        </Button>
+      </div>
+
+      {keys.length > 0 && (
+        <div className="api-list">
+          {keys.map((k) => (
+            <div key={k.id} className="api-row">
+              <Key aria-hidden className="api-row-icon" />
+              <div className="api-row-body">
+                <span className="api-row-name">{k.name}</span>
+                <span className="api-row-meta mono">
+                  {k.key_prefix}…· {k.usage_count} {t('settings:apiUsed')}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { if (window.confirm(t('settings:apiRevokeConfirm'))) void revoke.mutate(k.id); }}
+              >
+                <Trash2 /> {t('settings:apiRevoke')}
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Link to="/api" className="section-link">
+        <BookOpen aria-hidden style={{ width: 14, height: 14, verticalAlign: '-2px', marginRight: 4 }} />
+        {t('settings:apiDocsLink')}
+      </Link>
+    </Card>
   );
 }

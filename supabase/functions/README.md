@@ -44,3 +44,30 @@ O importador CLI continua valendo e não precisa de Edge Function:
 ```bash
 npm run import -- --source=igdb --platform=snes --all
 ```
+
+---
+
+## `public-api` — API pública somente-leitura (autenticada por API key)
+
+Serve o catálogo (games/romhacks/translations/documents/tools) para integrações
+externas. A chave (`rv_...`) criada em **Configurações** vai no header
+`x-api-key`; guardamos só o hash SHA-256.
+
+### Deploy
+
+Sem verificação de JWT (a autenticação é a nossa, por `x-api-key`):
+
+```bash
+supabase functions deploy public-api --no-verify-jwt
+```
+
+### Uso
+
+```bash
+curl "https://<project>.supabase.co/functions/v1/public-api/games?q=metroid&limit=5" \
+  -H "x-api-key: rv_xxxxxxxxxxxxxxxx"
+```
+
+Rotas: `/games`, `/games/:slug`, `/romhacks?game=`, `/translations?game=`,
+`/documents?game=`, `/tools`. Query: `limit` (≤100), `offset`, `q`, `platform`.
+A doc navegável fica em **/api** no app.
