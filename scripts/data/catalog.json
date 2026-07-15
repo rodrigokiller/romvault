@@ -1,0 +1,547 @@
+{
+  "$comment": "Catalogo curado do ROMVault. Consumido por scripts/import.mjs (modo dataset). Cada game pode trazer romhacks/translations/documents embutidos (ligados por slug do jogo). tools/documents-avulsos/articles ficam nas listas de topo. Metadados reais e plausiveis; cover_url fica null (o modo IGDB popula arte real depois). NAO e o schema completo — so os campos que importam para exibir.",
+  "games": [
+    {
+      "slug": "chrono-trigger",
+      "igdb_id": 1105,
+      "title": "Chrono Trigger",
+      "developer": "Square",
+      "publishers": ["Square"],
+      "release_date": "1995-03-11",
+      "genres": ["RPG"],
+      "platforms": ["SNES", "PlayStation", "Nintendo DS"],
+      "franchise": "Chrono",
+      "description": "JRPG de viagem no tempo com multiplos finais, personagens desenhados por Akira Toriyama e trilha de Yasunori Mitsuda. Considerado um dos maiores RPGs de todos os tempos.",
+      "game_modes": ["Single Player"],
+      "features": ["Multiplos Finais", "New Game+", "Battery Save"],
+      "themes": ["Ficcao Cientifica", "Fantasia"],
+      "age_rating": "ESRB E",
+      "regional_titles": { "Japao": "クロノ・トリガー" },
+      "completion_times": { "main_story": "20h", "main_extras": "27h", "completionist": "41h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1105, "hltb": "chrono-trigger" },
+      "romhacks": [
+        {
+          "title": "Prophet's Guile",
+          "description": "Hack narrativo curto que reimagina o arco do Magus com novos eventos, mapas e um final alternativo.",
+          "categories": ["Story", "Improvement"],
+          "version": "1.2", "patch_type": "BPS", "difficulty": "Normal", "hack_type": "Story",
+          "tags": ["story", "magus"], "downloads": 4821, "rating": 4.6, "release_date": "2013-05-01"
+        },
+        {
+          "title": "Chrono Trigger: Bugfix & Uncensoring",
+          "description": "Restaura conteudo censurado da versao ocidental e corrige dezenas de bugs do original.",
+          "categories": ["Bugfix", "Restoration"],
+          "version": "3.1", "patch_type": "IPS", "difficulty": "Normal", "hack_type": "Improvement",
+          "tags": ["bugfix", "uncensor"], "downloads": 7654, "rating": 4.8, "release_date": "2016-02-14"
+        }
+      ],
+      "translations": [
+        {
+          "title": "Chrono Trigger — Traducao PT-BR",
+          "description": "Traducao completa para portugues do Brasil, com acentuacao e ponteiros expandidos.",
+          "language": "Portugues (BR)", "source_language": "Ingles", "completion_percentage": 100,
+          "translation_type": "Full", "patch_type": "IPS", "version": "2.0",
+          "downloads": 12030, "rating": 4.9, "release_date": "2011-09-07"
+        }
+      ]
+    },
+    {
+      "slug": "super-metroid",
+      "igdb_id": 1103,
+      "title": "Super Metroid",
+      "developer": "Nintendo R&D1",
+      "publishers": ["Nintendo"],
+      "release_date": "1994-03-19",
+      "genres": ["Metroidvania", "Acao/Aventura"],
+      "platforms": ["SNES"],
+      "franchise": "Metroid",
+      "description": "Marco do genero metroidvania: exploracao nao-linear de Zebes, atmosfera isolante e controle preciso. Base de referencia para a comunidade de speedrun.",
+      "game_modes": ["Single Player"],
+      "features": ["Exploracao", "Sequence Breaking", "Battery Save"],
+      "themes": ["Ficcao Cientifica", "Isolamento"],
+      "age_rating": "ESRB E",
+      "completion_times": { "main_story": "7h", "main_extras": "10h", "completionist": "14h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1103 },
+      "romhacks": [
+        {
+          "title": "Super Metroid Redesign",
+          "description": "Redesenha praticamente todo o mapa de Zebes, adiciona novas areas e reequilibra a progressao de itens.",
+          "categories": ["Gameplay", "Improvement"],
+          "version": "2.3", "patch_type": "IPS", "difficulty": "Hard", "hack_type": "Full",
+          "tags": ["exploration", "hard"], "downloads": 15210, "rating": 4.7, "release_date": "2010-06-01"
+        },
+        {
+          "title": "Project Base",
+          "description": "Rebalanceamento e melhorias de qualidade de vida (spin jump, dash) mantendo a estrutura original.",
+          "categories": ["Improvement", "Gameplay"],
+          "version": "0.9", "patch_type": "IPS", "difficulty": "Normal", "hack_type": "Gameplay",
+          "tags": ["qol", "rebalance"], "downloads": 9130, "rating": 4.8, "release_date": "2015-08-20"
+        }
+      ]
+    },
+    {
+      "slug": "the-legend-of-zelda-a-link-to-the-past",
+      "igdb_id": 1022,
+      "title": "The Legend of Zelda: A Link to the Past",
+      "developer": "Nintendo EAD",
+      "publishers": ["Nintendo"],
+      "release_date": "1991-11-21",
+      "genres": ["Acao/Aventura"],
+      "platforms": ["SNES"],
+      "franchise": "The Legend of Zelda",
+      "description": "Aventura top-down definitiva do SNES: dois mundos paralelos, dungeons memoraveis e itens que viraram classicos da serie.",
+      "game_modes": ["Single Player"],
+      "features": ["Dois Mundos", "Puzzles", "Battery Save"],
+      "themes": ["Fantasia"],
+      "age_rating": "ESRB E",
+      "regional_titles": { "Japao": "ゼルダの伝説 神々のトライフォース" },
+      "completion_times": { "main_story": "14h", "main_extras": "19h", "completionist": "27h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1022 },
+      "romhacks": [
+        {
+          "title": "Parallel Worlds",
+          "description": "Hack notoriamente dificil com mundo inteiramente novo, dungeons originais e musica remixada.",
+          "categories": ["Gameplay", "Story"],
+          "version": "1.1", "patch_type": "IPS", "difficulty": "Very Hard", "hack_type": "Full",
+          "tags": ["hard", "puzzle"], "downloads": 6890, "rating": 4.3, "release_date": "2007-03-12"
+        }
+      ]
+    },
+    {
+      "slug": "legend-of-mana",
+      "igdb_id": 3910,
+      "title": "Legend of Mana",
+      "developer": "Square",
+      "publishers": ["Square"],
+      "release_date": "1999-07-15",
+      "genres": ["Action RPG"],
+      "platforms": ["PlayStation"],
+      "franchise": "Mana",
+      "description": "ARPG da serie Mana com mundo montado pelo jogador (Land Make), arte pintada a mao, sistema de forja profundo e trilha marcante de Yoko Shimomura.",
+      "game_modes": ["Single Player", "Co-op"],
+      "features": ["Land Make", "Forja", "Multiplos Finais"],
+      "themes": ["Fantasia"],
+      "age_rating": "ESRB E",
+      "regional_titles": { "Japao": "聖剣伝説 レジェンド オブ マナ" },
+      "completion_times": { "main_story": "22h", "main_extras": "40h", "completionist": "70h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 3910 },
+      "translations": [
+        {
+          "title": "Legend of Mana — Traducao PT-BR",
+          "description": "Traducao para portugues do Brasil feita com o LoM Studio: dialogos, enciclopedia, menus e legendas dos FMV. Distribuida como patch PPF.",
+          "language": "Portugues (BR)", "source_language": "Ingles", "completion_percentage": 15,
+          "translation_type": "Full", "patch_type": "PPF", "version": "0.1",
+          "downloads": 340, "rating": 5.0, "release_date": "2026-07-01",
+          "credits": "rodrigokiller (Killer)"
+        }
+      ],
+      "documents": [
+        {
+          "title": "Legend of Mana — Formato dos dialogos (PSX)",
+          "description": "Documentacao do formato de script, tabela de balises e MTE do LoM de PlayStation.",
+          "category": "Technical", "file_format": "HTML", "language": "Portugues (BR)",
+          "tags": ["psx", "lom", "script"], "downloads": 210, "rating": 4.9
+        }
+      ]
+    },
+    {
+      "slug": "final-fantasy-vi",
+      "igdb_id": 427,
+      "title": "Final Fantasy VI",
+      "alt_title": "Final Fantasy III (US SNES)",
+      "developer": "Square",
+      "publishers": ["Square"],
+      "release_date": "1994-04-02",
+      "genres": ["RPG"],
+      "platforms": ["SNES", "PlayStation", "Game Boy Advance"],
+      "franchise": "Final Fantasy",
+      "description": "Epico coral com catorze personagens jogaveis, o viloes Kefka e uma segunda metade pos-apocaliptica. Auge do JRPG 16-bit.",
+      "game_modes": ["Single Player"],
+      "features": ["Multiplos Personagens", "Battery Save"],
+      "themes": ["Fantasia", "Steampunk"],
+      "age_rating": "ESRB T",
+      "regional_titles": { "Japao": "ファイナルファンタジーVI" },
+      "completion_times": { "main_story": "36h", "main_extras": "48h", "completionist": "66h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 427 },
+      "romhacks": [
+        {
+          "title": "Ted Woolsey Uncensored Edition",
+          "description": "Reescreve o script combinando a traducao classica de Woolsey com conteudo restaurado do japones.",
+          "categories": ["Story", "Restoration"],
+          "version": "2.05", "patch_type": "IPS", "difficulty": "Normal", "hack_type": "Improvement",
+          "tags": ["script", "restoration"], "downloads": 8420, "rating": 4.7, "release_date": "2019-01-10"
+        }
+      ]
+    },
+    {
+      "slug": "super-mario-world",
+      "igdb_id": 1070,
+      "title": "Super Mario World",
+      "developer": "Nintendo EAD",
+      "publishers": ["Nintendo"],
+      "release_date": "1990-11-21",
+      "genres": ["Plataforma"],
+      "platforms": ["SNES"],
+      "franchise": "Super Mario",
+      "description": "Estreia do SNES e do Yoshi: 96 saidas, mapa ramificado e o motor de plataforma mais influente da comunidade de romhacking.",
+      "game_modes": ["Single Player", "Multiplayer"],
+      "features": ["Mundo Ramificado", "Battery Save"],
+      "themes": ["Fantasia", "Comedia"],
+      "age_rating": "ESRB E",
+      "regional_titles": { "Japao": "スーパーマリオワールド" },
+      "completion_times": { "main_story": "10h", "main_extras": "16h", "completionist": "24h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1070 },
+      "romhacks": [
+        {
+          "title": "Kaizo Mario World",
+          "description": "O hack que batizou o genero 'kaizo': precisao brutal e level design sadico. Marco historico.",
+          "categories": ["Gameplay", "Difficulty"],
+          "version": "1.0", "patch_type": "IPS", "difficulty": "Kaizo", "hack_type": "Levels",
+          "tags": ["kaizo", "hard"], "downloads": 22110, "rating": 4.5, "release_date": "2007-05-01"
+        },
+        {
+          "title": "Brutal Mario (Super Kitiku Mario)",
+          "description": "Hack tecnico japones famoso pelos chefes ASM elaborados e efeitos que extrapolam o motor original.",
+          "categories": ["Gameplay", "Graphics"],
+          "version": "0.9", "patch_type": "IPS", "difficulty": "Hard", "hack_type": "Full",
+          "tags": ["asm", "bosses"], "downloads": 13740, "rating": 4.6, "release_date": "2008-11-20"
+        }
+      ]
+    },
+    {
+      "slug": "castlevania-symphony-of-the-night",
+      "igdb_id": 484,
+      "title": "Castlevania: Symphony of the Night",
+      "developer": "Konami",
+      "publishers": ["Konami"],
+      "release_date": "1997-03-20",
+      "genres": ["Metroidvania", "Acao/Aventura", "RPG"],
+      "platforms": ["PlayStation", "Sega Saturn"],
+      "franchise": "Castlevania",
+      "description": "Referencia do metroidvania moderno: castelo interconectado, progressao de RPG, o castelo invertido e trilha inesquecivel de Michiru Yamane.",
+      "game_modes": ["Single Player"],
+      "features": ["Exploracao", "Castelo Invertido", "Memory Card"],
+      "themes": ["Gotico", "Terror"],
+      "age_rating": "ESRB T",
+      "regional_titles": { "Japao": "悪魔城ドラキュラX 月下の夜想曲" },
+      "completion_times": { "main_story": "9h", "main_extras": "13h", "completionist": "18h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 484 }
+    },
+    {
+      "slug": "the-legend-of-zelda-ocarina-of-time",
+      "igdb_id": 1029,
+      "title": "The Legend of Zelda: Ocarina of Time",
+      "developer": "Nintendo EAD",
+      "publishers": ["Nintendo"],
+      "release_date": "1998-11-21",
+      "genres": ["Acao/Aventura"],
+      "platforms": ["Nintendo 64"],
+      "franchise": "The Legend of Zelda",
+      "description": "Salto da serie para o 3D: lock-on, viagem no tempo, dungeons tridimensionais e um dos jogos mais aclamados de todos os tempos.",
+      "game_modes": ["Single Player"],
+      "features": ["Lock-On", "Viagem no Tempo", "Battery Save"],
+      "themes": ["Fantasia"],
+      "age_rating": "ESRB E",
+      "completion_times": { "main_story": "27h", "main_extras": "37h", "completionist": "53h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1029 },
+      "romhacks": [
+        {
+          "title": "The Missing Link",
+          "description": "Campanha curta original ambientada entre Ocarina of Time e Majora's Mask, com novas dungeons.",
+          "categories": ["Story", "Gameplay"],
+          "version": "1.1", "patch_type": "Xdelta", "difficulty": "Normal", "hack_type": "Full",
+          "tags": ["story", "n64"], "downloads": 5120, "rating": 4.6, "release_date": "2021-04-02"
+        }
+      ]
+    },
+    {
+      "slug": "sonic-the-hedgehog-2",
+      "igdb_id": 1067,
+      "title": "Sonic the Hedgehog 2",
+      "developer": "Sega Technical Institute",
+      "publishers": ["Sega"],
+      "release_date": "1992-11-21",
+      "genres": ["Plataforma"],
+      "platforms": ["Sega Genesis"],
+      "franchise": "Sonic",
+      "description": "Introduz o Tails e o spin dash, com fases velozes e a Zona da Morte. Um dos pilares do Mega Drive.",
+      "game_modes": ["Single Player", "Multiplayer"],
+      "features": ["Spin Dash", "Co-op"],
+      "themes": ["Ficcao Cientifica", "Comedia"],
+      "age_rating": "ESRB E",
+      "completion_times": { "main_story": "2h", "main_extras": "4h", "completionist": "7h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1067 }
+    },
+    {
+      "slug": "earthbound",
+      "igdb_id": 1092,
+      "title": "EarthBound",
+      "alt_title": "Mother 2",
+      "developer": "Ape / HAL Laboratory",
+      "publishers": ["Nintendo"],
+      "release_date": "1994-08-27",
+      "genres": ["RPG"],
+      "platforms": ["SNES"],
+      "franchise": "Mother",
+      "description": "RPG de humor unico ambientado num subUrbio americano moderno, com combate psicodelico e o medidor de HP rolante.",
+      "game_modes": ["Single Player"],
+      "features": ["Battery Save", "Humor"],
+      "themes": ["Comedia", "Ficcao Cientifica"],
+      "age_rating": "ESRB E",
+      "regional_titles": { "Japao": "MOTHER2 ギーグの逆襲" },
+      "completion_times": { "main_story": "25h", "main_extras": "29h", "completionist": "36h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1092 }
+    },
+    {
+      "slug": "final-fantasy-vii",
+      "igdb_id": 427000,
+      "title": "Final Fantasy VII",
+      "developer": "Square",
+      "publishers": ["Square", "Sony Computer Entertainment"],
+      "release_date": "1997-01-31",
+      "genres": ["RPG"],
+      "platforms": ["PlayStation"],
+      "franchise": "Final Fantasy",
+      "description": "O JRPG que popularizou o genero no Ocidente: Cloud, Sephiroth, materia, minigames e FMVs de tirar o folego.",
+      "game_modes": ["Single Player"],
+      "features": ["Materia", "Minigames", "Memory Card"],
+      "themes": ["Ficcao Cientifica", "Fantasia"],
+      "age_rating": "ESRB T",
+      "regional_titles": { "Japao": "ファイナルファンタジーVII" },
+      "completion_times": { "main_story": "37h", "main_extras": "49h", "completionist": "82h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 427000 },
+      "translations": [
+        {
+          "title": "Final Fantasy VII — Retraducao PT-BR",
+          "description": "Retraducao completa para portugues do Brasil corrigindo os erros classicos da versao oficial.",
+          "language": "Portugues (BR)", "source_language": "Ingles", "completion_percentage": 100,
+          "translation_type": "Full", "patch_type": "PPF", "version": "1.3",
+          "downloads": 9870, "rating": 4.8, "release_date": "2018-12-01"
+        }
+      ]
+    },
+    {
+      "slug": "super-mario-bros-3",
+      "igdb_id": 1068,
+      "title": "Super Mario Bros. 3",
+      "developer": "Nintendo EAD",
+      "publishers": ["Nintendo"],
+      "release_date": "1988-10-23",
+      "genres": ["Plataforma"],
+      "platforms": ["NES"],
+      "franchise": "Super Mario",
+      "description": "Auge do Mario no NES: mapa de mundo, roupas de poder (Tanooki) e level design impecavel.",
+      "game_modes": ["Single Player", "Multiplayer"],
+      "features": ["Mapa de Mundo", "Power-ups"],
+      "themes": ["Fantasia", "Comedia"],
+      "age_rating": "ESRB E",
+      "completion_times": { "main_story": "6h", "main_extras": "11h", "completionist": "17h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1068 }
+    },
+    {
+      "slug": "pokemon-crystal",
+      "igdb_id": 1561,
+      "title": "Pokemon Crystal",
+      "developer": "Game Freak",
+      "publishers": ["Nintendo", "The Pokemon Company"],
+      "release_date": "2000-12-14",
+      "genres": ["RPG"],
+      "platforms": ["Game Boy Color"],
+      "franchise": "Pokemon",
+      "description": "Versao definitiva da geracao 2: sprites animados, arco do Suicune e o primeiro protagonista feminino da serie.",
+      "game_modes": ["Single Player", "Multiplayer"],
+      "features": ["Troca por Link", "Battery Save"],
+      "themes": ["Fantasia", "Aventura"],
+      "age_rating": "ESRB E",
+      "completion_times": { "main_story": "31h", "main_extras": "44h", "completionist": "80h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1561 },
+      "romhacks": [
+        {
+          "title": "Pokemon Crystal Clear",
+          "description": "Transforma Crystal num RPG de mundo aberto: escolha inicial livre, ordem de ginasios flexivel e nuzlocke embutido.",
+          "categories": ["Gameplay", "Improvement"],
+          "version": "2.5.9", "patch_type": "IPS", "difficulty": "Normal", "hack_type": "Full",
+          "tags": ["open-world", "qol"], "downloads": 41200, "rating": 4.9, "release_date": "2019-07-15"
+        }
+      ]
+    },
+    {
+      "slug": "secret-of-mana",
+      "igdb_id": 3909,
+      "title": "Secret of Mana",
+      "developer": "Square",
+      "publishers": ["Square"],
+      "release_date": "1993-08-06",
+      "genres": ["Action RPG"],
+      "platforms": ["SNES"],
+      "franchise": "Mana",
+      "description": "Action RPG cooperativo para tres jogadores com o inovador menu-anel e trilha memoravel de Hiroki Kikuta.",
+      "game_modes": ["Single Player", "Co-op"],
+      "features": ["Co-op 3 Jogadores", "Ring Menu", "Battery Save"],
+      "themes": ["Fantasia"],
+      "age_rating": "ESRB E",
+      "regional_titles": { "Japao": "聖剣伝説2" },
+      "completion_times": { "main_story": "20h", "main_extras": "26h", "completionist": "35h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 3909 }
+    },
+    {
+      "slug": "metroid-fusion",
+      "igdb_id": 1104,
+      "title": "Metroid Fusion",
+      "developer": "Nintendo R&D1",
+      "publishers": ["Nintendo"],
+      "release_date": "2002-11-17",
+      "genres": ["Metroidvania", "Acao/Aventura"],
+      "platforms": ["Game Boy Advance"],
+      "franchise": "Metroid",
+      "description": "Metroidvania mais dirigido e atmosferico, com o SA-X perseguindo Samus pela estacao BSL.",
+      "game_modes": ["Single Player"],
+      "features": ["Exploracao", "Battery Save"],
+      "themes": ["Ficcao Cientifica", "Terror"],
+      "age_rating": "ESRB E",
+      "completion_times": { "main_story": "6h", "main_extras": "8h", "completionist": "11h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1104 }
+    },
+    {
+      "slug": "chrono-cross",
+      "igdb_id": 1132,
+      "title": "Chrono Cross",
+      "developer": "Square",
+      "publishers": ["Square"],
+      "release_date": "1999-11-18",
+      "genres": ["RPG"],
+      "platforms": ["PlayStation"],
+      "franchise": "Chrono",
+      "description": "Sequencia espiritual de Chrono Trigger com 45 personagens recrutaveis, mundos paralelos e a trilha aclamada de Yasunori Mitsuda.",
+      "game_modes": ["Single Player"],
+      "features": ["Multiplos Personagens", "New Game+", "Memory Card"],
+      "themes": ["Fantasia", "Ficcao Cientifica"],
+      "age_rating": "ESRB T",
+      "regional_titles": { "Japao": "クロノ・クロス" },
+      "completion_times": { "main_story": "40h", "main_extras": "51h", "completionist": "77h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1132 }
+    },
+    {
+      "slug": "megaman-x",
+      "igdb_id": 1088,
+      "title": "Mega Man X",
+      "developer": "Capcom",
+      "publishers": ["Capcom"],
+      "release_date": "1993-12-17",
+      "genres": ["Plataforma", "Acao"],
+      "platforms": ["SNES"],
+      "franchise": "Mega Man",
+      "description": "Reinvencao 16-bit da serie: dash na parede, upgrades de armadura e chefes Maverick interligados por fraquezas.",
+      "game_modes": ["Single Player"],
+      "features": ["Upgrades", "Battery Save"],
+      "themes": ["Ficcao Cientifica", "Acao"],
+      "age_rating": "ESRB E",
+      "regional_titles": { "Japao": "ロックマンX" },
+      "completion_times": { "main_story": "4h", "main_extras": "6h", "completionist": "9h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 1088 }
+    },
+    {
+      "slug": "final-fantasy-tactics",
+      "igdb_id": 429,
+      "title": "Final Fantasy Tactics",
+      "developer": "Square",
+      "publishers": ["Square", "Sony Computer Entertainment"],
+      "release_date": "1997-06-20",
+      "genres": ["Tactical RPG"],
+      "platforms": ["PlayStation"],
+      "franchise": "Final Fantasy",
+      "description": "RPG tatico politico ambientado em Ivalice, com o sistema de jobs mais profundo da serie e roteiro de intriga feudal.",
+      "game_modes": ["Single Player"],
+      "features": ["Sistema de Jobs", "Grid Tatico", "Memory Card"],
+      "themes": ["Fantasia", "Guerra"],
+      "age_rating": "ESRB T",
+      "regional_titles": { "Japao": "ファイナルファンタジータクティクス" },
+      "completion_times": { "main_story": "40h", "main_extras": "56h", "completionist": "80h", "source": "HowLongToBeat" },
+      "external_ids": { "igdb": 429 }
+    }
+  ],
+  "tools": [
+    {
+      "title": "TIM Studio",
+      "description": "Editor moderno de imagens TIM de PlayStation (TIM <-> PNG), com leitor de ISO, reinsercao, modo tile e descompressao Square/LoM.",
+      "category": "Graphics Editor", "supported_platforms": ["PlayStation"],
+      "license": "Free", "source_code_url": "https://github.com/rodrigokiller/tim-studio",
+      "tags": ["psx", "tim", "graphics"], "downloads": 512, "rating": 4.9
+    },
+    {
+      "title": "Tile Studio",
+      "description": "Editor de tiles/graficos crus estilo Tile Molester, com codecs por console, carregamento de TIM, importacao de paleta e flip/rotate.",
+      "category": "Tile Editor", "supported_platforms": ["SNES", "Game Boy", "NES", "PlayStation"],
+      "license": "Free", "source_code_url": "https://github.com/rodrigokiller/tile-studio",
+      "tags": ["tiles", "snes", "gb"], "downloads": 388, "rating": 4.85
+    },
+    {
+      "title": "LoM Studio",
+      "description": "Workbench dedicada a Legend of Mana: build 1-clique, previa fiel de dialogos, editor de fonte/tabela e otimizador de MTE.",
+      "category": "Translation Suite", "supported_platforms": ["PlayStation"],
+      "license": "Free", "source_code_url": "https://github.com/rodrigokiller/lom-studio",
+      "tags": ["psx", "lom", "translation"], "downloads": 176, "rating": 5.0
+    },
+    {
+      "title": "Lunar IPS",
+      "description": "Aplicador e criador de patches IPS classico, leve e onipresente na cena de romhacking.",
+      "category": "Patcher", "supported_platforms": ["Multi"],
+      "license": "Freeware", "tags": ["ips", "patch"], "downloads": 98400, "rating": 4.6
+    },
+    {
+      "title": "xdelta UI",
+      "description": "Interface grafica para criar e aplicar patches VCDIFF (.xdelta), padrao para hacks e traducoes grandes.",
+      "category": "Patcher", "supported_platforms": ["Multi"],
+      "license": "GPL", "tags": ["xdelta", "patch"], "downloads": 45600, "rating": 4.7
+    },
+    {
+      "title": "Cartographer",
+      "description": "Dumper de scripts configuravel por tabela, muito usado para extrair texto para traducao.",
+      "category": "Script Tool", "supported_platforms": ["Multi"],
+      "license": "Free", "tags": ["script", "dump", "table"], "downloads": 12300, "rating": 4.4
+    }
+  ],
+  "documents": [
+    {
+      "title": "Guia de Assembly do SNES (65816)",
+      "description": "Introducao pratica ao 65816 para romhacking de SNES: registradores, modos de enderecamento e hooks comuns.",
+      "category": "Technical", "file_format": "HTML", "language": "Portugues (BR)",
+      "tags": ["snes", "assembly", "65816"], "downloads": 1204, "rating": 4.7
+    },
+    {
+      "title": "Formato de tabela (.tbl) e MTE",
+      "description": "Como funcionam arquivos de tabela, dual-tile encoding e compressao de dicionario em scripts de jogos.",
+      "category": "Reference", "file_format": "PDF", "language": "Portugues (BR)",
+      "tags": ["table", "mte", "script"], "downloads": 890, "rating": 4.6
+    },
+    {
+      "title": "Introducao ao MDEC do PlayStation",
+      "description": "Como o decodificador de macroblocos do PSX descomprime FMVs .STR e como legendar videos.",
+      "category": "Technical", "file_format": "HTML", "language": "Portugues (BR)",
+      "tags": ["psx", "mdec", "video"], "downloads": 430, "rating": 4.8
+    }
+  ],
+  "articles": [
+    {
+      "slug": "melhores-romhacks-2025",
+      "title": "Os melhores romhacks de 2025",
+      "excerpt": "Uma selecao dos hacks e traducoes que mais marcaram o ano.",
+      "content": "# Os melhores romhacks de 2025\n\nSelecao editorial dos lancamentos que mais chamaram atencao na cena. De kaizo a restauracoes de script, 2025 foi um ano forte.\n\n## Destaques\n\n- **Pokemon Crystal Clear** seguiu recebendo updates e continua sendo a porta de entrada para mundo aberto em GBC.\n- Traducoes PT-BR ganharam folego com novas ferramentas de dump.\n\n(conteudo de exemplo)",
+      "category": "Showcase", "tags": ["retrospectiva", "2025"], "views": 1530
+    },
+    {
+      "slug": "comecando-no-romhacking",
+      "title": "Comecando no romhacking: por onde ir",
+      "excerpt": "Um roteiro pratico do zero: tabelas, patches, editores e a primeira traducao.",
+      "content": "# Comecando no romhacking\n\nSe voce quer traduzir ou modificar um jogo classico, este e o caminho mais curto.\n\n## 1. Entenda tabelas (.tbl)\n\nElas mapeiam bytes para caracteres. Sem elas, o texto vira lixo.\n\n## 2. Escolha um editor\n\nPara graficos, TIM Studio (PSX) e Tile Studio (multi). Para texto, um dumper como o Cartographer.\n\n## 3. Faca seu primeiro patch\n\nLunar IPS ou xdelta resolvem 90% dos casos.\n\n(conteudo de exemplo)",
+      "category": "Tutorial", "tags": ["iniciante", "tutorial"], "views": 2140
+    },
+    {
+      "slug": "traduzindo-legend-of-mana",
+      "title": "Traduzindo Legend of Mana para PT-BR",
+      "excerpt": "Os desafios de script, fonte e video num dos RPGs mais bonitos do PS1.",
+      "content": "# Traduzindo Legend of Mana\n\nO LoM combina um formato de script denso, fonte de largura variavel e FMVs comprimidos em MDEC. Este artigo conta como o LoM Studio ataca cada frente.\n\n(conteudo de exemplo)",
+      "category": "Making Of", "tags": ["lom", "traducao", "psx"], "views": 780
+    }
+  ]
+}

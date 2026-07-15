@@ -3,16 +3,18 @@ import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Gamepad2 } from 'lucide-react';
 import { useGame } from '@/hooks/useGames';
+import { useGameRomhacks, useGameTranslations, useGameDocuments } from '@/hooks/useMaterials';
+import { MaterialCard } from '@/components/entities/MaterialCard';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
+import type { Kind } from '@/components/entities/kinds';
 
 function humanize(slug: string): string {
-  return slug
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+  return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
+
+type Row = Record<string, unknown>;
 
 export function GameDetail() {
   const { t } = useTranslation();
@@ -20,31 +22,38 @@ export function GameDetail() {
   const { data: game, isLoading } = useGame(slug);
   const [tab, setTab] = useState('overview');
 
+  const gameId = game?.id;
+  const romhacks = useGameRomhacks(gameId);
+  const translations = useGameTranslations(gameId);
+  const documents = useGameDocuments(gameId);
+
+  const rc = romhacks.data?.length ?? 0;
+  const tc = translations.data?.length ?? 0;
+  const dc = documents.data?.length ?? 0;
+
+  const withCount = (label: string, n: number) => (n ? `${label} (${n})` : label);
+
   const tabs: TabItem[] = [
     { id: 'overview', label: t('games:tabOverview') },
     { id: 'images', label: t('games:tabImages') },
     { id: 'releases', label: t('games:tabReleases') },
-    { id: 'translations', label: t('games:tabTranslations') },
-    { id: 'romhacks', label: t('games:tabRomhacks') },
-    { id: 'docs', label: t('games:tabDocs') },
+    { id: 'translations', label: withCount(t('games:tabTranslations'), tc) },
+    { id: 'romhacks', label: withCount(t('games:tabRomhacks'), rc) },
+    { id: 'docs', label: withCount(t('games:tabDocs'), dc) },
   ];
 
   if (isLoading) return <LoadingPage />;
 
-  // Sem dados (Supabase ausente ou jogo não encontrado): ainda mostramos o
-  // shell da página, com título derivado do slug, para exercitar o layout.
   const title = game?.title ?? humanize(slug ?? 'jogo');
+  const screenshots = (game?.screenshots ?? []).filter(Boolean);
+  const completion = game?.completion_times as Record<string, string> | null | undefined;
 
   return (
     <div className="container">
       <div className="detail-head">
         <div className="detail-cover">
           {game?.cover_url ? (
-            <img
-              src={game.cover_url}
-              alt={title}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
+            <img src={game.cover_url} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
             <Gamepad2 aria-hidden />
           )}
@@ -52,22 +61,20 @@ export function GameDetail() {
         <div className="detail-info">
           <span className="kicker">// {t('entities:kindGame')}</span>
           <h1>{title}</h1>
+          {game?.alt_title && <p className="muted-text">{game.alt_title}</p>}
           {game?.description && <p className="page-sub">{game.description}</p>}
           <dl className="meta-grid">
             <MetaItem label={t('games:developer')} value={game?.developer} />
-            <MetaItem
-              label={t('games:publisher')}
-              value={game?.publishers?.join(', ')}
-            />
+            <MetaItem label={t('games:publisher')} value={game?.publishers?.join(', ')} />
             <MetaItem label={t('games:released')} value={game?.release_date} />
             <MetaItem label={t('games:franchise')} value={game?.franchise} />
+            <MetaItem label={t('games:genres')} value={game?.genres?.join(', ')} />
+            <MetaItem label={t('games:ageRating')} value={game?.age_rating} />
           </dl>
           {game?.platforms && game.platforms.length > 0 && (
             <div className="tile-badges" style={{ marginTop: 'var(--s4)' }}>
               {game.platforms.map((p) => (
-                <Badge key={p} tone="accent">
-                  {p}
-                </Badge>
+                <Badge key={p} tone="accent">{p}</Badge>
               ))}
             </div>
           )}
@@ -76,14 +83,111 @@ export function GameDetail() {
 
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
       <div className="tab-panel" role="tabpanel">
-        {tab === 'overview' && game?.description ? (
-          <div className="prose">
-            <p>{game.description}</p>
-          </div>
-        ) : (
-          <EmptyState title={t('common:comingSoonTitle')} text={t('common:comingSoonText')} />
+        {tab === 'overview' && (
+          <OverviewTab game={game} completion={completion} />
         )}
+
+        {tab === 'images' && (
+          screenshots.length > 0 ? (
+            <div className="shot-grid">
+              {screenshots.map((src) => (
+                <a key={src} href={src} target="_blank" rel="noopener noreferrer" className="shot">
+                  <img src={src} alt="" loading="lazy" />
+                </a>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title={t('games:tabImages')} text={t('common:comingSoonText')} />
+          )
+        )}
+
+        {tab === 'releases' && (
+          <dl className="meta-grid">
+            <MetaItem label={t('games:released')} value={game?.release_date} />
+            <MetaItem label={t('games:platforms')} value={game?.platforms?.join(', ')} />
+            {game?.regional_titles &&
+              Object.entries(game.regional_titles as Record<string, string>).map(([region, name]) => (
+                <MetaItem key={region} label={region} value={name} />
+              ))}
+          </dl>
+        )}
+
+        {tab === 'translations' && <RelatedGrid kind="translation" query={translations} />}
+        {tab === 'romhacks' && <RelatedGrid kind="romhack" query={romhacks} />}
+        {tab === 'docs' && <RelatedGrid kind="doc" query={documents} />}
       </div>
+    </div>
+  );
+}
+
+function OverviewTab({
+  game,
+  completion,
+}: {
+  game: ReturnType<typeof useGame>['data'];
+  completion?: Record<string, string> | null;
+}) {
+  const { t } = useTranslation();
+  const features = (game?.features ?? []).concat(game?.themes ?? []).filter(Boolean);
+  return (
+    <div>
+      {game?.description ? (
+        <div className="prose"><p>{game.description}</p></div>
+      ) : (
+        <EmptyState title={t('common:comingSoonTitle')} text={t('common:comingSoonText')} />
+      )}
+
+      {features.length > 0 && (
+        <div className="tile-badges" style={{ marginTop: 'var(--s5)' }}>
+          {features.map((f) => (
+            <span key={f} className="chip">{f}</span>
+          ))}
+        </div>
+      )}
+
+      {completion && (completion.main_story || completion.completionist) && (
+        <div className="completion" style={{ marginTop: 'var(--s6)' }}>
+          <h3 className="completion-title">{t('games:completionTitle')}</h3>
+          <div className="completion-grid">
+            <CompletionCell label={t('games:completionMain')} value={completion.main_story} />
+            <CompletionCell label={t('games:completionExtras')} value={completion.main_extras} />
+            <CompletionCell label={t('games:completionFull')} value={completion.completionist} />
+          </div>
+          {completion.source && <p className="muted-text completion-source">{t('games:completionSource', { source: completion.source })}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CompletionCell({ label, value }: { label: string; value?: string }) {
+  if (!value) return null;
+  return (
+    <div className="completion-cell">
+      <span className="completion-value">{value}</span>
+      <span className="completion-label">{label}</span>
+    </div>
+  );
+}
+
+function RelatedGrid({
+  kind,
+  query,
+}: {
+  kind: Kind;
+  query: { data?: unknown[]; isLoading: boolean };
+}) {
+  const { t } = useTranslation();
+  if (query.isLoading) return <LoadingPage />;
+  const items = (query.data ?? []) as Row[];
+  if (items.length === 0) {
+    return <EmptyState title={t('browse:emptyTitle')} text={t('entities:noneForGame')} />;
+  }
+  return (
+    <div className="card-grid">
+      {items.map((item) => (
+        <MaterialCard key={String(item.id)} kind={kind} item={item} />
+      ))}
     </div>
   );
 }

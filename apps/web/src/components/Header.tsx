@@ -1,24 +1,16 @@
-import { useState, type FormEvent } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Settings, LogIn, LogOut, User as UserIcon } from 'lucide-react';
+import { Settings, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 import { Logo } from './Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { SearchBox } from './SearchBox';
 import { useAuth } from '@/auth/AuthProvider';
 import './header.css';
 
 /** Cabeçalho reutilizável, presente em todas as páginas. */
 export function Header() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { session, user, signOut } = useAuth();
-  const [q, setQ] = useState('');
-
-  function onSearch(e: FormEvent) {
-    e.preventDefault();
-    const term = q.trim();
-    navigate(term ? `/search?q=${encodeURIComponent(term)}` : '/search');
-  }
 
   const username =
     (user?.user_metadata?.username as string | undefined) ??
@@ -42,17 +34,7 @@ export function Header() {
           </nav>
         </div>
 
-        <form className="header-search" role="search" onSubmit={onSearch}>
-          <Search aria-hidden className="header-search-icon" />
-          <input
-            className="header-search-input"
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={t('common:searchPlaceholder')}
-            aria-label={t('common:searchPlaceholder')}
-          />
-        </form>
+        <SearchBox variant="header" />
 
         <div className="header-right">
           <LanguageSwitcher />

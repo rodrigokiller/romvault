@@ -24,6 +24,7 @@ export const NAMESPACES = [
   'settings',
   'errors',
   'profile',
+  'search',
 ] as const;
 
 // Recursos empacotados no bundle: init é síncrono, sem Suspense de rede.

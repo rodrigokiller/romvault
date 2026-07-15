@@ -14,6 +14,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "preview": "npm run preview --workspace @romvault/web",
+    "import": "node scripts/import.mjs",
+    "import:igdb": "node scripts/import.mjs --source=igdb",
     "db:login": "npx --yes supabase@latest login",
     "db:link": "npx --yes supabase@latest link",
     "db:push": "npx --yes supabase@latest db push",

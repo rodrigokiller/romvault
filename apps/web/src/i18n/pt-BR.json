@@ -51,6 +51,10 @@
     "filterAll": "Todas",
     "filterAllMasc": "Todos",
     "searchPlaceholder": "Filtrar por título…",
+    "sort": "Ordenar por",
+    "sortDownloads": "Mais baixados",
+    "sortRating": "Melhor avaliados",
+    "sortRecent": "Mais recentes",
     "results_one": "{{count}} resultado",
     "results_other": "{{count}} resultados",
     "emptyTitle": "Nada por aqui ainda",
@@ -74,7 +78,13 @@
     "released": "Lançamento",
     "platforms": "Plataformas",
     "genres": "Gêneros",
-    "franchise": "Franquia"
+    "franchise": "Franquia",
+    "ageRating": "Classificação",
+    "completionTitle": "Tempo de conclusão",
+    "completionMain": "História principal",
+    "completionExtras": "História + extras",
+    "completionFull": "100%",
+    "completionSource": "Dados de {{source}}"
   },
   "entities": {
     "kindGame": "Jogo",
@@ -99,7 +109,25 @@
     "toolsSubtitle": "Editores, patchers, compressores e utilitários de romhacking.",
     "articlesTitle": "Artigos",
     "articlesSubtitle": "Notícias, tutoriais e destaques da cena.",
-    "detailPlaceholder": "A página de detalhe deste item chega num próximo milestone — com abas, arquivos, screenshots, avaliações e downloads."
+    "detailPlaceholder": "A página de detalhe deste item chega num próximo milestone — com abas, arquivos, screenshots, avaliações e downloads.",
+    "notFoundTitle": "Não encontrado",
+    "notFoundText": "Este item não existe ou foi removido.",
+    "backToList": "Voltar à lista",
+    "download": "Baixar",
+    "sourceCode": "Código-fonte",
+    "sourceGame": "Jogo de origem",
+    "completion": "Conclusão",
+    "license": "Licença",
+    "credits": "Créditos",
+    "noneForGame": "Nada vinculado a este jogo ainda."
+  },
+  "search": {
+    "resultsFor": "Resultados para \"{{q}}\"",
+    "noResultsTitle": "Sem resultados",
+    "noResults": "Nada encontrado para \"{{q}}\".",
+    "seeAllFor": "Ver todos os resultados para \"{{q}}\" →",
+    "startTitle": "Buscar no ROMVault",
+    "startText": "Digite ao menos 2 caracteres para buscar jogos, romhacks, traduções, docs e ferramentas."
   },
   "forms": {
     "submitTitle": "Enviar um romhack",

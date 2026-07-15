@@ -51,6 +51,10 @@
     "filterAll": "All",
     "filterAllMasc": "All",
     "searchPlaceholder": "Filter by title…",
+    "sort": "Sort by",
+    "sortDownloads": "Most downloaded",
+    "sortRating": "Highest rated",
+    "sortRecent": "Newest",
     "results_one": "{{count}} result",
     "results_other": "{{count}} results",
     "emptyTitle": "Nothing here yet",
@@ -74,7 +78,13 @@
     "released": "Released",
     "platforms": "Platforms",
     "genres": "Genres",
-    "franchise": "Franchise"
+    "franchise": "Franchise",
+    "ageRating": "Age rating",
+    "completionTitle": "Completion time",
+    "completionMain": "Main story",
+    "completionExtras": "Main + extras",
+    "completionFull": "100%",
+    "completionSource": "Data from {{source}}"
   },
   "entities": {
     "kindGame": "Game",
@@ -99,7 +109,25 @@
     "toolsSubtitle": "Editors, patchers, compressors and romhacking utilities.",
     "articlesTitle": "Articles",
     "articlesSubtitle": "News, tutorials and scene highlights.",
-    "detailPlaceholder": "This item's detail page lands in an upcoming milestone — with tabs, files, screenshots, reviews and downloads."
+    "detailPlaceholder": "This item's detail page lands in an upcoming milestone — with tabs, files, screenshots, reviews and downloads.",
+    "notFoundTitle": "Not found",
+    "notFoundText": "This item doesn't exist or was removed.",
+    "backToList": "Back to list",
+    "download": "Download",
+    "sourceCode": "Source code",
+    "sourceGame": "Source game",
+    "completion": "Completion",
+    "license": "License",
+    "credits": "Credits",
+    "noneForGame": "Nothing linked to this game yet."
+  },
+  "search": {
+    "resultsFor": "Results for \"{{q}}\"",
+    "noResultsTitle": "No results",
+    "noResults": "Nothing found for \"{{q}}\".",
+    "seeAllFor": "See all results for \"{{q}}\" →",
+    "startTitle": "Search ROMVault",
+    "startText": "Type at least 2 characters to search games, romhacks, translations, docs and tools."
   },
   "forms": {
     "submitTitle": "Submit a romhack",
