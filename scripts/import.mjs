@@ -10,8 +10,10 @@
  * Uso:
  *   npm run import                 # modo dataset (catalogo curado)
  *   npm run import -- --dry        # simula, nao escreve
- *   npm run import -- --source=igdb --platform=snes --limit=50
- *   npm run import -- --source=igdb --platform=ps1 --pages=4     # varias paginas
+ *   npm run import -- --source=igdb --platform=snes --limit=500       # 500 num run
+ *   npm run import -- --source=igdb --platform=ps1 --pages=4          # 4 paginas
+ *   npm run import -- --source=igdb --platform=snes --all             # TUDO da plataforma
+ *   (o cursor e por plataforma e incremental: rodar de novo continua de onde parou)
  *
  * Variaveis (.env na raiz do repo — copie de .env.example):
  *   SUPABASE_URL              (= a mesma URL do projeto)
@@ -197,6 +199,13 @@ const IGDB_PLATFORMS = {
   master: 64, gamegear: 35, tg16: 128, arcade: 52,
 };
 
+// id do IGDB -> nome curto pra badge/slug (nomes oficiais do IGDB sao verbosos).
+const PLATFORM_SHORT = {
+  19: 'SNES', 18: 'NES', 4: 'N64', 33: 'Game Boy', 22: 'GBC', 24: 'GBA', 20: 'NDS',
+  7: 'PS1', 8: 'PS2', 29: 'Genesis', 32: 'Saturn', 23: 'Dreamcast',
+  64: 'Master System', 35: 'Game Gear', 128: 'TG-16', 52: 'Arcade',
+};
+
 async function igdbToken() {
   const id = ENV.TWITCH_CLIENT_ID, secret = ENV.TWITCH_CLIENT_SECRET;
   if (!id || !secret) {
@@ -226,10 +235,16 @@ async function igdbQuery(auth, endpoint, body) {
   return res.json();
 }
 
-/** Mapeia um jogo do IGDB para uma linha da tabela games do ROMVault. */
-function igdbToGame(g) {
-  const platforms = (g.platforms ?? []).map((p) => p.name).filter(Boolean);
-  const slug = slugifyText(g.name) + (platforms[0] ? '-' + slugifyText(platforms[0]) : '');
+/**
+ * Mapeia um jogo do IGDB para uma linha da tabela games do ROMVault.
+ * `primaryShort` = nome curto da plataforma CONSULTADA (ex.: 'SNES'); vira o
+ * sufixo do slug e a primeira plataforma da lista (o jogo pode ser multiplataforma).
+ */
+function igdbToGame(g, primaryShort) {
+  // nomes curtos quando conhecemos o id; senao o nome do IGDB
+  const mapped = (g.platforms ?? []).map((p) => PLATFORM_SHORT[p.id] ?? p.name).filter(Boolean);
+  const platforms = [primaryShort, ...mapped.filter((p) => p !== primaryShort)];
+  const slug = slugifyText(g.name) + '-' + slugifyText(primaryShort);
   return {
     slug,
     igdb_id: g.id,
@@ -260,11 +275,17 @@ async function importIgdb(sb) {
     process.exit(1);
   }
   const limit = Math.min(Number(flag('limit', 50)) || 50, 500);
-  const pages = Number(flag('pages', 1)) || 1;
-  const entity = 'game';
+  const all = Boolean(flag('all', false));
+  const pages = all ? 1000 : (Number(flag('pages', 1)) || 1);
+  const primaryShort = PLATFORM_SHORT[platformId] ?? platformKey.toUpperCase();
+  // cursor SEPARADO por plataforma (senao trocar de plataforma pularia ids)
+  const entity = `game:${platformKey}`;
   const source = 'igdb';
 
-  step(`IGDB sync — plataforma=${platformKey} (id ${platformId}), limite ${limit} x ${pages} pagina(s)`);
+  step(
+    `IGDB sync — plataforma=${platformKey} (id ${platformId}), ` +
+    (all ? `TUDO em paginas de ${limit}` : `limite ${limit} x ${pages} pagina(s)`),
+  );
   const auth = await igdbToken();
 
   // cursor incremental a partir do sync_state
@@ -287,7 +308,7 @@ async function importIgdb(sb) {
   const stats = { games: 0, skipped: 0, mapped: 0 };
   const fields =
     'fields id,name,summary,first_release_date,slug,cover.url,screenshots.url,genres.name,' +
-    'platforms.name,game_modes.name,themes.name,franchises.name,collection.name,' +
+    'platforms.id,platforms.name,game_modes.name,themes.name,franchises.name,collection.name,' +
     'involved_companies.developer,involved_companies.publisher,involved_companies.company.name;';
 
   for (let page = 0; page < pages; page++) {
@@ -297,7 +318,7 @@ async function importIgdb(sb) {
 
     for (const g of games) {
       cursor = Math.max(cursor, g.id);
-      const row = igdbToGame(g);
+      const row = igdbToGame(g, primaryShort);
 
       // dedupe
       const dupId = byIgdb.get(g.id) ?? bySlug.get(row.slug) ?? null;
@@ -323,6 +344,8 @@ async function importIgdb(sb) {
       );
       if (!mErr) stats.mapped++;
     }
+    if (games.length < limit) break; // ultima pagina alcancada
+    if (all) log(c.dim(`  … pagina ${page + 1} (cursor ${cursor})`));
   }
 
   // grava cursor
