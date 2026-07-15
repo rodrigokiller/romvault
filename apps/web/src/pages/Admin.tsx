@@ -18,8 +18,12 @@ import { useDeleteEntity } from '@/hooks/useMutations';
 const db = () => getSupabase() as unknown as SupabaseClient;
 
 const IGDB_PLATFORMS = [
-  'snes', 'nes', 'n64', 'gb', 'gbc', 'gba', 'nds',
-  'ps1', 'ps2', 'genesis', 'saturn', 'dreamcast', 'master', 'gamegear', 'tg16', 'arcade',
+  'snes', 'nes', 'n64', 'gamecube', 'wii', 'wiiu', 'switch',
+  'gb', 'gbc', 'gba', 'nds', '3ds',
+  'genesis', 'mastersystem', 'gamegear', 'saturn', 'dreamcast',
+  'ps1', 'ps2', 'ps3', 'ps4', 'ps5', 'psp', 'vita',
+  'xbox', 'x360', 'xboxone', 'xseries',
+  'pc', 'arcade', 'tg16', 'neogeo',
 ];
 
 /** Dispara a Edge Function `igdb-sync` (só admin; requer deploy + secrets). */
@@ -39,9 +43,9 @@ function IgdbSyncPanel() {
         body: { platform, limit, pages },
       });
       if (error) throw error;
-      const d = data as { imported?: number; skipped?: number; error?: string };
+      const d = data as { imported?: number; enriched?: number; skipped?: number; error?: string };
       if (d?.error) throw new Error(d.error);
-      toast.success(t('admin:syncDone', { imported: d?.imported ?? 0, skipped: d?.skipped ?? 0 }));
+      toast.success(t('admin:syncDone', { imported: d?.imported ?? 0, enriched: d?.enriched ?? 0, skipped: d?.skipped ?? 0 }));
       void qc.invalidateQueries();
     } catch (err) {
       // erro de rede/preflight = função não deployada (ou sem --no-verify-jwt)

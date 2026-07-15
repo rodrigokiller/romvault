@@ -24,14 +24,25 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
 const IGDB_PLATFORMS: Record<string, number> = {
-  snes: 19, nes: 18, n64: 4, gb: 33, gbc: 22, gba: 24, nds: 20,
-  ps1: 7, psx: 7, ps2: 8, genesis: 29, megadrive: 29, saturn: 32, dreamcast: 23,
-  master: 64, gamegear: 35, tg16: 128, arcade: 52,
+  nes: 18, snes: 19, n64: 4, gamecube: 21, gc: 21, wii: 5, wiiu: 41, switch: 130, nsw: 130,
+  gb: 33, gbc: 22, gba: 24, nds: 20, ds: 20, '3ds': 37, virtualboy: 87, vb: 87,
+  genesis: 29, megadrive: 29, md: 29, master: 64, mastersystem: 64, gamegear: 35, gg: 35,
+  saturn: 32, dreamcast: 23, dc: 23, segacd: 78, sega32x: 30,
+  ps1: 7, psx: 7, ps2: 8, ps3: 9, ps4: 48, ps5: 167, psp: 38, vita: 46, psvita: 46,
+  xbox: 11, x360: 12, xbox360: 12, xboxone: 49, xone: 49, xseries: 169,
+  pc: 6, windows: 6, dos: 13, mac: 14, linux: 3,
+  arcade: 52, tg16: 128, pcengine: 128, neogeo: 80, atari2600: 59, jaguar: 62,
+  amiga: 16, c64: 15, '3do': 50, colecovision: 68, intellivision: 67, android: 34, ios: 39,
 };
 const PLATFORM_SHORT: Record<number, string> = {
-  19: 'SNES', 18: 'NES', 4: 'N64', 33: 'Game Boy', 22: 'GBC', 24: 'GBA', 20: 'NDS',
-  7: 'PS1', 8: 'PS2', 29: 'Genesis', 32: 'Saturn', 23: 'Dreamcast',
-  64: 'Master System', 35: 'Game Gear', 128: 'TG-16', 52: 'Arcade',
+  18: 'NES', 19: 'SNES', 4: 'N64', 21: 'GameCube', 5: 'Wii', 41: 'Wii U', 130: 'Switch',
+  33: 'Game Boy', 22: 'GBC', 24: 'GBA', 20: 'NDS', 37: '3DS', 87: 'Virtual Boy',
+  29: 'Genesis', 64: 'Master System', 35: 'Game Gear', 32: 'Saturn', 23: 'Dreamcast', 78: 'Sega CD', 30: '32X',
+  7: 'PS1', 8: 'PS2', 9: 'PS3', 48: 'PS4', 167: 'PS5', 38: 'PSP', 46: 'PS Vita',
+  11: 'Xbox', 12: 'Xbox 360', 49: 'Xbox One', 169: 'Xbox Series',
+  6: 'PC', 13: 'DOS', 14: 'Mac', 3: 'Linux',
+  52: 'Arcade', 128: 'TG-16', 80: 'Neo Geo', 59: 'Atari 2600', 62: 'Jaguar',
+  16: 'Amiga', 15: 'C64', 50: '3DO', 68: 'ColecoVision', 67: 'Intellivision', 34: 'Android', 39: 'iOS',
 };
 
 function stripDiacritics(s: string) {
@@ -116,11 +127,12 @@ Deno.serve(async (req: Request) => {
     if (!tokRes.ok) return json({ error: `OAuth Twitch falhou: ${tokRes.status}` }, 502);
     const token = (await tokRes.json()).access_token as string;
 
-    // 4) cursor + jogos existentes (dedupe)
+    // 4) cursor + jogos existentes (dedupe). range alto: sem o teto de 1000.
     const { data: ss } = await admin.from('sync_state').select('cursor').eq('source', source).eq('entity', entity).maybeSingle();
     let cursor = Number(ss?.cursor ?? 0) || 0;
-    const { data: existing } = await admin.from('games').select('id, slug, igdb_id');
-    const byIgdb = new Map<number, string>((existing ?? []).filter((g) => g.igdb_id != null).map((g) => [Number(g.igdb_id), g.id]));
+    const { data: existing } = await admin.from('games').select('id, slug, igdb_id, cover_url').range(0, 99999);
+    // deno-lint-ignore no-explicit-any
+    const byIgdb = new Map<number, any>((existing ?? []).filter((g) => g.igdb_id != null).map((g) => [Number(g.igdb_id), g]));
     const bySlug = new Map<string, string>((existing ?? []).map((g) => [g.slug, g.id]));
 
     const fields =
@@ -128,9 +140,10 @@ Deno.serve(async (req: Request) => {
       'platforms.id,platforms.name,game_modes.name,themes.name,franchises.name,collection.name,' +
       'involved_companies.developer,involved_companies.publisher,involved_companies.company.name;';
 
-    let imported = 0, skipped = 0, mapped = 0;
+    let imported = 0, enriched = 0, skipped = 0, mapped = 0;
     for (let page = 0; page < pages; page++) {
-      const q = `${fields} where platforms = (${platformId}) & id > ${cursor}; sort id asc; limit ${limit};`;
+      // category != 5 exclui MODS (romhacks catalogados como jogo no IGDB).
+      const q = `${fields} where platforms = (${platformId}) & category != 5 & id > ${cursor}; sort id asc; limit ${limit};`;
       const res = await fetch('https://api.igdb.com/v4/games', {
         method: 'POST',
         headers: { 'Client-ID': twitchId, Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -143,10 +156,22 @@ Deno.serve(async (req: Request) => {
       for (const g of games) {
         cursor = Math.max(cursor, g.id);
         const row = igdbToGame(g, primaryShort);
-        if (byIgdb.get(g.id) ?? bySlug.get(row.slug)) { skipped++; continue; }
+
+        // ja existe por igdb_id? enriquece a capa se estiver faltando.
+        const ex = byIgdb.get(g.id);
+        if (ex) {
+          if (!ex.cover_url && row.cover_url) {
+            await admin.from('games').update({ cover_url: row.cover_url, thumbnail: row.thumbnail, screenshots: row.screenshots }).eq('id', ex.id);
+            ex.cover_url = row.cover_url;
+            enriched++;
+          } else skipped++;
+          continue;
+        }
+        if (bySlug.has(row.slug)) { skipped++; continue; }
+
         const { data: ins, error } = await admin.from('games').upsert(row, { onConflict: 'slug' }).select('id').single();
-        if (error || !ins) continue;
-        byIgdb.set(g.id, ins.id);
+        if (error || !ins) { skipped++; continue; }
+        byIgdb.set(g.id, { id: ins.id, cover_url: row.cover_url });
         bySlug.set(row.slug, ins.id);
         imported++;
         const { error: mErr } = await admin.from('id_map').upsert(
@@ -163,7 +188,7 @@ Deno.serve(async (req: Request) => {
       { onConflict: 'source,entity' },
     );
 
-    return json({ ok: true, platform: platformKey, imported, skipped, mapped, cursor });
+    return json({ ok: true, platform: platformKey, imported, enriched, skipped, mapped, cursor });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }

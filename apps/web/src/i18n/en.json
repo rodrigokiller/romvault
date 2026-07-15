@@ -279,7 +279,7 @@
     "syncLimit": "Limit",
     "syncPages": "Pages",
     "syncRun": "Sync now",
-    "syncDone": "Sync done: {{imported}} imported, {{skipped}} skipped.",
+    "syncDone": "Sync done: {{imported}} imported, {{enriched}} covers filled, {{skipped}} skipped.",
     "syncNote": "Requires: supabase functions deploy igdb-sync --no-verify-jwt (and TWITCH secrets set).",
     "syncNotDeployed": "Couldn't reach the function. Deploy it: supabase functions deploy igdb-sync --no-verify-jwt"
   },

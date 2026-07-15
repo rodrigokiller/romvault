@@ -205,16 +205,33 @@ async function insertUniqueByTitle(sb, table, items, gameId, stats, statKey) {
  * MODO IGDB — sync ao vivo (Twitch OAuth + apicalypse), com dedupe + id_map
  * ═══════════════════════════════════════════════════════════════════════════ */
 const IGDB_PLATFORMS = {
-  snes: 19, nes: 18, n64: 4, gb: 33, gbc: 22, gba: 24, nds: 20,
-  ps1: 7, psx: 7, ps2: 8, genesis: 29, megadrive: 29, saturn: 32, dreamcast: 23,
-  master: 64, gamegear: 35, tg16: 128, arcade: 52,
+  // Nintendo
+  nes: 18, snes: 19, n64: 4, gamecube: 21, gc: 21, wii: 5, wiiu: 41, switch: 130, nsw: 130,
+  gb: 33, gbc: 22, gba: 24, nds: 20, ds: 20, '3ds': 37, virtualboy: 87, vb: 87,
+  // Sega
+  genesis: 29, megadrive: 29, md: 29, master: 64, mastersystem: 64, gamegear: 35, gg: 35,
+  saturn: 32, dreamcast: 23, dc: 23, segacd: 78, sega32x: 30,
+  // Sony
+  ps1: 7, psx: 7, ps2: 8, ps3: 9, ps4: 48, ps5: 167, psp: 38, vita: 46, psvita: 46,
+  // Microsoft
+  xbox: 11, x360: 12, xbox360: 12, xboxone: 49, xone: 49, xseries: 169,
+  // PC
+  pc: 6, windows: 6, dos: 13, mac: 14, linux: 3,
+  // Outros
+  arcade: 52, tg16: 128, pcengine: 128, neogeo: 80, atari2600: 59, jaguar: 62,
+  amiga: 16, c64: 15, '3do': 50, colecovision: 68, intellivision: 67, android: 34, ios: 39,
 };
 
 // id do IGDB -> nome curto pra badge/slug (nomes oficiais do IGDB sao verbosos).
 const PLATFORM_SHORT = {
-  19: 'SNES', 18: 'NES', 4: 'N64', 33: 'Game Boy', 22: 'GBC', 24: 'GBA', 20: 'NDS',
-  7: 'PS1', 8: 'PS2', 29: 'Genesis', 32: 'Saturn', 23: 'Dreamcast',
-  64: 'Master System', 35: 'Game Gear', 128: 'TG-16', 52: 'Arcade',
+  18: 'NES', 19: 'SNES', 4: 'N64', 21: 'GameCube', 5: 'Wii', 41: 'Wii U', 130: 'Switch',
+  33: 'Game Boy', 22: 'GBC', 24: 'GBA', 20: 'NDS', 37: '3DS', 87: 'Virtual Boy',
+  29: 'Genesis', 64: 'Master System', 35: 'Game Gear', 32: 'Saturn', 23: 'Dreamcast', 78: 'Sega CD', 30: '32X',
+  7: 'PS1', 8: 'PS2', 9: 'PS3', 48: 'PS4', 167: 'PS5', 38: 'PSP', 46: 'PS Vita',
+  11: 'Xbox', 12: 'Xbox 360', 49: 'Xbox One', 169: 'Xbox Series',
+  6: 'PC', 13: 'DOS', 14: 'Mac', 3: 'Linux',
+  52: 'Arcade', 128: 'TG-16', 80: 'Neo Geo', 59: 'Atari 2600', 62: 'Jaguar',
+  16: 'Amiga', 15: 'C64', 50: '3DO', 68: 'ColecoVision', 67: 'Intellivision', 34: 'Android', 39: 'iOS',
 };
 
 async function igdbToken() {
@@ -307,23 +324,25 @@ async function importIgdb(sb) {
   }
   log(`  cursor inicial: ${cursor}`);
 
-  // jogos ja existentes (para dedupe por igdb_id / slug)
+  // jogos ja existentes (para dedupe por igdb_id / slug). range alto: sem o teto
+  // de 1000 do PostgREST, senao games alem de 1000 nao seriam deduplicados.
   let existing = [];
   if (!DRY) {
-    const { data } = await sb.from('games').select('id, slug, igdb_id');
+    const { data } = await sb.from('games').select('id, slug, igdb_id, cover_url').range(0, 99999);
     existing = data ?? [];
   }
-  const byIgdb = new Map(existing.filter((g) => g.igdb_id != null).map((g) => [Number(g.igdb_id), g.id]));
+  const byIgdb = new Map(existing.filter((g) => g.igdb_id != null).map((g) => [Number(g.igdb_id), g]));
   const bySlug = new Map(existing.map((g) => [g.slug, g.id]));
 
-  const stats = { games: 0, skipped: 0, mapped: 0 };
+  const stats = { games: 0, enriched: 0, skipped: 0, mapped: 0 };
   const fields =
     'fields id,name,summary,first_release_date,slug,cover.url,screenshots.url,genres.name,' +
     'platforms.id,platforms.name,game_modes.name,themes.name,franchises.name,collection.name,' +
     'involved_companies.developer,involved_companies.publisher,involved_companies.company.name;';
 
   for (let page = 0; page < pages; page++) {
-    const body = `${fields} where platforms = (${platformId}) & id > ${cursor}; sort id asc; limit ${limit};`;
+    // category != 5 exclui MODS (romhacks catalogados como jogo no IGDB).
+    const body = `${fields} where platforms = (${platformId}) & category != 5 & id > ${cursor}; sort id asc; limit ${limit};`;
     const games = await igdbQuery(auth, 'games', body);
     if (games.length === 0) { log(c.amber('  (sem mais resultados)')); break; }
 
@@ -331,19 +350,34 @@ async function importIgdb(sb) {
       cursor = Math.max(cursor, g.id);
       const row = igdbToGame(g, primaryShort);
 
-      // dedupe
-      const dupId = byIgdb.get(g.id) ?? bySlug.get(row.slug) ?? null;
-      if (dupId) {
-        stats.skipped++;
-        if (DRY) log(`  ${c.dim('[dry/dup]')} ${row.title}`);
+      // ja existe por igdb_id? enriquece a capa se estiver faltando (ex.: jogos
+      // do dataset curado entram sem capa; o IGDB tem a arte).
+      const existingByIgdb = byIgdb.get(g.id);
+      if (existingByIgdb) {
+        if (!existingByIgdb.cover_url && row.cover_url && !DRY) {
+          await sb.from('games').update({
+            cover_url: row.cover_url, thumbnail: row.thumbnail, screenshots: row.screenshots,
+          }).eq('id', existingByIgdb.id);
+          existingByIgdb.cover_url = row.cover_url;
+          log(`  ${c.cyan('~')} ${row.slug} ${c.dim('(capa preenchida)')}`);
+          stats.enriched++;
+        } else {
+          stats.skipped++;
+        }
         continue;
       }
+      if (bySlug.has(row.slug)) { stats.skipped++; continue; }
 
       if (DRY) { log(`  ${c.dim('[dry]')} ${row.slug} ${c.dim('igdb:' + g.id)}`); stats.games++; continue; }
 
       const { data: ins, error } = await sb.from('games').upsert(row, { onConflict: 'slug' }).select('id').single();
-      if (error) { log(c.red(`  ✖ ${row.slug}: ${error.message}`)); continue; }
-      byIgdb.set(g.id, ins.id);
+      if (error) {
+        // igdb_id ja usado por outro slug: nao e' erro, so pula
+        if (/games_igdb_id_idx|duplicate key/.test(error.message)) { stats.skipped++; continue; }
+        log(c.red(`  ✖ ${row.slug}: ${error.message}`));
+        continue;
+      }
+      byIgdb.set(g.id, { id: ins.id, cover_url: row.cover_url });
       bySlug.set(row.slug, ins.id);
       log(`  ${c.green('✓')} ${row.slug} ${c.dim('igdb:' + g.id)}`);
       stats.games++;
