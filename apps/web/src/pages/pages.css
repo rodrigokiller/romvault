@@ -151,6 +151,19 @@
 .card-grid-tight {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
+/* Grid de capas (retrato): colunas mais estreitas, estilo prateleira. */
+.card-grid-cover {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--s4) var(--s3);
+}
+
+/* Capa de jogo em RETRATO (box art) — sobrepõe o thumb paisagem padrão. */
+.tile-thumb.tile-cover {
+  aspect-ratio: 3 / 4;
+}
+.tile-cover img {
+  object-position: top center;
+}
 
 /* ── Card de material / jogo ──────────────────────────────────────────────── */
 .tile {

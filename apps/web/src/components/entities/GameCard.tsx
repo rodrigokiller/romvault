@@ -13,9 +13,9 @@ export function GameCard({ game }: { game: Game }) {
     <Link to={`/games/${game.slug}`} style={{ display: 'block' }}>
       <Card interactive padSm>
         <div className="tile">
-          <div className="tile-thumb">
-            {game.thumbnail || game.cover_url ? (
-              <img src={game.thumbnail ?? game.cover_url ?? ''} alt={game.title} loading="lazy" />
+          <div className="tile-thumb tile-cover">
+            {game.cover_url || game.thumbnail ? (
+              <img src={game.cover_url ?? game.thumbnail ?? ''} alt={game.title} loading="lazy" />
             ) : (
               <Gamepad2 aria-hidden />
             )}

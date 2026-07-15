@@ -85,7 +85,7 @@ export function Games() {
         <EmptyState icon={Gamepad2} title={t('games:emptyTitle')} text={t('games:emptyText')} />
       ) : (
         <>
-          <div className="card-grid">
+          <div className="card-grid card-grid-cover">
             {games.map((g) => (
               <GameCard key={g.id} game={g} />
             ))}
