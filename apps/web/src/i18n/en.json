@@ -54,6 +54,9 @@
     "filterAllMasc": "All",
     "searchPlaceholder": "Filter by title…",
     "sort": "Sort by",
+    "sortAZ": "Title (A–Z)",
+    "sortNewest": "Release (newest)",
+    "sortOldest": "Release (oldest)",
     "sortDownloads": "Most downloaded",
     "sortRating": "Highest rated",
     "sortRecent": "Newest",
@@ -253,7 +256,17 @@
     "statFinished_other": "{{count}} finished",
     "emptyTitle": "Empty shelf",
     "emptyText": "Add games from their pages: \"Add to library\".",
-    "progressLabel": "Backlog: {{finished}}/{{total}} finished ({{pct}}%)"
+    "progressLabel": "Backlog: {{finished}}/{{total}} finished ({{pct}}%)",
+    "copiesTitle_zero": "My copies",
+    "copiesTitle_one": "My copies ({{count}})",
+    "copiesTitle_other": "My copies ({{count}})",
+    "copyAdd": "Add copy",
+    "copyConfirm": "Save",
+    "copyAdded": "Copy added to your collection!",
+    "copyRemove": "Remove copy",
+    "copyStorePh": "Store/origin (Steam, cartridge…)",
+    "dist_physical": "Physical",
+    "dist_digital": "Digital"
   },
   "collections": {
     "kicker": "// curated",

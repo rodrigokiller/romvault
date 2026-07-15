@@ -86,6 +86,82 @@ export function useRemoveTrack(gameId: string | undefined) {
   });
 }
 
+/* ── Cópias (nível coleção: N por usuário+jogo) ─────────────────────────────── */
+export interface GameCopy {
+  id: string;
+  user_id: string;
+  game_id: string;
+  platform: string;
+  distribution: 'physical' | 'digital';
+  store: string | null;
+  edition: string | null;
+  region: string | null;
+  notes: string | null;
+}
+
+/** Cópias do usuário logado para um jogo. */
+export function useMyCopies(gameId: string | undefined) {
+  const { user } = useAuth();
+  const uid = user?.id;
+  return useQuery({
+    queryKey: ['copies', gameId, uid],
+    enabled: env.configured && Boolean(gameId && uid),
+    queryFn: async (): Promise<GameCopy[]> => {
+      const { data, error } = await db()
+        .from('game_copies').select('*')
+        .eq('user_id', uid as string).eq('game_id', gameId as string)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as GameCopy[];
+    },
+  });
+}
+
+export function useAddCopy(gameId: string | undefined) {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (copy: Partial<GameCopy> & { platform: string }) => {
+      const uid = user?.id;
+      if (!uid || !gameId) throw new Error('Não autenticado.');
+      const { error } = await db().from('game_copies').insert({ ...copy, user_id: uid, game_id: gameId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['copies', gameId] });
+      void qc.invalidateQueries({ queryKey: ['libraryCopies'] });
+    },
+  });
+}
+
+export function useRemoveCopy(gameId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (copyId: string) => {
+      const { error } = await db().from('game_copies').delete().eq('id', copyId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['copies', gameId] });
+      void qc.invalidateQueries({ queryKey: ['libraryCopies'] });
+    },
+  });
+}
+
+/** Todas as cópias de um usuário (para a estante agrupar por plataforma). */
+export function useLibraryCopies(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['libraryCopies', userId],
+    enabled: env.configured && Boolean(userId),
+    queryFn: async (): Promise<GameCopy[]> => {
+      const { data, error } = await db()
+        .from('game_copies').select('*').eq('user_id', userId as string).range(0, 9999);
+      if (error) throw error;
+      return (data ?? []) as unknown as GameCopy[];
+    },
+  });
+}
+
 /** Biblioteca completa de um usuário (com os jogos embutidos). */
 export function useLibrary(userId: string | undefined) {
   return useQuery({

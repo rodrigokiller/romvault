@@ -54,6 +54,9 @@
     "filterAllMasc": "Todos",
     "searchPlaceholder": "Filtrar por título…",
     "sort": "Ordenar por",
+    "sortAZ": "Título (A–Z)",
+    "sortNewest": "Lançamento (novos)",
+    "sortOldest": "Lançamento (antigos)",
     "sortDownloads": "Mais baixados",
     "sortRating": "Melhor avaliados",
     "sortRecent": "Mais recentes",
@@ -253,7 +256,17 @@
     "statFinished_other": "{{count}} terminados",
     "emptyTitle": "Estante vazia",
     "emptyText": "Adicione jogos pela página de cada um: \"Adicionar à biblioteca\".",
-    "progressLabel": "Backlog: {{finished}}/{{total}} terminados ({{pct}}%)"
+    "progressLabel": "Backlog: {{finished}}/{{total}} terminados ({{pct}}%)",
+    "copiesTitle_zero": "Minhas cópias",
+    "copiesTitle_one": "Minhas cópias ({{count}})",
+    "copiesTitle_other": "Minhas cópias ({{count}})",
+    "copyAdd": "Adicionar cópia",
+    "copyConfirm": "Salvar",
+    "copyAdded": "Cópia adicionada à coleção!",
+    "copyRemove": "Remover cópia",
+    "copyStorePh": "Loja/origem (Steam, cartucho…)",
+    "dist_physical": "Física",
+    "dist_digital": "Digital"
   },
   "collections": {
     "kicker": "// curadoria",

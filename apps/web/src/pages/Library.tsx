@@ -3,7 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Library as LibraryIcon, Clock, Trophy, Gamepad2 } from 'lucide-react';
 import { useProfileByUsername } from '@/hooks/useProfile';
-import { useLibrary, TRACK_STATUSES, type TrackStatus, type TrackWithGame } from '@/hooks/useTracks';
+import {
+  useLibrary, useLibraryCopies, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
+} from '@/hooks/useTracks';
 import { STATUS_ICON } from '@/components/entities/TrackButton';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 
@@ -13,7 +15,9 @@ export function Library() {
   const { username } = useParams<{ username: string }>();
   const { data: profile, isLoading: profileLoading } = useProfileByUsername(username);
   const { data: tracks = [], isLoading } = useLibrary(profile?.id);
+  const { data: copies = [] } = useLibraryCopies(profile?.id);
   const [status, setStatus] = useState<TrackStatus | 'all'>('all');
+  const [platform, setPlatform] = useState<string | null>(null);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: tracks.length };
@@ -21,10 +25,31 @@ export function Library() {
     return map;
   }, [tracks]);
 
-  const shown = useMemo(
-    () => (status === 'all' ? tracks : tracks.filter((x) => x.status === status)),
-    [tracks, status],
-  );
+  // plataformas da coleção: cópias do usuário + plataforma do track
+  const copiesByGame = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const copy of copies) map.set(copy.game_id, [...(map.get(copy.game_id) ?? []), copy.platform]);
+    return map;
+  }, [copies]);
+  const platforms = useMemo(() => {
+    const set = new Set<string>();
+    for (const copy of copies) set.add(copy.platform);
+    for (const tr of tracks) if (tr.platform) set.add(tr.platform);
+    return [...set].sort();
+  }, [copies, tracks]);
+
+  const shown = useMemo(() => {
+    let list = status === 'all' ? tracks : tracks.filter((x) => x.status === status);
+    if (platform) {
+      list = list.filter(
+        (x) =>
+          x.platform === platform ||
+          (copiesByGame.get(x.game_id) ?? []).includes(platform) ||
+          (x.game.platforms ?? []).includes(platform),
+      );
+    }
+    return list;
+  }, [tracks, status, platform, copiesByGame]);
 
   const totalHours = useMemo(
     () => tracks.reduce((sum, x) => sum + (x.hours_played ?? 0), 0),
@@ -83,6 +108,28 @@ export function Library() {
           );
         })}
       </div>
+
+      {platforms.length > 0 && (
+        <div className="search-filters" style={{ marginTop: 'calc(var(--s3) * -1)' }}>
+          <button
+            type="button"
+            className={`search-chip ${platform === null ? 'is-active' : ''}`}
+            onClick={() => setPlatform(null)}
+          >
+            {t('browse:filterAll')}
+          </button>
+          {platforms.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`search-chip ${platform === p ? 'is-active' : ''}`}
+              onClick={() => setPlatform(platform === p ? null : p)}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
 
       {shown.length === 0 ? (
         <EmptyState icon={LibraryIcon} title={t('library:emptyTitle')} text={t('library:emptyText')} />

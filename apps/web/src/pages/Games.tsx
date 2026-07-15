@@ -18,17 +18,19 @@ export function Games() {
   const [genre, setGenre] = useState('');
   const [search, setSearch] = useState('');
   const [letter, setLetter] = useState<string | null>(null);
+  const [sort, setSort] = useState<'title' | 'newest' | 'oldest'>('title');
   const [page, setPage] = useState(0);
   const debounced = useDebounce(search, 250);
 
   // qualquer mudança de filtro volta pra primeira página
-  useEffect(() => setPage(0), [platform, genre, debounced, letter]);
+  useEffect(() => setPage(0), [platform, genre, debounced, letter, sort]);
 
   const filters = {
     platform: platform || undefined,
     genre: genre || undefined,
     search: debounced || undefined,
     letter,
+    sort,
   };
   const query = useGamesPage(filters, page);
   const { data: facets } = useGameFacets();
@@ -65,6 +67,15 @@ export function Games() {
               {(facets?.genres ?? []).map((g) => (
                 <option key={g} value={g}>{g}</option>
               ))}
+            </Select>
+          )}
+        </Field>
+        <Field label={t('browse:sort')}>
+          {(id) => (
+            <Select id={id} value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+              <option value="title">{t('browse:sortAZ')}</option>
+              <option value="newest">{t('browse:sortNewest')}</option>
+              <option value="oldest">{t('browse:sortOldest')}</option>
             </Select>
           )}
         </Field>

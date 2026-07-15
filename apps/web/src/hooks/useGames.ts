@@ -16,6 +16,8 @@ export interface GamesFilter {
   search?: string;
   /** Letra inicial (A–Z) ou '#' (não-letra); undefined/null = todas. */
   letter?: string | null;
+  /** Ordenação: título (padrão), mais novos ou mais antigos primeiro. */
+  sort?: 'title' | 'newest' | 'oldest';
 }
 
 export const gamesKeys = {
@@ -86,10 +88,12 @@ export function useGamesPage(filters: GamesFilter, page: number, pageSize = PAGE
       if (filters.search) q = q.ilike('title', `%${filters.search}%`);
       if (filters.letter === '#') q = q.filter('title', 'imatch', '^[^A-Za-z]');
       else if (filters.letter) q = q.ilike('title', `${filters.letter}%`);
+      const sort = filters.sort ?? 'title';
+      if (sort === 'newest') q = q.order('release_date', { ascending: false, nullsFirst: false });
+      else if (sort === 'oldest') q = q.order('release_date', { ascending: true, nullsFirst: false });
+      q = q.order('title', { ascending: true }); // desempate estável
       const from = page * pageSize;
-      const { data, count, error } = await q
-        .order('title', { ascending: true })
-        .range(from, from + pageSize - 1);
+      const { data, count, error } = await q.range(from, from + pageSize - 1);
       if (error) throw error;
       return { games: (data ?? []) as unknown as Game[], total: count ?? 0 };
     },

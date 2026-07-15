@@ -1350,6 +1350,68 @@
   line-height: 1.5;
 }
 
+/* ── Minhas cópias (coleção por jogo) ─────────────────────────────────────── */
+.copies {
+  margin-top: var(--s4);
+  padding: var(--s3) var(--s4);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  max-width: 560px;
+}
+.copies-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.copies-title {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.copies-list {
+  margin-top: var(--s2);
+  display: flex;
+  flex-direction: column;
+}
+.copies-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.86rem;
+  color: var(--ink-bright);
+}
+.copies-item > svg {
+  width: 15px;
+  height: 15px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.copies-item-main { flex: 1; min-width: 0; }
+.copies-remove {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.copies-remove:hover { color: var(--red); border-color: var(--red); }
+.copies-remove svg { width: 12px; height: 12px; }
+.copies-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+.copies-form select { max-width: 150px; }
+.copies-form input { flex: 1; min-width: 160px; }
+
 /* ── Biblioteca / Estante ─────────────────────────────────────────────────── */
 .lib-stats {
   display: flex;
