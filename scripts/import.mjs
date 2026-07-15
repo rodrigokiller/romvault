@@ -30,6 +30,10 @@
  *   npm run import -- --source=pobre                   # PO.B.R.E (traducoes PT-BR + hacks
  *                                                        + utilitarios + tutoriais, scrape)
  *
+ *   npm run import -- --source=covers --limit=200      # preenche capas via IGDB
+ *   npm run import -- --source=dedupe --dry            # FUNDE jogos duplicados
+ *   npm run import -- --source=dedupe                  #   (sempre --dry primeiro!)
+ *
  * Variaveis (.env na raiz do repo — copie de .env.example):
  *   SUPABASE_URL              (= a mesma URL do projeto)
  *   SUPABASE_SERVICE_KEY      (sb_secret_... — server-only!)
@@ -434,6 +438,72 @@ async function importIgdb(sb) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * MODO COVERS — preenche capa/screenshots de jogos SEM imagem buscando no IGDB
+ * por título (+ checagem de plataforma). Útil pros jogos criados pelo RHDN/
+ * PO.B.R.E, que entram sem arte.
+ *   npm run import -- --source=covers --limit=200 [--dry]
+ * ═══════════════════════════════════════════════════════════════════════════ */
+const normTitle = (s) =>
+  String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+async function importCovers(sb) {
+  const limit = Number(flag('limit', 200)) || 200;
+  step(`Capas via IGDB — ate ${limit} jogos sem imagem`);
+  const auth = await igdbToken();
+
+  const { data: games, error } = await sb
+    .from('games')
+    .select('id, title, platforms, igdb_id, external_ids')
+    .is('cover_url', null)
+    .order('title')
+    .limit(limit);
+  if (error) throw error;
+  log(`  ${games.length} jogos sem capa nesta leva`);
+
+  const stats = { preenchidos: 0, sem_match: 0, erros: 0 };
+  for (const g of games) {
+    await sleep(280); // rate-limit IGDB (4 req/s)
+    let results;
+    try {
+      const safe = g.title.replace(/"/g, '');
+      results = await igdbQuery(
+        auth,
+        'games',
+        `search "${safe}"; fields id,name,cover.url,screenshots.url,platforms.id,platforms.name; limit 5;`,
+      );
+    } catch {
+      stats.erros++;
+      continue;
+    }
+    // melhor match: título normalizado idêntico (e plataforma compatível, se der)
+    const ours = (g.platforms ?? []).map(normTitle);
+    const hit = (results ?? []).find((r) => {
+      if (normTitle(r.name) !== normTitle(g.title)) return false;
+      if (ours.length === 0) return true;
+      const theirs = (r.platforms ?? []).map((p) => normTitle(PLATFORM_SHORT[p.id] ?? p.name));
+      return theirs.length === 0 || ours.some((p) => theirs.includes(p));
+    });
+    if (!hit?.cover?.url) { stats.sem_match++; itemLog(stats.sem_match, c.dim(`  – sem match: ${g.title}`)); continue; }
+
+    if (DRY) { stats.preenchidos++; itemLog(stats.preenchidos, `  ${c.dim('[dry]')} ${g.title}`); continue; }
+    const patch = {
+      cover_url: igdbImage(hit.cover.url, 'cover_big'),
+      thumbnail: igdbImage(hit.cover.url, 'cover_small'),
+      screenshots: (hit.screenshots ?? []).map((s) => igdbImage(s.url, 'screenshot_med')).filter(Boolean),
+    };
+    if (g.igdb_id == null) {
+      patch.igdb_id = hit.id;
+      patch.external_ids = { ...(g.external_ids ?? {}), igdb: hit.id };
+    }
+    const { error: upErr } = await sb.from('games').update(patch).eq('id', g.id);
+    if (upErr) { stats.erros++; continue; }
+    stats.preenchidos++;
+    itemLog(stats.preenchidos, `  ${c.green('~')} ${g.title}`);
+  }
+  return stats;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * MODO SMWC — hacks do SMW Central (API JSON publica), ligados ao jogo-base.
  * Prova o pipeline de "materiais importados de fontes externas":
  * data_source='smwcentral' + source_url + dedupe via id_map.
@@ -583,6 +653,11 @@ async function main() {
   } else if (SOURCE === 'pobre' || SOURCE === 'romhackers') {
     const { importPobre } = await import('./lib/pobre.mjs');
     stats = await importPobre({ sb, flag, DRY, log, c, step, slugifyText, itemLog });
+  } else if (SOURCE === 'covers') {
+    stats = await importCovers(sb);
+  } else if (SOURCE === 'dedupe') {
+    const { dedupeGames } = await import('./lib/dedupe-games.mjs');
+    stats = await dedupeGames({ sb, flag, DRY, log, c, step, itemLog });
   } else stats = await importDataset(sb);
 
   step('Resumo');

@@ -25,7 +25,11 @@ export function GameCard({ game }: { game: Game }) {
           <div className="tile-body">
             <span className="tile-title">{game.title}</span>
             <div className="tile-meta">
-              {game.release_date && <span>{game.release_date.slice(0, 4)}</span>}
+              {game.release_date && (
+                game.release_date > new Date().toISOString().slice(0, 10)
+                  ? <span className="chip chip-future">{game.release_date.slice(0, 4)} ⏳</span>
+                  : <span>{game.release_date.slice(0, 4)}</span>
+              )}
               {game.developer && <span className="dot">{game.developer}</span>}
             </div>
             {game.platforms && game.platforms.length > 0 && (

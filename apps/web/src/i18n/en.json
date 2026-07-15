@@ -310,7 +310,9 @@
     "batchTitle": "Add several games",
     "batchStatus": "Status for all",
     "batchConfirm": "Add {{count}}",
-    "batchDone": "{{count}} games added to your library!"
+    "batchDone": "{{count}} games added to your library!",
+    "export": "Export",
+    "exportHint": "Downloads your library (games, statuses, hours, copies) as JSON"
   },
   "wrapped": {
     "kicker": "// year in review",

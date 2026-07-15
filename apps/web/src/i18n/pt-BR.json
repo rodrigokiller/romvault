@@ -310,7 +310,9 @@
     "batchTitle": "Adicionar vários jogos",
     "batchStatus": "Status para todos",
     "batchConfirm": "Adicionar {{count}}",
-    "batchDone": "{{count}} jogos adicionados à biblioteca!"
+    "batchDone": "{{count}} jogos adicionados à biblioteca!",
+    "export": "Exportar",
+    "exportHint": "Baixa sua biblioteca (jogos, status, horas, cópias) em JSON"
   },
   "wrapped": {
     "kicker": "// ano em retrospecto",

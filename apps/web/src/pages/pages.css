@@ -1573,6 +1573,7 @@
 .batch-item-plat { font-size: 0.7rem; color: var(--muted); }
 .batch-picked { font-size: 0.72rem; color: var(--accent); }
 .qa-menu-copy { border-top: 1px solid var(--line-bright); }
+.chip-future { color: var(--amber); border-color: var(--amber); }
 .runs-year-label:hover { color: var(--accent); text-decoration: underline; }
 
 /* ── Timeline de zeradas (perfil) ─────────────────────────────────────────── */

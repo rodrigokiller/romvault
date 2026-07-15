@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Target } from 'lucide-react';
+import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Target, Download } from 'lucide-react';
 import { useProfileByUsername } from '@/hooks/useProfile';
 import {
   useLibrary, useLibraryCopies, useUserPlaythroughs, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
@@ -25,6 +25,29 @@ const PLATFORM_THEMES: Record<string, string> = {
   Xbox: '#107c10', 'Xbox 360': '#7ab648', 'Xbox One': '#107c10',
   PC: '#66c0f4', DOS: '#c4b26a', Arcade: '#f0c02e', 'TG-16': '#f07d2e', 'Neo Geo': '#2e6db4', FDS: '#c9302c',
 };
+
+/** Exporta a biblioteca como JSON (tracks + cópias) via download no navegador. */
+function exportLibrary(tracks: TrackWithGame[], copies: { game_id: string; platform: string; distribution: string; store: string | null; price_paid: number | null }[]) {
+  const payload = {
+    exported_at: new Date().toISOString(),
+    games: tracks.map((tr) => ({
+      title: tr.game.title,
+      platforms: tr.game.platforms,
+      status: tr.status,
+      hours_played: tr.hours_played,
+      notes: tr.notes,
+      copies: copies
+        .filter((cp) => cp.game_id === tr.game_id)
+        .map((cp) => ({ platform: cp.platform, distribution: cp.distribution, store: cp.store, price_paid: cp.price_paid })),
+    })),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `romvault-biblioteca-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 /** Estante de jogos do usuário: abas por status + prateleira de capas. */
 export function Library() {
@@ -148,6 +171,16 @@ export function Library() {
             <Sparkles aria-hidden /> {t('library:showcase')}
           </button>
           {isMe && !showcase && <BatchAdd />}
+          {isMe && !showcase && tracks.length > 0 && (
+            <button
+              type="button"
+              className="lib-stat lib-showcase"
+              onClick={() => exportLibrary(tracks, copies)}
+              title={t('library:exportHint')}
+            >
+              <Download aria-hidden /> {t('library:export')}
+            </button>
+          )}
         </div>
         {goal && (
           <div className="backlog-progress" style={{ marginTop: 'var(--s3)' }}>
