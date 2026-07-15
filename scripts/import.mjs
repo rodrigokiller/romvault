@@ -15,6 +15,10 @@
  *   npm run import -- --source=igdb --platform=snes --all             # TUDO da plataforma
  *   (o cursor e por plataforma e incremental: rodar de novo continua de onde parou)
  *
+ *   npm run import -- --source=smwc                    # hacks do SMW Central (1 pagina)
+ *   npm run import -- --source=smwc --all              # todos os hacks do SMWC
+ *   (romhacks entram LIGADOS ao jogo Super Mario World, com data_source/source_url)
+ *
  * Variaveis (.env na raiz do repo — copie de .env.example):
  *   SUPABASE_URL              (= a mesma URL do projeto)
  *   SUPABASE_SERVICE_KEY      (sb_secret_... — server-only!)
@@ -341,10 +345,10 @@ async function importIgdb(sb) {
     'involved_companies.developer,involved_companies.publisher,involved_companies.company.name;';
 
   for (let page = 0; page < pages; page++) {
-    // game_type (substituto do `category` depreciado) exclui tipos nao-jogo:
-    // 1=dlc, 3=bundle, 5=MOD (romhacks!), 6=episode, 7=season, 13=pack, 14=update.
-    // Mantem 0=main, 2/4=expansions, 8=remake, 9=remaster, 10=expanded, 11=port, 12=fork.
-    const body = `${fields} where platforms = (${platformId}) & game_type != (1,3,5,6,7,13,14) & id > ${cursor}; sort id asc; limit ${limit};`;
+    // SO JOGOS PUROS (decisao do Killer): 0=main, 8=remake, 9=remaster,
+    // 10=expanded, 11=port. Mods/romhacks (5) e afins vem de fontes proprias
+    // (RHDN, SMW Central...) como romhacks ligados ao jogo-base, nao como games.
+    const body = `${fields} where platforms = (${platformId}) & game_type = (0,8,9,10,11) & id > ${cursor}; sort id asc; limit ${limit};`;
     const games = await igdbQuery(auth, 'games', body);
     if (games.length === 0) { log(c.amber('  (sem mais resultados)')); break; }
 
@@ -406,6 +410,111 @@ async function importIgdb(sb) {
   return stats;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * MODO SMWC — hacks do SMW Central (API JSON publica), ligados ao jogo-base.
+ * Prova o pipeline de "materiais importados de fontes externas":
+ * data_source='smwcentral' + source_url + dedupe via id_map.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+const stripHtml = (s) => String(s ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+
+async function importSmwc(sb) {
+  const source = 'smwcentral';
+  const entity = 'romhack:smw';
+  const all = Boolean(flag('all', false));
+  const maxPages = all ? 1000 : (Number(flag('pages', 1)) || 1);
+
+  step(`SMW Central — hacks de Super Mario World${all ? ' (TODAS as paginas)' : ` (${maxPages} pagina(s))`}`);
+
+  // 1) jogo-base: Super Mario World (importe os games antes)
+  let game = null;
+  if (!DRY) {
+    const bySlug = await sb.from('games').select('id, title').eq('slug', 'super-mario-world').maybeSingle();
+    game = bySlug.data;
+    if (!game) {
+      const byTitle = await sb.from('games').select('id, title')
+        .ilike('title', 'Super Mario World').contains('platforms', ['SNES']).limit(1);
+      game = byTitle.data?.[0] ?? null;
+    }
+    if (!game) {
+      log(c.red('✖ Jogo-base "Super Mario World" nao encontrado no catalogo.'));
+      log('  Rode antes: npm run import   (dataset)  ou o sync IGDB de snes.');
+      process.exit(1);
+    }
+    log(`  jogo-base: ${game.title} ${c.dim(game.id)}`);
+  }
+
+  // 2) ids ja importados (dedupe via id_map)
+  let seen = new Set();
+  if (!DRY) {
+    const { data } = await sb.from('id_map').select('external_id')
+      .eq('source', source).eq('entity', entity).range(0, 99999);
+    seen = new Set((data ?? []).map((r) => r.external_id));
+  }
+
+  const stats = { romhacks: 0, skipped: 0, mapped: 0 };
+  let page = 1;
+  for (let i = 0; i < maxPages; i++, page++) {
+    const url = `https://www.smwcentral.net/ajax.php?a=getsectionlist&s=smwhacks&u=0&n=${page}`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) { log(c.red(`✖ SMWC: HTTP ${res.status}`)); break; }
+    const body = await res.json();
+    const hacks = body?.data ?? [];
+    if (hacks.length === 0) { log(c.amber('  (sem mais resultados)')); break; }
+
+    for (const h of hacks) {
+      const extId = String(h.id);
+      if (seen.has(extId)) { stats.skipped++; continue; }
+
+      const f = h.fields ?? {};
+      const authors = Array.isArray(h.authors) ? h.authors.map((a) => a?.name).filter(Boolean).join(', ') : null;
+      const row = {
+        game_id: game?.id,
+        title: stripHtml(h.name) || `SMWC #${extId}`,
+        description: stripHtml(f.description) || null,
+        categories: ['Levels'],
+        difficulty: typeof f.difficulty === 'string' ? stripHtml(f.difficulty) : null,
+        hack_type: typeof f.length === 'string' || typeof f.length === 'number' ? `${f.length} exits` : null,
+        tags: Array.isArray(h.tags) ? h.tags.map((t) => stripHtml(t)).filter(Boolean).slice(0, 12) : [],
+        credits: authors,
+        downloads: Number(h.downloads) || 0,
+        rating: Number(h.rating) || 0,
+        release_date: h.time ? new Date(h.time * 1000).toISOString().slice(0, 10) : null,
+        file_url: h.download_url ? (String(h.download_url).startsWith('//') ? 'https:' + h.download_url : String(h.download_url)) : null,
+        data_source: 'smwcentral',
+        source_url: `https://www.smwcentral.net/?p=section&a=details&id=${extId}`,
+        is_public: true,
+      };
+
+      if (DRY) { log(`  ${c.dim('[dry]')} ${row.title}`); stats.romhacks++; seen.add(extId); continue; }
+
+      const { data: ins, error } = await sb.from('romhacks').insert(row).select('id').single();
+      if (error) { log(c.red(`  ✖ ${row.title}: ${error.message}`)); continue; }
+      seen.add(extId);
+      log(`  ${c.green('+')} ${row.title} ${c.dim('smwc:' + extId)}`);
+      stats.romhacks++;
+
+      const { error: mErr } = await sb.from('id_map').upsert(
+        { romvault_id: ins.id, source, entity, external_id: extId, confidence: 1, match_type: 'external_id' },
+        { onConflict: 'source,entity,external_id' },
+      );
+      if (!mErr) stats.mapped++;
+    }
+
+    const last = Number(body?.last_page) || page;
+    if (page >= last) { log(c.dim(`  (ultima pagina: ${last})`)); break; }
+    if (all) log(c.dim(`  … pagina ${page}/${last}`));
+  }
+
+  // marca o estado da ingestao
+  if (!DRY) {
+    await sb.from('sync_state').upsert(
+      { source, entity, cursor: String(page), status: 'idle', last_sync_at: new Date().toISOString(), items_processed: stats.romhacks },
+      { onConflict: 'source,entity' },
+    );
+  }
+  return stats;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════ */
 async function main() {
   // Avisa sobre flags malformadas (ex.: --source-igdb em vez de --source=igdb)
@@ -419,7 +528,10 @@ async function main() {
   log(c.cyan('ROMVault importer') + c.dim(`  source=${SOURCE}${DRY ? '  (dry-run)' : ''}`));
   const sb = makeClient();
 
-  const stats = SOURCE === 'igdb' ? await importIgdb(sb) : await importDataset(sb);
+  const stats =
+    SOURCE === 'igdb' ? await importIgdb(sb)
+    : SOURCE === 'smwc' || SOURCE === 'smwcentral' ? await importSmwc(sb)
+    : await importDataset(sb);
 
   step('Resumo');
   for (const [k, v] of Object.entries(stats)) log(`  ${k.padEnd(14)} ${v}`);

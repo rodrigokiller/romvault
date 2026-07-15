@@ -142,9 +142,9 @@ Deno.serve(async (req: Request) => {
 
     let imported = 0, enriched = 0, skipped = 0, mapped = 0;
     for (let page = 0; page < pages; page++) {
-      // game_type (substituto do `category` depreciado) exclui tipos nao-jogo:
-      // 1=dlc, 3=bundle, 5=MOD (romhacks!), 6=episode, 7=season, 13=pack, 14=update.
-      const q = `${fields} where platforms = (${platformId}) & game_type != (1,3,5,6,7,13,14) & id > ${cursor}; sort id asc; limit ${limit};`;
+      // SO JOGOS PUROS: 0=main, 8=remake, 9=remaster, 10=expanded, 11=port.
+      // Mods/romhacks (5) vem de fontes proprias (RHDN, SMWC) como romhacks.
+      const q = `${fields} where platforms = (${platformId}) & game_type = (0,8,9,10,11) & id > ${cursor}; sort id asc; limit ${limit};`;
       const res = await fetch('https://api.igdb.com/v4/games', {
         method: 'POST',
         headers: { 'Client-ID': twitchId, Authorization: `Bearer ${token}`, Accept: 'application/json' },
