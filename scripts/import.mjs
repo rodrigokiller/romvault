@@ -341,8 +341,10 @@ async function importIgdb(sb) {
     'involved_companies.developer,involved_companies.publisher,involved_companies.company.name;';
 
   for (let page = 0; page < pages; page++) {
-    // category != 5 exclui MODS (romhacks catalogados como jogo no IGDB).
-    const body = `${fields} where platforms = (${platformId}) & category != 5 & id > ${cursor}; sort id asc; limit ${limit};`;
+    // game_type (substituto do `category` depreciado) exclui tipos nao-jogo:
+    // 1=dlc, 3=bundle, 5=MOD (romhacks!), 6=episode, 7=season, 13=pack, 14=update.
+    // Mantem 0=main, 2/4=expansions, 8=remake, 9=remaster, 10=expanded, 11=port, 12=fork.
+    const body = `${fields} where platforms = (${platformId}) & game_type != (1,3,5,6,7,13,14) & id > ${cursor}; sort id asc; limit ${limit};`;
     const games = await igdbQuery(auth, 'games', body);
     if (games.length === 0) { log(c.amber('  (sem mais resultados)')); break; }
 
