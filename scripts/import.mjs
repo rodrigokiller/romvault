@@ -32,12 +32,17 @@ const ROOT = resolve(__dirname, '..');
 
 /* ── args ─────────────────────────────────────────────────────────────────── */
 const args = process.argv.slice(2);
+// Aceita --flag=valor E --flag valor (espaco). Sem valor = boolean true.
 const flag = (name, def = undefined) => {
-  const hit = args.find((a) => a === `--${name}` || a.startsWith(`--${name}=`));
-  if (!hit) return def;
+  const idx = args.findIndex((a) => a === `--${name}` || a.startsWith(`--${name}=`));
+  if (idx === -1) return def;
+  const hit = args[idx];
   const eq = hit.indexOf('=');
-  return eq === -1 ? true : hit.slice(eq + 1);
+  if (eq !== -1) return hit.slice(eq + 1);
+  const next = args[idx + 1];
+  return next && !next.startsWith('--') ? next : true;
 };
+const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry'];
 const DRY = Boolean(flag('dry', false));
 const SOURCE = String(flag('source', 'dataset'));
 
@@ -127,7 +132,13 @@ async function importDataset(sb) {
       .upsert(row, { onConflict: 'slug' })
       .select('id, slug')
       .single();
-    if (error) { log(c.red(`  ✖ game ${row.slug}: ${error.message}`)); continue; }
+    if (error) {
+      log(c.red(`  ✖ game ${row.slug}: ${error.message}`));
+      if (/games_igdb_id_idx/.test(error.message)) {
+        log(c.dim("     (igdb_id ja usado — provavelmente o seed.sql antigo. Rode no SQL Editor: delete from public.games where slug = 'zelda-alttp';)"));
+      }
+      continue;
+    }
     slugToId.set(data.slug, data.id);
     log(`  ${c.green('✓')} ${data.slug}`);
     stats.games++;
@@ -361,6 +372,14 @@ async function importIgdb(sb) {
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 async function main() {
+  // Avisa sobre flags malformadas (ex.: --source-igdb em vez de --source=igdb)
+  for (const a of args) {
+    if (!a.startsWith('--')) continue;
+    const nm = a.slice(2).split('=')[0];
+    if (!KNOWN_FLAGS.includes(nm)) {
+      log(c.amber(`⚠ flag desconhecida: ${a}  — use "=", ex.: --source=igdb --platform=snes`));
+    }
+  }
   log(c.cyan('ROMVault importer') + c.dim(`  source=${SOURCE}${DRY ? '  (dry-run)' : ''}`));
   const sb = makeClient();
 
