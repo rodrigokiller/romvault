@@ -133,15 +133,16 @@ export function parseMysqlDump(sqlText, onlyTables = null) {
   function processStatement(raw) {
     // remove linhas de comentario (--, #, /*!...*/) do inicio do statement
     const s = raw.replace(/^(\s*(--[^\n]*|#[^\n]*|\/\*[^\n]*\*\/;?)?\n)+/, '').trimStart();
-    const head = s.slice(0, 200);
-    let m = head.match(/^\s*CREATE TABLE (?:IF NOT EXISTS )?`?([^`\s(]+)`?/i);
+    // regexes ANCORADAS no statement inteiro (a lista de colunas de um INSERT
+    // pode passar de centenas de chars — nada de olhar so um "head" curto).
+    let m = s.match(/^CREATE TABLE (?:IF NOT EXISTS )?`?([^`\s(]+)`?/i);
     if (m) {
       const name = m[1];
       if (onlyTables && !onlyTables.has(name)) { namesOnly.add(name); return; }
       ensure(name).columns = parseCreateColumns(s);
       return;
     }
-    m = head.match(/^\s*INSERT INTO `?([^`\s(]+)`?\s*(\(([^)]*)\))?\s*VALUES/i);
+    m = s.match(/^INSERT INTO `?([^`\s(]+)`?\s*(\(([^)]*)\))?\s*VALUES/i);
     if (m) {
       const name = m[1];
       if (onlyTables && !onlyTables.has(name)) { namesOnly.add(name); return; }
@@ -150,8 +151,7 @@ export function parseMysqlDump(sqlText, onlyTables = null) {
         ? m[3].split(',').map((c) => c.trim().replace(/^`|`$/g, ''))
         : null;
       const cols = explicitCols ?? t.columns;
-      const valuesStart = s.indexOf('VALUES') + 6;
-      const rows = parseValueRows(s.slice(valuesStart));
+      const rows = parseValueRows(s.slice(m.index + m[0].length));
       for (const r of rows) {
         const obj = {};
         for (let ci = 0; ci < r.length; ci++) obj[cols[ci] ?? `col${ci}`] = r[ci];
