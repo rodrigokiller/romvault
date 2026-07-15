@@ -19,7 +19,12 @@ import {
   type MaterialFilters, type WithGame,
 } from '@/hooks/useMaterials';
 import { useArticles, useArticle } from '@/hooks/useArticles';
+import { trackDownload, type DownloadSubject } from '@/hooks/useMutations';
 import type { Article } from '@romvault/core';
+
+const SUBJECT_OF: Record<string, DownloadSubject> = {
+  romhack: 'romhack', translation: 'translation', doc: 'document', tool: 'tool',
+};
 
 type Row = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === 'string' && v ? v : null);
@@ -41,7 +46,7 @@ function MaterialListView({
 }) {
   const { t } = useTranslation();
   const meta = KIND_META[kind];
-  const items = query.data ?? [];
+  const items = useMemo(() => query.data ?? [], [query.data]);
 
   const hasLanguage = kind === 'translation' || kind === 'doc';
 
@@ -225,7 +230,12 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
 
           <div className="detail-actions">
             {fileUrl && (
-              <a href={fileUrl} target="_blank" rel="noopener noreferrer">
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => { if (SUBJECT_OF[kind]) void trackDownload(SUBJECT_OF[kind], String(item.id)); }}
+              >
                 <Button variant="primary"><Download /> {t('entities:download')}</Button>
               </a>
             )}

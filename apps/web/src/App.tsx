@@ -33,6 +33,7 @@ const Search = lazy(() => import('./pages/Search').then((m) => ({ default: m.Sea
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const AuthCallback = lazy(() => import('./pages/AuthCallback').then((m) => ({ default: m.AuthCallback })));
 const SubmitRomhack = lazy(() => import('./pages/SubmitRomhack').then((m) => ({ default: m.SubmitRomhack })));
+const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })));
 
 export function App() {
   return (
@@ -72,6 +73,14 @@ export function App() {
                         element={
                           <RequireAuth>
                             <SubmitRomhack />
+                          </RequireAuth>
+                        }
+                      />
+                      <Route
+                        path="admin"
+                        element={
+                          <RequireAuth>
+                            <Admin />
                           </RequireAuth>
                         }
                       />

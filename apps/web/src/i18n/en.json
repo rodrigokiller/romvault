@@ -24,6 +24,7 @@
     "login": "Sign in",
     "logout": "Sign out",
     "submit": "Submit material",
+    "admin": "Admin",
     "language": "Language"
   },
   "home": {
@@ -130,14 +131,37 @@
     "startText": "Type at least 2 characters to search games, romhacks, translations, docs and tools."
   },
   "forms": {
-    "submitTitle": "Submit a romhack",
+    "submitTitle": "Submit material",
     "submitSubtitle": "Example form (react-hook-form + zod). Submitting does not persist anything yet.",
+    "submitSubtitleReal": "Pick a type, link a source game and upload the file. It's saved under your account.",
+    "typeLabel": "Content type",
+    "type_romhack": "Romhack",
+    "type_translation": "Translation",
+    "type_document": "Document",
+    "type_tool": "Tool",
+    "fieldGameOpt": "Source game (optional)",
+    "phSearchGame": "Search the source game…",
+    "phSearchGameOpt": "Search a game (optional)…",
+    "clearGame": "Clear game",
+    "fieldLanguage": "Language",
+    "fieldSourceLanguage": "Source language",
+    "fieldCompletion": "Completion %",
+    "fieldDifficulty": "Difficulty",
+    "fieldFileFormat": "Format",
+    "fieldLicense": "License",
+    "fieldSourceUrl": "Source code URL",
+    "fieldFileUpload": "File (upload)",
+    "phCategory": "e.g. Story, Gameplay…",
+    "valLanguageRequired": "Enter the language.",
+    "submittedOk": "Submitted!",
+    "submitError": "Something went wrong. Try again.",
+    "mustLogin": "You're browsing as a guest — sign in to save your submission.",
     "fieldTitle": "Title",
     "fieldGame": "Source game",
     "fieldCategory": "Category",
     "fieldVersion": "Version",
     "fieldDescription": "Description",
-    "fieldFileUrl": "Patch URL",
+    "fieldFileUrl": "File URL",
     "phTitle": "e.g. Super Metroid Redesign",
     "phGame": "e.g. Super Metroid (SNES)",
     "phVersion": "e.g. 1.0",
@@ -202,6 +226,21 @@
   "profile": {
     "joined": "Joined",
     "empty": "This user hasn't published anything yet.",
-    "notFound": "Profile not found."
+    "notFound": "Profile not found.",
+    "contributions": "Contributions ({{count}})",
+    "edit": "Edit profile",
+    "save": "Save",
+    "saved": "Profile updated.",
+    "username": "Username",
+    "bio": "Bio"
+  },
+  "admin": {
+    "title": "Admin panel",
+    "subtitle": "Moderate content. Only admins can delete.",
+    "forbiddenTitle": "Admins only",
+    "forbiddenText": "Your account doesn't have admin rights.",
+    "delete": "Delete",
+    "deleted": "\"{{title}}\" deleted.",
+    "confirmDelete": "Delete \"{{title}}\"? This can't be undone."
   }
 }

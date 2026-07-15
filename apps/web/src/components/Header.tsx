@@ -1,16 +1,18 @@
 import { Link, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings, LogIn, LogOut, User as UserIcon } from 'lucide-react';
+import { Settings, LogIn, LogOut, User as UserIcon, Shield, Upload } from 'lucide-react';
 import { Logo } from './Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { SearchBox } from './SearchBox';
 import { useAuth } from '@/auth/AuthProvider';
+import { useIsAdmin } from '@/hooks/useProfile';
 import './header.css';
 
 /** Cabeçalho reutilizável, presente em todas as páginas. */
 export function Header() {
   const { t } = useTranslation();
   const { session, user, signOut } = useAuth();
+  const isAdmin = useIsAdmin();
 
   const username =
     (user?.user_metadata?.username as string | undefined) ??
@@ -31,6 +33,9 @@ export function Header() {
             <NavLink to="/games" className="header-link">
               {t('nav:browse')}
             </NavLink>
+            <NavLink to="/submit" className="header-link">
+              {t('nav:submit')}
+            </NavLink>
           </nav>
         </div>
 
@@ -38,6 +43,24 @@ export function Header() {
 
         <div className="header-right">
           <LanguageSwitcher />
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="header-icon-btn"
+              aria-label={t('nav:admin')}
+              title={t('nav:admin')}
+            >
+              <Shield aria-hidden />
+            </Link>
+          )}
+          <Link
+            to="/submit"
+            className="header-icon-btn header-icon-btn-mobile"
+            aria-label={t('nav:submit')}
+            title={t('nav:submit')}
+          >
+            <Upload aria-hidden />
+          </Link>
           <Link
             to="/settings"
             className="header-icon-btn"

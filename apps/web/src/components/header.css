@@ -191,12 +191,20 @@
   height: 15px;
 }
 
+/* O atalho de "enviar" no header-right só aparece quando a nav some (mobile). */
+.header-icon-btn-mobile {
+  display: none;
+}
+
 @media (max-width: 820px) {
   .header-nav {
     display: none;
   }
   .header-user-name {
     display: none;
+  }
+  .header-icon-btn-mobile {
+    display: inline-flex;
   }
   .site-header-inner {
     padding: 0 var(--s4);

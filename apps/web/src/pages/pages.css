@@ -734,3 +734,228 @@
   letter-spacing: 0.06em;
   color: var(--muted);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Submit / Admin: segmento de tipo, formulário, game picker
+   ═══════════════════════════════════════════════════════════════════════════ */
+.type-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s5);
+}
+.type-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s4);
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.type-seg-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.type-seg-btn:hover {
+  color: var(--ink-bright);
+}
+.type-seg-btn.is-active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.submit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+.submit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s4);
+}
+.submit-or {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-align: center;
+  margin: calc(var(--s3) * -1) 0;
+}
+.submit-actions {
+  display: flex;
+  gap: var(--s2);
+  justify-content: flex-end;
+}
+.file-input {
+  width: 100%;
+  padding: var(--s2);
+  background: var(--panel-2);
+  border: 1px dashed var(--line-bright);
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+.file-input::file-selector-button {
+  margin-right: var(--s3);
+  padding: 6px var(--s3);
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  color: var(--ink-bright);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+/* Game picker */
+.game-picker {
+  position: relative;
+}
+.game-picker-drop {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: var(--z-dropdown);
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.game-picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.game-picker-item:hover {
+  background: var(--panel-2);
+}
+.game-picked {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  background: var(--panel-2);
+  border: 1px solid var(--accent);
+}
+.game-picked > svg:first-child {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+}
+.game-picked-title {
+  flex: 1;
+  color: var(--ink-bright);
+  font-size: 0.9rem;
+}
+.game-picked-clear {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: 1px solid var(--line-bright);
+  color: var(--muted);
+  cursor: pointer;
+}
+.game-picked-clear:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+.game-picked-clear svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ── Perfil ───────────────────────────────────────────────────────────────── */
+.profile-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  margin-bottom: var(--s5);
+  padding-bottom: var(--s5);
+  border-bottom: 1px solid var(--line);
+}
+.profile-avatar {
+  width: 84px;
+  height: 84px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--line-bright);
+  color: var(--muted);
+  overflow: hidden;
+}
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-avatar svg {
+  width: 34px;
+  height: 34px;
+}
+.profile-info {
+  flex: 1;
+  min-width: 220px;
+}
+.profile-info h1 {
+  display: inline-block;
+  margin-right: var(--s2);
+}
+.profile-joined {
+  margin-top: var(--s3);
+  font-size: 0.76rem;
+}
+.profile-editor {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+/* ── Admin ────────────────────────────────────────────────────────────────── */
+.admin-table {
+  border: 1px solid var(--line);
+}
+.admin-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s2) var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+.admin-row:last-child {
+  border-bottom: none;
+}
+.admin-row-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink-bright);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-row-date {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
