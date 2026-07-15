@@ -1,13 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Gamepad2 } from 'lucide-react';
-import { useInfiniteGames } from '@/hooks/useGames';
+import { useGamesPage, useGameLetters, useGameFacets } from '@/hooks/useGames';
 import { useDebounce } from '@/hooks/useDebounce';
+import { PAGE_SIZE } from '@/hooks/useMaterials';
 import { GameCard } from '@/components/entities/GameCard';
 import { Field } from '@/components/ui/Field';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
-import { LoadMore } from '@/components/ui/LoadMore';
+import { AlphabetBar } from '@/components/ui/AlphabetBar';
+import { Pagination } from '@/components/ui/Pagination';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 
 export function Games() {
@@ -15,24 +17,27 @@ export function Games() {
   const [platform, setPlatform] = useState('');
   const [genre, setGenre] = useState('');
   const [search, setSearch] = useState('');
+  const [letter, setLetter] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
   const debounced = useDebounce(search, 250);
 
-  const query = useInfiniteGames({
+  // qualquer mudança de filtro volta pra primeira página
+  useEffect(() => setPage(0), [platform, genre, debounced, letter]);
+
+  const filters = {
     platform: platform || undefined,
     genre: genre || undefined,
     search: debounced || undefined,
-  });
-  const games = useMemo(() => query.data?.pages.flat() ?? [], [query.data]);
+    letter,
+  };
+  const query = useGamesPage(filters, page);
+  const { data: facets } = useGameFacets();
+  const { data: letters } = useGameLetters({ platform: platform || undefined, genre: genre || undefined });
 
-  // Opções derivadas do que já foi carregado (server-side pagina o resto).
-  const platforms = useMemo(
-    () => [...new Set(games.flatMap((g) => g.platforms ?? []))].sort(),
-    [games],
-  );
-  const genres = useMemo(
-    () => [...new Set(games.flatMap((g) => g.genres ?? []))].sort(),
-    [games],
-  );
+  const games = query.data?.games ?? [];
+  const total = query.data?.total ?? 0;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const searching = debounced.length > 0;
 
   return (
     <div className="container">
@@ -47,7 +52,7 @@ export function Games() {
           {(id) => (
             <Select id={id} value={platform} onChange={(e) => setPlatform(e.target.value)}>
               <option value="">{t('browse:filterAll')}</option>
-              {platforms.map((p) => (
+              {(facets?.platforms ?? []).map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
             </Select>
@@ -57,7 +62,7 @@ export function Games() {
           {(id) => (
             <Select id={id} value={genre} onChange={(e) => setGenre(e.target.value)}>
               <option value="">{t('browse:filterAllMasc')}</option>
-              {genres.map((g) => (
+              {(facets?.genres ?? []).map((g) => (
                 <option key={g} value={g}>{g}</option>
               ))}
             </Select>
@@ -74,10 +79,15 @@ export function Games() {
             />
           )}
         </Field>
-        {games.length > 0 && (
-          <span className="filter-count">{t('browse:results', { count: games.length })}</span>
+        {total > 0 && (
+          <span className="filter-count">{t('browse:results', { count: total })}</span>
         )}
       </div>
+
+      {/* Barra A–Z (some quando há busca por texto, filtro mais forte) */}
+      {!searching && (
+        <AlphabetBar active={letter} available={letters} onPick={setLetter} />
+      )}
 
       {query.isLoading ? (
         <LoadingPage />
@@ -85,16 +95,15 @@ export function Games() {
         <EmptyState icon={Gamepad2} title={t('games:emptyTitle')} text={t('games:emptyText')} />
       ) : (
         <>
-          <div className="card-grid card-grid-cover">
+          <div
+            className="card-grid card-grid-cover"
+            style={{ opacity: query.isPlaceholderData ? 0.55 : 1, transition: 'opacity var(--t-fast)' }}
+          >
             {games.map((g) => (
               <GameCard key={g.id} game={g} />
             ))}
           </div>
-          <LoadMore
-            hasMore={Boolean(query.hasNextPage)}
-            loading={query.isFetchingNextPage}
-            onMore={() => void query.fetchNextPage()}
-          />
+          <Pagination page={page} totalPages={totalPages} onPage={setPage} />
         </>
       )}
     </div>

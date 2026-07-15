@@ -240,6 +240,93 @@
   align-self: center;
 }
 
+/* ── Barra A–Z (índice de jogos) ──────────────────────────────────────────── */
+.alpha-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: var(--s5);
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+.alpha-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 var(--s2);
+  background: transparent;
+  border: 1px solid var(--line-bright);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+.alpha-btn:hover:not(:disabled) {
+  color: var(--ink-bright);
+  border-color: var(--line-bright);
+}
+.alpha-btn.is-active {
+  color: #06110c;
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.alpha-btn:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+.alpha-all {
+  width: auto;
+  padding: 0 var(--s3);
+}
+
+/* ── Paginação numerada ───────────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: var(--s6);
+}
+.page-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 var(--s2);
+  display: inline-grid;
+  place-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+.page-btn:hover:not(:disabled):not(.is-active) {
+  border-color: var(--accent);
+  color: var(--ink-bright);
+}
+.page-btn.is-active {
+  color: #06110c;
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.page-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.page-arrow svg {
+  width: 16px;
+  height: 16px;
+}
+.page-gap {
+  padding: 0 var(--s1);
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
 /* ── Detalhe de jogo ──────────────────────────────────────────────────────── */
 .detail-head {
   display: flex;

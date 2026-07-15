@@ -1,13 +1,21 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData, useInfiniteQuery, useQuery, useQueryClient,
+} from '@tanstack/react-query';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Game } from '@romvault/core';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
 import { PAGE_SIZE } from './useMaterials';
 
+/** Shim sem tipagem de tabela: usado pela busca por letra (operador regex). */
+const db = () => getSupabase() as unknown as SupabaseClient;
+
 export interface GamesFilter {
   platform?: string;
   genre?: string;
   search?: string;
+  /** Letra inicial (A–Z) ou '#' (não-letra); undefined/null = todas. */
+  letter?: string | null;
 }
 
 export const gamesKeys = {
@@ -59,6 +67,67 @@ export function useInfiniteGames(filters: GamesFilter = {}) {
       return data ?? [];
     },
     getNextPageParam: (lastPage, pages) => (lastPage.length === PAGE_SIZE ? pages.length : undefined),
+  });
+}
+
+/**
+ * Página de jogos com CONTAGEM total (para paginação numerada) + filtro por
+ * letra inicial. keepPreviousData mantém a página anterior visível na troca.
+ */
+export function useGamesPage(filters: GamesFilter, page: number, pageSize = PAGE_SIZE) {
+  return useQuery({
+    queryKey: ['games', 'page', filters, page, pageSize],
+    enabled: env.configured,
+    placeholderData: keepPreviousData,
+    queryFn: async (): Promise<{ games: Game[]; total: number }> => {
+      let q = db().from('games').select('*', { count: 'exact' });
+      if (filters.platform) q = q.contains('platforms', [filters.platform]);
+      if (filters.genre) q = q.contains('genres', [filters.genre]);
+      if (filters.search) q = q.ilike('title', `%${filters.search}%`);
+      if (filters.letter === '#') q = q.filter('title', 'imatch', '^[^A-Za-z]');
+      else if (filters.letter) q = q.ilike('title', `${filters.letter}%`);
+      const from = page * pageSize;
+      const { data, count, error } = await q
+        .order('title', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      return { games: (data ?? []) as unknown as Game[], total: count ?? 0 };
+    },
+  });
+}
+
+/** Valores distintos de plataforma/gênero (dropdowns de filtro completos). */
+export function useGameFacets() {
+  return useQuery({
+    queryKey: ['games', 'facets'],
+    enabled: env.configured,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<{ platforms: string[]; genres: string[] }> => {
+      const { data, error } = await db().rpc('game_facets');
+      if (error) throw error;
+      const rows = (data ?? []) as { kind: string; value: string }[];
+      return {
+        platforms: rows.filter((r) => r.kind === 'platform').map((r) => r.value),
+        genres: rows.filter((r) => r.kind === 'genre').map((r) => r.value),
+      };
+    },
+  });
+}
+
+/** Letras iniciais que têm jogos (para acender/apagar a barra A–Z). */
+export function useGameLetters(filters: { platform?: string; genre?: string }) {
+  return useQuery({
+    queryKey: ['games', 'letters', filters],
+    enabled: env.configured,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<Set<string>> => {
+      const { data, error } = await db().rpc('games_first_letters', {
+        p_platform: filters.platform || null,
+        p_genre: filters.genre || null,
+      });
+      if (error) throw error;
+      return new Set((data ?? []).map((r: { letter: string }) => r.letter));
+    },
   });
 }
 
