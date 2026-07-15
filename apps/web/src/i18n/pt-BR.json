@@ -25,6 +25,7 @@
     "login": "Entrar",
     "logout": "Sair",
     "submit": "Enviar material",
+    "community": "Comunidade",
     "admin": "Admin",
     "language": "Idioma"
   },
@@ -313,6 +314,12 @@
     "batchDone": "{{count}} jogos adicionados à biblioteca!",
     "export": "Exportar",
     "exportHint": "Baixa sua biblioteca (jogos, status, horas, cópias) em JSON"
+  },
+  "users": {
+    "kicker": "// comunidade",
+    "title": "Comunidade",
+    "subtitle": "Descubra outros colecionadores e romhackers pra seguir.",
+    "emptyTitle": "Ninguém por aqui ainda"
   },
   "wrapped": {
     "kicker": "// ano em retrospecto",

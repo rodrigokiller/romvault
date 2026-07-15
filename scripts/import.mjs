@@ -31,6 +31,9 @@
  *                                                        + utilitarios + tutoriais, scrape)
  *
  *   npm run import -- --source=covers --limit=200      # preenche capas via IGDB
+ *   npm run import -- --source=covers-libretro --platform=snes --dry
+ *   npm run import -- --source=covers-libretro         # BOX ART real (libretro CDN
+ *                                                        -> copiada pro nosso Storage)
  *   npm run import -- --source=dedupe --dry            # FUNDE jogos duplicados
  *   npm run import -- --source=dedupe                  #   (sempre --dry primeiro!)
  *
@@ -109,6 +112,23 @@ const itemLog = (count, msg) => {
   if (VERBOSE) log(msg);
   else if (count % 250 === 0) log(c.dim(`  … ${count}`));
 };
+
+/**
+ * Busca TODAS as linhas paginando de 1000 em 1000 — o PostgREST/Supabase corta
+ * qualquer resposta em 1000 (max-rows), mesmo com range() maior. Sem isso, os
+ * indices de dedupe so viam os primeiros 1000 registros.
+ */
+async function fetchAll(query) {
+  const PAGE = 1000;
+  const out = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await query().range(from, from + PAGE - 1);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if (!data || data.length < PAGE) break;
+  }
+  return out;
+}
 
 /* ── slug (identico a packages/core/src/domain/slug.ts) ─────────────────────── */
 function stripDiacritics(input) {
@@ -315,8 +335,9 @@ function igdbToGame(g, primaryShort) {
     platforms,
     franchise: g.franchises?.[0]?.name ?? g.collection?.name ?? null,
     description: g.summary ?? null,
-    cover_url: igdbImage(g.cover?.url, 'cover_big'),
-    thumbnail: igdbImage(g.cover?.url, 'cover_small'),
+    // _2x = retina; thumbnail em cover_big (o cover_small de 90px fica borrado na estante)
+    cover_url: igdbImage(g.cover?.url, 'cover_big_2x'),
+    thumbnail: igdbImage(g.cover?.url, 'cover_big'),
     screenshots: (g.screenshots ?? []).map((s) => igdbImage(s.url, 'screenshot_med')).filter(Boolean),
     game_modes: (g.game_modes ?? []).map((x) => x.name).filter(Boolean),
     themes: (g.themes ?? []).map((x) => x.name).filter(Boolean),
@@ -359,8 +380,7 @@ async function importIgdb(sb) {
   // de 1000 do PostgREST, senao games alem de 1000 nao seriam deduplicados.
   let existing = [];
   if (!DRY) {
-    const { data } = await sb.from('games').select('id, slug, igdb_id, cover_url').range(0, 99999);
-    existing = data ?? [];
+    existing = await fetchAll(() => sb.from('games').select('id, slug, igdb_id, cover_url'));
   }
   const byIgdb = new Map(existing.filter((g) => g.igdb_id != null).map((g) => [Number(g.igdb_id), g]));
   const bySlug = new Map(existing.map((g) => [g.slug, g.id]));
@@ -487,8 +507,8 @@ async function importCovers(sb) {
 
     if (DRY) { stats.preenchidos++; itemLog(stats.preenchidos, `  ${c.dim('[dry]')} ${g.title}`); continue; }
     const patch = {
-      cover_url: igdbImage(hit.cover.url, 'cover_big'),
-      thumbnail: igdbImage(hit.cover.url, 'cover_small'),
+      cover_url: igdbImage(hit.cover.url, 'cover_big_2x'),
+      thumbnail: igdbImage(hit.cover.url, 'cover_big'),
       screenshots: (hit.screenshots ?? []).map((s) => igdbImage(s.url, 'screenshot_med')).filter(Boolean),
     };
     if (g.igdb_id == null) {
@@ -557,9 +577,9 @@ async function importSmwc(sb) {
   // 2) ids ja importados (dedupe via id_map)
   let seen = new Set();
   if (!DRY) {
-    const { data } = await sb.from('id_map').select('external_id')
-      .eq('source', source).eq('entity', entity).range(0, 99999);
-    seen = new Set((data ?? []).map((r) => r.external_id));
+    const rows = await fetchAll(() =>
+      sb.from('id_map').select('external_id').eq('source', source).eq('entity', entity));
+    seen = new Set(rows.map((r) => r.external_id));
   }
 
   const stats = { romhacks: 0, skipped: 0, mapped: 0 };
@@ -649,15 +669,18 @@ async function main() {
   else if (SOURCE === 'smwc' || SOURCE === 'smwcentral') stats = await importSmwc(sb);
   else if (SOURCE === 'rhdn' || SOURCE === 'romhacking') {
     const { importRhdn } = await import('./lib/rhdn.mjs');
-    stats = await importRhdn({ sb, flag, DRY, log, c, step, slugifyText, itemLog });
+    stats = await importRhdn({ sb, flag, DRY, log, c, step, slugifyText, itemLog, fetchAll });
   } else if (SOURCE === 'pobre' || SOURCE === 'romhackers') {
     const { importPobre } = await import('./lib/pobre.mjs');
-    stats = await importPobre({ sb, flag, DRY, log, c, step, slugifyText, itemLog });
+    stats = await importPobre({ sb, flag, DRY, log, c, step, slugifyText, itemLog, fetchAll });
   } else if (SOURCE === 'covers') {
     stats = await importCovers(sb);
+  } else if (SOURCE === 'covers-libretro' || SOURCE === 'libretro') {
+    const { importCoversLibretro } = await import('./lib/libretro.mjs');
+    stats = await importCoversLibretro({ sb, flag, DRY, log, c, step, itemLog, fetchAll });
   } else if (SOURCE === 'dedupe') {
     const { dedupeGames } = await import('./lib/dedupe-games.mjs');
-    stats = await dedupeGames({ sb, flag, DRY, log, c, step, itemLog });
+    stats = await dedupeGames({ sb, flag, DRY, log, c, step, itemLog, fetchAll });
   } else stats = await importDataset(sb);
 
   step('Resumo');

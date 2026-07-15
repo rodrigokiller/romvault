@@ -134,7 +134,7 @@ function findSqlRecursive(dir) {
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export async function importRhdn(ctx) {
-  const { sb, flag, DRY, log, c, step, slugifyText, itemLog } = ctx;
+  const { sb, flag, DRY, log, c, step, slugifyText, itemLog, fetchAll } = ctx;
   const source = 'romhacking.net';
 
   const file = flag('file');
@@ -198,8 +198,8 @@ export async function importRhdn(ctx) {
   const ourByKey = new Map();
   const ourByTitle = new Map();
   if (!DRY) {
-    const { data } = await sb.from('games').select('id, title, platforms').range(0, 99999);
-    for (const g of data ?? []) {
+    const data = await fetchAll(() => sb.from('games').select('id, title, platforms'));
+    for (const g of data) {
       ourByTitle.set(norm(g.title), g.id);
       for (const p of g.platforms ?? []) ourByKey.set(`${norm(g.title)}|${norm(p)}`, g.id);
     }
@@ -209,8 +209,8 @@ export async function importRhdn(ctx) {
   /* ── dedupe do que já foi importado ───────────────────────────────────── */
   const seen = new Set();
   if (!DRY) {
-    const { data } = await sb.from('id_map').select('entity, external_id').eq('source', source).range(0, 999999);
-    for (const r of data ?? []) seen.add(`${r.entity}:${r.external_id}`);
+    const data = await fetchAll(() => sb.from('id_map').select('entity, external_id').eq('source', source));
+    for (const r of data) seen.add(`${r.entity}:${r.external_id}`);
   }
 
   /** Garante o jogo-base (cria com os dados ricos do RHDN se não existir). */

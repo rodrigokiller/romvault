@@ -36,14 +36,12 @@ const sharePlatform = (a, b) => {
 };
 
 export async function dedupeGames(ctx) {
-  const { sb, flag, DRY, log, c, step, itemLog } = ctx;
+  const { sb, flag, DRY, log, c, step, itemLog, fetchAll } = ctx;
 
-  step('Dedupe de jogos — carregando catálogo');
-  const { data: games, error } = await sb
+  step('Dedupe de jogos — carregando catálogo (paginado)');
+  const games = await fetchAll(() => sb
     .from('games')
-    .select('id, slug, title, igdb_id, cover_url, thumbnail, screenshots, description, platforms, external_ids, data_source')
-    .range(0, 99999);
-  if (error) throw error;
+    .select('id, slug, title, igdb_id, cover_url, thumbnail, screenshots, description, platforms, external_ids, data_source'));
   log(`  ${games.length} jogos`);
 
   // agrupa por título normalizado

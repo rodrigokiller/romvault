@@ -57,9 +57,14 @@ export function GameDetail() {
   const screenshots = (game?.screenshots ?? []).filter(Boolean);
   const completion = game?.completion_times as Record<string, string> | null | undefined;
 
+  const heroImg = game?.screenshots?.[0] ?? game?.cover_url ?? null;
+
   return (
     <div className="container">
-      <div className="detail-head">
+      <div
+        className={`detail-head ${heroImg ? 'detail-hero' : ''}`}
+        style={heroImg ? ({ '--hero-img': `url("${heroImg}")` } as React.CSSProperties) : undefined}
+      >
         <div className="detail-cover">
           {game?.cover_url ? (
             <img src={game.cover_url} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

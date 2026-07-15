@@ -75,8 +75,8 @@ function igdbToGame(g: any, primaryShort: string) {
     platforms,
     franchise: g.franchises?.[0]?.name ?? g.collection?.name ?? null,
     description: g.summary ?? null,
-    cover_url: igdbImage(g.cover?.url, 'cover_big'),
-    thumbnail: igdbImage(g.cover?.url, 'cover_small'),
+    cover_url: igdbImage(g.cover?.url, 'cover_big_2x'),
+    thumbnail: igdbImage(g.cover?.url, 'cover_big'),
     // deno-lint-ignore no-explicit-any
     screenshots: (g.screenshots ?? []).map((s: any) => igdbImage(s.url, 'screenshot_med')).filter(Boolean),
     // deno-lint-ignore no-explicit-any

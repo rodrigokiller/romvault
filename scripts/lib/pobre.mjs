@@ -115,7 +115,7 @@ const SECTIONS = {
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export async function importPobre(ctx) {
-  const { sb, flag, DRY, log, c, step, slugifyText, itemLog } = ctx;
+  const { sb, flag, DRY, log, c, step, slugifyText, itemLog, fetchAll } = ctx;
   const source = 'romhackers.org';
   const only = String(flag('section', 'all'));
   const limit = Number(flag('limit', 0)) || 0;
@@ -126,13 +126,13 @@ export async function importPobre(ctx) {
   const ourByTitle = new Map();
   const seen = new Set();
   if (!DRY) {
-    const { data: games } = await sb.from('games').select('id, title, platforms').range(0, 99999);
-    for (const g of games ?? []) {
+    const games = await fetchAll(() => sb.from('games').select('id, title, platforms'));
+    for (const g of games) {
       ourByTitle.set(norm(g.title), g.id);
       for (const p of g.platforms ?? []) ourByKey.set(`${norm(g.title)}|${norm(p)}`, g.id);
     }
-    const { data: mapped } = await sb.from('id_map').select('entity, external_id').eq('source', source).range(0, 999999);
-    for (const r of mapped ?? []) seen.add(`${r.entity}:${r.external_id}`);
+    const mapped = await fetchAll(() => sb.from('id_map').select('entity, external_id').eq('source', source));
+    for (const r of mapped) seen.add(`${r.entity}:${r.external_id}`);
     log(`  catalogo nosso: ${ourByTitle.size} titulos · ja importados: ${seen.size}`);
   }
 

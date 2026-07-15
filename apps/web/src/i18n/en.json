@@ -25,6 +25,7 @@
     "login": "Sign in",
     "logout": "Sign out",
     "submit": "Submit material",
+    "community": "Community",
     "admin": "Admin",
     "language": "Language"
   },
@@ -313,6 +314,12 @@
     "batchDone": "{{count}} games added to your library!",
     "export": "Export",
     "exportHint": "Downloads your library (games, statuses, hours, copies) as JSON"
+  },
+  "users": {
+    "kicker": "// community",
+    "title": "Community",
+    "subtitle": "Discover other collectors and romhackers to follow.",
+    "emptyTitle": "Nobody here yet"
   },
   "wrapped": {
     "kicker": "// year in review",

@@ -26,6 +26,21 @@ const norm = (s: string) =>
 const slugify = (s: string) =>
   norm(s).replace(/\s+/g, '-');
 
+// pagina de 1000 em 1000 (o PostgREST corta qualquer resposta em 1000)
+// deno-lint-ignore no-explicit-any
+async function fetchAll(query: () => any): Promise<any[]> {
+  const PAGE = 1000;
+  // deno-lint-ignore no-explicit-any
+  const out: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await query().range(from, from + PAGE - 1);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if (!data || data.length < PAGE) break;
+  }
+  return out;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
@@ -68,12 +83,11 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'Biblioteca vazia ou perfil privado (detalhes do jogo precisam ser públicos).' }, 404);
     }
 
-    // 4) nosso catálogo: match por external_ids.steam e por título
-    const { data: existing } = await admin
-      .from('games').select('id, title, external_ids').range(0, 99999);
+    // 4) nosso catálogo: match por external_ids.steam e por título (paginado)
+    const existing = await fetchAll(() => admin.from('games').select('id, title, external_ids'));
     const bySteam = new Map<number, string>();
     const byTitle = new Map<string, string>();
-    for (const g of existing ?? []) {
+    for (const g of existing) {
       const sid = (g.external_ids as Record<string, unknown> | null)?.steam;
       if (sid != null) bySteam.set(Number(sid), g.id);
       byTitle.set(norm(g.title), g.id);
@@ -122,9 +136,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // 6) tracks: cria os que faltam (backlog) e atualiza horas dos source=steam
-    const { data: myTracks } = await admin
-      .from('game_tracks').select('game_id, source').eq('user_id', user.id).range(0, 99999);
-    const trackByGame = new Map((myTracks ?? []).map((t) => [t.game_id as string, t.source as string]));
+    const myTracks = await fetchAll(() =>
+      admin.from('game_tracks').select('game_id, source').eq('user_id', user.id));
+    const trackByGame = new Map(myTracks.map((t) => [t.game_id as string, t.source as string]));
 
     const newTracks: Record<string, unknown>[] = [];
     const hourUpdates: { game_id: string; hours: number }[] = [];
@@ -151,9 +165,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // 7) cópias digitais Steam (só as que ainda não existem)
-    const { data: myCopies } = await admin
-      .from('game_copies').select('game_id').eq('user_id', user.id).eq('store', 'Steam').range(0, 99999);
-    const copyGames = new Set((myCopies ?? []).map((c) => c.game_id as string));
+    const myCopies = await fetchAll(() =>
+      admin.from('game_copies').select('game_id').eq('user_id', user.id).eq('store', 'Steam'));
+    const copyGames = new Set(myCopies.map((c) => c.game_id as string));
     const newCopies: Record<string, unknown>[] = [];
     for (const gid of new Set(gameIdOf.values())) {
       if (!copyGames.has(gid)) {

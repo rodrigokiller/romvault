@@ -36,6 +36,9 @@ export function Header() {
             <NavLink to="/submit" className="header-link">
               {t('nav:submit')}
             </NavLink>
+            <NavLink to="/users" className="header-link">
+              {t('nav:community')}
+            </NavLink>
           </nav>
         </div>
 

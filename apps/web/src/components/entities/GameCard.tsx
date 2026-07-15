@@ -8,8 +8,10 @@ import { QuickActions } from './QuickActions';
 /**
  * Card de jogo. É o formato "resumido" da entidade Game; a página completa
  * fica em GameDetail — sem duplicar a lógica de detalhe aqui.
+ * `translationBadges`: bandeiras dos idiomas de tradução disponíveis (🇧🇷…),
+ * vindas em lote da página (useTranslationLangs) — não por card.
  */
-export function GameCard({ game }: { game: Game }) {
+export function GameCard({ game, translationBadges }: { game: Game; translationBadges?: string[] }) {
   return (
     <Link to={`/games/${game.slug}`} style={{ display: 'block' }}>
       <Card interactive padSm>
@@ -21,6 +23,11 @@ export function GameCard({ game }: { game: Game }) {
               <Gamepad2 aria-hidden />
             )}
             <QuickActions game={game} />
+            {translationBadges && translationBadges.length > 0 && (
+              <span className="tile-langs" title={translationBadges.join(' ')}>
+                {translationBadges.slice(0, 3).join('')}
+              </span>
+            )}
           </div>
           <div className="tile-body">
             <span className="tile-title">{game.title}</span>

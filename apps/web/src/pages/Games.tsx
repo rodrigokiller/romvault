@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Gamepad2 } from 'lucide-react';
 import { useGamesPage, useGameLetters, useGameFacets } from '@/hooks/useGames';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useTranslationLangs } from '@/hooks/useTranslationLangs';
 import { PAGE_SIZE } from '@/hooks/useMaterials';
 import { GameCard } from '@/components/entities/GameCard';
 import { Field } from '@/components/ui/Field';
@@ -38,6 +39,7 @@ export function Games() {
 
   const games = query.data?.games ?? [];
   const total = query.data?.total ?? 0;
+  const { data: langMap } = useTranslationLangs(games.map((g) => g.id));
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const searching = debounced.length > 0;
 
@@ -111,7 +113,7 @@ export function Games() {
             style={{ opacity: query.isPlaceholderData ? 0.55 : 1, transition: 'opacity var(--t-fast)' }}
           >
             {games.map((g) => (
-              <GameCard key={g.id} game={g} />
+              <GameCard key={g.id} game={g} translationBadges={langMap?.get(g.id)} />
             ))}
           </div>
           <Pagination page={page} totalPages={totalPages} onPage={setPage} />
