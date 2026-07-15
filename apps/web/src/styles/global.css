@@ -58,7 +58,9 @@ body::after {
   /* vinheta */
   background: radial-gradient(120% 90% at 50% 0%, transparent 60%, rgba(0, 0, 0, 0.35) 100%);
 }
-#root > * {
+/* Lift do conteúdo acima das scanlines (z-0). `:where` mantém especificidade 0
+   para o z-index do header (.site-header, z-sticky) continuar valendo. */
+:where(#root) > * {
   position: relative;
   z-index: 1;
 }
