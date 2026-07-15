@@ -19,6 +19,12 @@
  *   npm run import -- --source=smwc --all              # todos os hacks do SMWC
  *   (romhacks entram LIGADOS ao jogo Super Mario World, com data_source/source_url)
  *
+ *   npm run import -- --source=rhdn --file=C:\dl\romhacking.sql.zip --inspect
+ *   npm run import -- --source=rhdn --file=... --section=hacks --limit=50 --dry
+ *   npm run import -- --source=rhdn --file=...        # dump completo do romhacking.net
+ *   (baixe o romhacking.sql.zip LOGADO no Internet Archive:
+ *    https://archive.org/details/romhacking.net-20240801)
+ *
  * Variaveis (.env na raiz do repo — copie de .env.example):
  *   SUPABASE_URL              (= a mesma URL do projeto)
  *   SUPABASE_SERVICE_KEY      (sb_secret_... — server-only!)
@@ -46,7 +52,7 @@ const flag = (name, def = undefined) => {
   const next = args[idx + 1];
   return next && !next.startsWith('--') ? next : true;
 };
-const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry'];
+const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section'];
 const DRY = Boolean(flag('dry', false));
 const SOURCE = String(flag('source', 'dataset'));
 
@@ -416,6 +422,24 @@ async function importIgdb(sb) {
  * data_source='smwcentral' + source_url + dedupe via id_map.
  * ═══════════════════════════════════════════════════════════════════════════ */
 const stripHtml = (s) => String(s ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** GET JSON com respeito a rate-limit: espera e re-tenta em HTTP 429. */
+async function fetchJsonPolite(url, tries = 5) {
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (res.status === 429) {
+      const retryAfter = Number(res.headers.get('retry-after')) || 0;
+      const waitMs = Math.max(retryAfter * 1000, 5000 * attempt); // backoff crescente
+      log(c.amber(`  (429 rate-limit — aguardando ${Math.round(waitMs / 1000)}s, tentativa ${attempt}/${tries})`));
+      await sleep(waitMs);
+      continue;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+  throw new Error('HTTP 429 persistente (rate-limit)');
+}
 
 async function importSmwc(sb) {
   const source = 'smwcentral';
@@ -454,10 +478,15 @@ async function importSmwc(sb) {
   const stats = { romhacks: 0, skipped: 0, mapped: 0 };
   let page = 1;
   for (let i = 0; i < maxPages; i++, page++) {
+    if (i > 0) await sleep(3000); // gentileza com o rate-limit do SMWC
     const url = `https://www.smwcentral.net/ajax.php?a=getsectionlist&s=smwhacks&u=0&n=${page}`;
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!res.ok) { log(c.red(`✖ SMWC: HTTP ${res.status}`)); break; }
-    const body = await res.json();
+    let body;
+    try {
+      body = await fetchJsonPolite(url);
+    } catch (err) {
+      log(c.red(`✖ SMWC pagina ${page}: ${err.message} — rode de novo depois (dedupe continua de onde parou)`));
+      break;
+    }
     const hacks = body?.data ?? [];
     if (hacks.length === 0) { log(c.amber('  (sem mais resultados)')); break; }
 
@@ -528,10 +557,13 @@ async function main() {
   log(c.cyan('ROMVault importer') + c.dim(`  source=${SOURCE}${DRY ? '  (dry-run)' : ''}`));
   const sb = makeClient();
 
-  const stats =
-    SOURCE === 'igdb' ? await importIgdb(sb)
-    : SOURCE === 'smwc' || SOURCE === 'smwcentral' ? await importSmwc(sb)
-    : await importDataset(sb);
+  let stats;
+  if (SOURCE === 'igdb') stats = await importIgdb(sb);
+  else if (SOURCE === 'smwc' || SOURCE === 'smwcentral') stats = await importSmwc(sb);
+  else if (SOURCE === 'rhdn' || SOURCE === 'romhacking') {
+    const { importRhdn } = await import('./lib/rhdn.mjs');
+    stats = await importRhdn({ sb, flag, DRY, log, c, step, slugifyText });
+  } else stats = await importDataset(sb);
 
   step('Resumo');
   for (const [k, v] of Object.entries(stats)) log(`  ${k.padEnd(14)} ${v}`);
