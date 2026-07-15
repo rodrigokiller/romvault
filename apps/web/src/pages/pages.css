@@ -1061,3 +1061,52 @@
   font-size: 0.9rem;
   line-height: 1.55;
 }
+
+/* ── Carregar mais ────────────────────────────────────────────────────────── */
+.load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--s6);
+}
+
+/* ── Compartilhar (menu) ──────────────────────────────────────────────────── */
+.share {
+  position: relative;
+  display: inline-flex;
+}
+.share-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 180px;
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.share-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+}
+.share-item:last-child {
+  border-bottom: none;
+}
+.share-item:hover {
+  background: var(--panel-2);
+  color: var(--ink-bright);
+}
+.share-item svg {
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+}

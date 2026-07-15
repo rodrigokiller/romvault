@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Gamepad2 } from 'lucide-react';
-import { useGames } from '@/hooks/useGames';
+import { useInfiniteGames } from '@/hooks/useGames';
+import { useDebounce } from '@/hooks/useDebounce';
 import { GameCard } from '@/components/entities/GameCard';
 import { Field } from '@/components/ui/Field';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
+import { LoadMore } from '@/components/ui/LoadMore';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 
 export function Games() {
@@ -13,10 +15,16 @@ export function Games() {
   const [platform, setPlatform] = useState('');
   const [genre, setGenre] = useState('');
   const [search, setSearch] = useState('');
+  const debounced = useDebounce(search, 250);
 
-  const { data: games = [], isLoading } = useGames();
+  const query = useInfiniteGames({
+    platform: platform || undefined,
+    genre: genre || undefined,
+    search: debounced || undefined,
+  });
+  const games = useMemo(() => query.data?.pages.flat() ?? [], [query.data]);
 
-  // Opções de filtro derivadas dos dados carregados.
+  // Opções derivadas do que já foi carregado (server-side pagina o resto).
   const platforms = useMemo(
     () => [...new Set(games.flatMap((g) => g.platforms ?? []))].sort(),
     [games],
@@ -24,17 +32,6 @@ export function Games() {
   const genres = useMemo(
     () => [...new Set(games.flatMap((g) => g.genres ?? []))].sort(),
     [games],
-  );
-
-  const filtered = useMemo(
-    () =>
-      games.filter((g) => {
-        if (platform && !(g.platforms ?? []).includes(platform)) return false;
-        if (genre && !(g.genres ?? []).includes(genre)) return false;
-        if (search && !g.title.toLowerCase().includes(search.toLowerCase())) return false;
-        return true;
-      }),
-    [games, platform, genre, search],
   );
 
   return (
@@ -51,9 +48,7 @@ export function Games() {
             <Select id={id} value={platform} onChange={(e) => setPlatform(e.target.value)}>
               <option value="">{t('browse:filterAll')}</option>
               {platforms.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
+                <option key={p} value={p}>{p}</option>
               ))}
             </Select>
           )}
@@ -63,9 +58,7 @@ export function Games() {
             <Select id={id} value={genre} onChange={(e) => setGenre(e.target.value)}>
               <option value="">{t('browse:filterAllMasc')}</option>
               {genres.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
+                <option key={g} value={g}>{g}</option>
               ))}
             </Select>
           )}
@@ -81,23 +74,28 @@ export function Games() {
             />
           )}
         </Field>
-        {filtered.length > 0 && (
-          <span className="filter-count">
-            {t('browse:results', { count: filtered.length })}
-          </span>
+        {games.length > 0 && (
+          <span className="filter-count">{t('browse:results', { count: games.length })}</span>
         )}
       </div>
 
-      {isLoading ? (
+      {query.isLoading ? (
         <LoadingPage />
-      ) : filtered.length === 0 ? (
+      ) : games.length === 0 ? (
         <EmptyState icon={Gamepad2} title={t('games:emptyTitle')} text={t('games:emptyText')} />
       ) : (
-        <div className="card-grid">
-          {filtered.map((g) => (
-            <GameCard key={g.id} game={g} />
-          ))}
-        </div>
+        <>
+          <div className="card-grid">
+            {games.map((g) => (
+              <GameCard key={g.id} game={g} />
+            ))}
+          </div>
+          <LoadMore
+            hasMore={Boolean(query.hasNextPage)}
+            loading={query.isFetchingNextPage}
+            onMore={() => void query.fetchNextPage()}
+          />
+        </>
       )}
     </div>
   );

@@ -7,6 +7,7 @@ import { useGameRomhacks, useGameTranslations, useGameDocuments } from '@/hooks/
 import { MaterialCard } from '@/components/entities/MaterialCard';
 import { Reviews } from '@/components/entities/Reviews';
 import { FavoriteButton } from '@/components/entities/FavoriteButton';
+import { ShareButton } from '@/components/entities/ShareButton';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
@@ -83,6 +84,7 @@ export function GameDetail() {
           {game && (
             <div className="detail-actions">
               <FavoriteButton subjectType="game" subjectId={game.id} />
+              <ShareButton title={title} />
             </div>
           )}
         </div>

@@ -1,7 +1,8 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Game } from '@romvault/core';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
+import { PAGE_SIZE } from './useMaterials';
 
 export interface GamesFilter {
   platform?: string;
@@ -36,6 +37,28 @@ export function useGames(filters: GamesFilter = {}) {
       if (error) throw error;
       return data ?? [];
     },
+  });
+}
+
+/** Lista de jogos paginada (server-side, com filtros) para a página /games. */
+export function useInfiniteGames(filters: GamesFilter = {}) {
+  return useInfiniteQuery({
+    queryKey: ['games', 'infinite', filters],
+    enabled: env.configured,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }): Promise<Game[]> => {
+      let query = getSupabase().from('games').select('*');
+      if (filters.platform) query = query.contains('platforms', [filters.platform]);
+      if (filters.genre) query = query.contains('genres', [filters.genre]);
+      if (filters.search) query = query.ilike('title', `%${filters.search}%`);
+      const from = (pageParam as number) * PAGE_SIZE;
+      const { data, error } = await query
+        .order('title', { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+      return data ?? [];
+    },
+    getNextPageParam: (lastPage, pages) => (lastPage.length === PAGE_SIZE ? pages.length : undefined),
   });
 }
 

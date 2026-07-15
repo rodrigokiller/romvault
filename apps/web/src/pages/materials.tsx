@@ -12,14 +12,14 @@ import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 import { MaterialCard } from '@/components/entities/MaterialCard';
 import { Reviews } from '@/components/entities/Reviews';
 import { FavoriteButton } from '@/components/entities/FavoriteButton';
+import { ShareButton } from '@/components/entities/ShareButton';
 import { KIND_META, type Kind } from '@/components/entities/kinds';
 import {
-  useRomhacks, useRomhack,
-  useTranslations, useTranslationDetail,
-  useDocuments, useDocument,
-  useTools, useTool,
+  useInfiniteMaterials,
+  useRomhack, useTranslationDetail, useDocument, useTool,
   type MaterialFilters, type WithGame,
 } from '@/hooks/useMaterials';
+import { LoadMore } from '@/components/ui/LoadMore';
 import { useArticles, useArticle } from '@/hooks/useArticles';
 import { trackDownload, type DownloadSubject } from '@/hooks/useMutations';
 import type { Article } from '@romvault/core';
@@ -35,6 +35,14 @@ const num = (v: unknown) => (typeof v === 'number' ? v : null);
 /* ═══════════════════════════════════════════════════════════════════════════
  * LISTA (genérica, apresentacional) — recebe a query já resolvida
  * ═══════════════════════════════════════════════════════════════════════════ */
+interface InfiniteList {
+  data?: { pages: Row[][] };
+  isLoading: boolean;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  fetchNextPage: () => void;
+}
+
 function MaterialListView({
   kind,
   query,
@@ -42,13 +50,13 @@ function MaterialListView({
   setFilters,
 }: {
   kind: Kind;
-  query: UseQueryResult<Row[]>;
+  query: InfiniteList;
   filters: MaterialFilters;
   setFilters: (f: MaterialFilters) => void;
 }) {
   const { t } = useTranslation();
   const meta = KIND_META[kind];
-  const items = useMemo(() => query.data ?? [], [query.data]);
+  const items = useMemo(() => query.data?.pages.flat() ?? [], [query.data]);
 
   const hasLanguage = kind === 'translation' || kind === 'doc';
 
@@ -143,11 +151,18 @@ function MaterialListView({
       ) : items.length === 0 ? (
         <EmptyState icon={meta.icon} title={t('browse:emptyTitle')} text={t('browse:emptyText')} />
       ) : (
-        <div className="card-grid">
-          {items.map((item) => (
-            <MaterialCard key={String(item.id)} kind={kind} item={item} />
-          ))}
-        </div>
+        <>
+          <div className="card-grid">
+            {items.map((item) => (
+              <MaterialCard key={String(item.id)} kind={kind} item={item} />
+            ))}
+          </div>
+          <LoadMore
+            hasMore={Boolean(query.hasNextPage)}
+            loading={query.isFetchingNextPage}
+            onMore={() => void query.fetchNextPage()}
+          />
+        </>
       )}
     </div>
   );
@@ -247,6 +262,7 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
               </a>
             )}
             {SUBJECT_OF[kind] && <FavoriteButton subjectType={SUBJECT_OF[kind]} subjectId={String(item.id)} />}
+            <ShareButton title={title} />
           </div>
         </div>
       </div>
@@ -313,7 +329,7 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
  * ═══════════════════════════════════════════════════════════════════════════ */
 export function RomhacksList() {
   const { filters, setFilters } = useFilters();
-  return <MaterialListView kind="romhack" query={useRomhacks(filters) as UseQueryResult<Row[]>} filters={filters} setFilters={setFilters} />;
+  return <MaterialListView kind="romhack" query={useInfiniteMaterials('romhacks', filters)} filters={filters} setFilters={setFilters} />;
 }
 export function RomhackDetail() {
   const { id } = useParams();
@@ -321,7 +337,7 @@ export function RomhackDetail() {
 }
 export function TranslationsList() {
   const { filters, setFilters } = useFilters();
-  return <MaterialListView kind="translation" query={useTranslations(filters) as UseQueryResult<Row[]>} filters={filters} setFilters={setFilters} />;
+  return <MaterialListView kind="translation" query={useInfiniteMaterials('translations', filters)} filters={filters} setFilters={setFilters} />;
 }
 export function TranslationDetail() {
   const { id } = useParams();
@@ -329,7 +345,7 @@ export function TranslationDetail() {
 }
 export function DocsList() {
   const { filters, setFilters } = useFilters();
-  return <MaterialListView kind="doc" query={useDocuments(filters) as UseQueryResult<Row[]>} filters={filters} setFilters={setFilters} />;
+  return <MaterialListView kind="doc" query={useInfiniteMaterials('documents', filters)} filters={filters} setFilters={setFilters} />;
 }
 export function DocDetail() {
   const { id } = useParams();
@@ -337,7 +353,7 @@ export function DocDetail() {
 }
 export function ToolsList() {
   const { filters, setFilters } = useFilters();
-  return <MaterialListView kind="tool" query={useTools(filters) as UseQueryResult<Row[]>} filters={filters} setFilters={setFilters} />;
+  return <MaterialListView kind="tool" query={useInfiniteMaterials('tools', filters)} filters={filters} setFilters={setFilters} />;
 }
 export function ToolDetail() {
   const { id } = useParams();

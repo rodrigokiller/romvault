@@ -56,6 +56,7 @@
     "sortDownloads": "Most downloaded",
     "sortRating": "Highest rated",
     "sortRecent": "Newest",
+    "loadMore": "Load more",
     "results_one": "{{count}} result",
     "results_other": "{{count}} results",
     "emptyTitle": "Nothing here yet",
@@ -260,6 +261,10 @@
     "anon": "anonymous",
     "favorite": "Favorite",
     "favorited": "Favorited",
-    "favoritesTitle": "Favorites"
+    "favoritesTitle": "Favorites",
+    "share": "Share",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied!",
+    "shareNative": "Share…"
   }
 }

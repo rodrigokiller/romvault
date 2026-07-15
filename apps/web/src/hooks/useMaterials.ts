@@ -1,8 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Romhack, Translation, Document, Tool, Game } from '@romvault/core';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
+
+/** Tamanho de página das listas paginadas. */
+export const PAGE_SIZE = 24;
 
 /**
  * Estes hooks operam por NOME DE TABELA dinâmico (kind), então o client tipado
@@ -62,7 +65,7 @@ function buildList(kind: MaterialKind, filters: MaterialFilters) {
     else if (col) q = q.eq(col, filters.category);
   }
   const order = ORDER[filters.sort ?? 'downloads'];
-  return q.order(order.col, { ascending: order.asc }).limit(60);
+  return q.order(order.col, { ascending: order.asc });
 }
 
 function useMaterialList<T>(kind: MaterialKind, filters: MaterialFilters = {}) {
@@ -70,10 +73,26 @@ function useMaterialList<T>(kind: MaterialKind, filters: MaterialFilters = {}) {
     queryKey: materialKeys.list(kind, filters),
     enabled: env.configured,
     queryFn: async (): Promise<T[]> => {
-      const { data, error } = await buildList(kind, filters);
+      const { data, error } = await buildList(kind, filters).limit(60);
       if (error) throw error;
       return (data ?? []) as unknown as T[];
     },
+  });
+}
+
+/** Lista paginada (infinite scroll / "carregar mais"). */
+export function useInfiniteMaterials(kind: MaterialKind, filters: MaterialFilters = {}) {
+  return useInfiniteQuery({
+    queryKey: [kind, 'infinite', filters],
+    enabled: env.configured,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }): Promise<Record<string, unknown>[]> => {
+      const from = (pageParam as number) * PAGE_SIZE;
+      const { data, error } = await buildList(kind, filters).range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+      return (data ?? []) as unknown as Record<string, unknown>[];
+    },
+    getNextPageParam: (lastPage, pages) => (lastPage.length === PAGE_SIZE ? pages.length : undefined),
   });
 }
 
