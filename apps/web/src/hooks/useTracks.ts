@@ -162,6 +162,57 @@ export function useLibraryCopies(userId: string | undefined) {
   });
 }
 
+/* ── Zeradas (playthroughs): N por usuário+jogo, data obrigatória ───────────── */
+export interface Playthrough {
+  id: string;
+  finished_on: string;
+  precision: 'day' | 'month' | 'year';
+  notes: string | null;
+}
+
+export function useMyPlaythroughs(gameId: string | undefined) {
+  const { user } = useAuth();
+  const uid = user?.id;
+  return useQuery({
+    queryKey: ['playthroughs', gameId, uid],
+    enabled: env.configured && Boolean(gameId && uid),
+    queryFn: async (): Promise<Playthrough[]> => {
+      const { data, error } = await db()
+        .from('game_playthroughs').select('id, finished_on, precision, notes')
+        .eq('user_id', uid as string).eq('game_id', gameId as string)
+        .order('finished_on', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as Playthrough[];
+    },
+  });
+}
+
+export function useAddPlaythrough(gameId: string | undefined) {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: { finished_on: string; precision: Playthrough['precision'] }) => {
+      const uid = user?.id;
+      if (!uid || !gameId) throw new Error('Não autenticado.');
+      const { error } = await db().from('game_playthroughs')
+        .insert({ ...p, user_id: uid, game_id: gameId });
+      if (error) throw error;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['playthroughs', gameId] }),
+  });
+}
+
+export function useRemovePlaythrough(gameId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await db().from('game_playthroughs').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['playthroughs', gameId] }),
+  });
+}
+
 /** Biblioteca completa de um usuário (com os jogos embutidos). */
 export function useLibrary(userId: string | undefined) {
   return useQuery({

@@ -266,7 +266,19 @@
     "copyRemove": "Remover cópia",
     "copyStorePh": "Loja/origem (Steam, cartucho…)",
     "dist_physical": "Física",
-    "dist_digital": "Digital"
+    "dist_digital": "Digital",
+    "runsTitle_zero": "Zeradas",
+    "runsTitle_one": "Zeradas ({{count}})",
+    "runsTitle_other": "Zeradas ({{count}})",
+    "runAdd": "Registrar zerada",
+    "runConfirm": "Salvar",
+    "runAdded": "Zerada registrada! 🏆",
+    "runRemove": "Remover zerada",
+    "runPrecision": "Precisão da data",
+    "runDateRequired": "Informe a data (dia, mês ou pelo menos o ano).",
+    "prec_day": "Data completa",
+    "prec_month": "Mês/ano",
+    "prec_year": "Só o ano"
   },
   "collections": {
     "kicker": "// curadoria",

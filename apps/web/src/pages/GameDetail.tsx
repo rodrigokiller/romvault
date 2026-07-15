@@ -11,6 +11,7 @@ import { FavoriteButton } from '@/components/entities/FavoriteButton';
 import { ShareButton } from '@/components/entities/ShareButton';
 import { TrackButton } from '@/components/entities/TrackButton';
 import { CopiesWidget } from '@/components/entities/CopiesWidget';
+import { PlaythroughsWidget } from '@/components/entities/PlaythroughsWidget';
 import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { Badge } from '@/components/ui/Badge';
@@ -94,6 +95,7 @@ export function GameDetail() {
             </div>
           )}
           {game && <CopiesWidget gameId={game.id} platforms={game.platforms ?? []} />}
+          {game && <PlaythroughsWidget gameId={game.id} />}
         </div>
       </div>
 

@@ -266,7 +266,19 @@
     "copyRemove": "Remove copy",
     "copyStorePh": "Store/origin (Steam, cartridge…)",
     "dist_physical": "Physical",
-    "dist_digital": "Digital"
+    "dist_digital": "Digital",
+    "runsTitle_zero": "Completions",
+    "runsTitle_one": "Completions ({{count}})",
+    "runsTitle_other": "Completions ({{count}})",
+    "runAdd": "Log completion",
+    "runConfirm": "Save",
+    "runAdded": "Completion logged! 🏆",
+    "runRemove": "Remove completion",
+    "runPrecision": "Date precision",
+    "runDateRequired": "A date is required (day, month or at least the year).",
+    "prec_day": "Full date",
+    "prec_month": "Month/year",
+    "prec_year": "Year only"
   },
   "collections": {
     "kicker": "// curated",
