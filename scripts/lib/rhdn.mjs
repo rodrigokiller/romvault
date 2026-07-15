@@ -183,7 +183,7 @@ export async function importRhdn(ctx) {
   for (const r of tGames?.rows ?? []) {
     if (r.gamekey == null) continue;
     rhdnGame.set(Number(r.gamekey), {
-      title: String(r.gametitle ?? '').trim(),
+      title: cleanText(r.gametitle) ?? '',
       platform: systemName.get(Number(r.platformid)) ?? null,
       japtitle: r.japtitle ? String(r.japtitle).trim() : null,
       publisher: r.publisher ? String(r.publisher).trim() : null,

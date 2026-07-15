@@ -1747,6 +1747,20 @@
 @media (prefers-reduced-motion: reduce) {
   .shelf-physical .shelf-item:hover .shelf-cover { transform: none; }
 }
+/* box 3D real (ScreenScraper): a arte já tem profundidade — sem lombada fake */
+.shelf-physical .shelf-cover-3d {
+  background: transparent;
+  box-shadow: none;
+  filter: drop-shadow(6px 10px 12px rgba(0, 0, 0, 0.55));
+}
+.shelf-physical .shelf-cover-3d img {
+  object-fit: contain;
+}
+.shelf-physical .shelf-cover-3d::after { display: none; }
+.shelf-physical .shelf-item:hover .shelf-cover-3d {
+  transform: rotateY(-12deg) translateY(-8px);
+  box-shadow: none;
+}
 .chips-sep {
   color: var(--line-bright);
   align-self: center;

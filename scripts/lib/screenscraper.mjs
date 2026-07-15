@@ -103,7 +103,8 @@ export async function importScreenscraper(ctx) {
     return { ok: 1 };
   }
 
-  const ourPlatform = flag('platform') ? String(flag('platform')) : 'SNES';
+  const rawPlat = flag('platform');
+  const ourPlatform = rawPlat && rawPlat !== true ? String(rawPlat) : 'SNES';
   const platKey = Object.keys(SYSTEM_NAMES).find((k) => norm(k) === norm(ourPlatform)) ?? ourPlatform;
   const limit = Number(flag('limit', 100)) || 100;
 

@@ -298,10 +298,14 @@ function ShelfItem({ track, runs, showcase }: { track: TrackWithGame; runs: numb
   const { t } = useTranslation();
   const g = track.game;
   const SIcon = STATUS_ICON[track.status];
+  // box 3D real (ScreenScraper) tem prioridade na vitrine física
+  const box3d = showcase ? ((g.metadata as unknown as { box3d?: string } | null)?.box3d ?? null) : null;
   return (
     <Link to={`/games/${g.slug}`} className="shelf-item" title={g.title} data-flip={track.game_id}>
-      <div className={`shelf-cover status-${track.status}`}>
-        {g.cover_url || g.thumbnail ? (
+      <div className={`shelf-cover status-${track.status} ${box3d ? 'shelf-cover-3d' : ''}`}>
+        {box3d ? (
+          <img src={box3d} alt={g.title} loading="lazy" />
+        ) : g.cover_url || g.thumbnail ? (
           <img src={g.cover_url ?? g.thumbnail ?? ''} alt={g.title} loading="lazy" />
         ) : (
           <span className="shelf-cover-fallback">{g.title}</span>

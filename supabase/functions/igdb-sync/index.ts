@@ -98,15 +98,18 @@ Deno.serve(async (req: Request) => {
     const twitchSecret = Deno.env.get('TWITCH_CLIENT_SECRET');
     if (!twitchId || !twitchSecret) return json({ error: 'TWITCH_CLIENT_ID/SECRET não configurados (supabase secrets set).' }, 500);
 
-    // 1) autentica o chamador e exige is_admin
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const asUser = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
-    const { data: { user } } = await asUser.auth.getUser();
-    if (!user) return json({ error: 'Não autenticado.' }, 401);
-
+    // 1) autentica o chamador: cron (x-cron-secret) OU usuário admin (JWT)
     const admin = createClient(url, serviceKey);
-    const { data: profile } = await admin.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
-    if (!profile?.is_admin) return json({ error: 'Apenas admins.' }, 403);
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const isCron = Boolean(cronSecret) && req.headers.get('x-cron-secret') === cronSecret;
+    if (!isCron) {
+      const authHeader = req.headers.get('Authorization') ?? '';
+      const asUser = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user } } = await asUser.auth.getUser();
+      if (!user) return json({ error: 'Não autenticado.' }, 401);
+      const { data: profile } = await admin.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
+      if (!profile?.is_admin) return json({ error: 'Apenas admins.' }, 403);
+    }
 
     // 2) params
     const body = await req.json().catch(() => ({}));

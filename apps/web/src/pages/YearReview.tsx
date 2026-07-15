@@ -35,11 +35,16 @@ function useYearRuns(userId: string | undefined, year: string) {
   });
 }
 
-const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+/** Abreviações de mês no idioma da UI (polish: antes era PT fixo). */
+function monthNames(locale: string): string[] {
+  return Array.from({ length: 12 }, (_, i) =>
+    new Date(2000, i, 1).toLocaleString(locale, { month: 'short' }).replace('.', ''));
+}
 
 /** "Ano em Retrospecto": card compartilhável com as zeradas do ano. */
 export function YearReview() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const MONTHS = monthNames(i18n.language || 'pt-BR');
   const { username, year = '' } = useParams<{ username: string; year: string }>();
   const { data: profile, isLoading: profileLoading } = useProfileByUsername(username);
   const { data: runs = [], isLoading } = useYearRuns(profile?.id, year);
