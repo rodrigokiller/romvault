@@ -24,7 +24,7 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
 const IGDB_PLATFORMS: Record<string, number> = {
-  nes: 18, snes: 19, n64: 4, gamecube: 21, gc: 21, wii: 5, wiiu: 41, switch: 130, nsw: 130,
+  nes: 18, snes: 19, n64: 4, gamecube: 21, gc: 21, wii: 5, wiiu: 41, switch: 130, nsw: 130, switch2: 508, 'nintendo-switch-2': 508,
   gb: 33, gbc: 22, gba: 24, nds: 20, ds: 20, '3ds': 37, virtualboy: 87, vb: 87,
   genesis: 29, megadrive: 29, md: 29, master: 64, mastersystem: 64, gamegear: 35, gg: 35,
   saturn: 32, dreamcast: 23, dc: 23, segacd: 78, sega32x: 30,
@@ -35,7 +35,7 @@ const IGDB_PLATFORMS: Record<string, number> = {
   amiga: 16, c64: 15, '3do': 50, colecovision: 68, intellivision: 67, android: 34, ios: 39,
 };
 const PLATFORM_SHORT: Record<number, string> = {
-  18: 'NES', 19: 'SNES', 4: 'N64', 21: 'GameCube', 5: 'Wii', 41: 'Wii U', 130: 'Switch',
+  18: 'NES', 19: 'SNES', 4: 'N64', 21: 'GameCube', 5: 'Wii', 41: 'Wii U', 130: 'Switch', 508: 'Switch 2',
   33: 'Game Boy', 22: 'GBC', 24: 'GBA', 20: 'NDS', 37: '3DS', 87: 'Virtual Boy',
   29: 'Genesis', 64: 'Master System', 35: 'Game Gear', 32: 'Saturn', 23: 'Dreamcast', 78: 'Sega CD', 30: '32X',
   7: 'PS1', 8: 'PS2', 9: 'PS3', 48: 'PS4', 167: 'PS5', 38: 'PSP', 46: 'PS Vita',
@@ -54,6 +54,21 @@ function slugifyText(s: string) {
 }
 function igdbImage(url: string | undefined, size: string) {
   return url ? 'https:' + url.replace('/t_thumb/', `/t_${size}/`) : null;
+}
+
+// pagina de 1000 em 1000 (o PostgREST corta qualquer resposta em 1000)
+// deno-lint-ignore no-explicit-any
+async function fetchAll(query: () => any): Promise<any[]> {
+  const PAGE = 1000;
+  // deno-lint-ignore no-explicit-any
+  const out: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await query().range(from, from + PAGE - 1);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if (!data || data.length < PAGE) break;
+  }
+  return out;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -133,10 +148,10 @@ Deno.serve(async (req: Request) => {
     // 4) cursor + jogos existentes (dedupe). range alto: sem o teto de 1000.
     const { data: ss } = await admin.from('sync_state').select('cursor').eq('source', source).eq('entity', entity).maybeSingle();
     let cursor = Number(ss?.cursor ?? 0) || 0;
-    const { data: existing } = await admin.from('games').select('id, slug, igdb_id, cover_url').range(0, 99999);
+    const existing = await fetchAll(() => admin.from('games').select('id, slug, igdb_id, cover_url'));
     // deno-lint-ignore no-explicit-any
-    const byIgdb = new Map<number, any>((existing ?? []).filter((g) => g.igdb_id != null).map((g) => [Number(g.igdb_id), g]));
-    const bySlug = new Map<string, string>((existing ?? []).map((g) => [g.slug, g.id]));
+    const byIgdb = new Map<number, any>(existing.filter((g) => g.igdb_id != null).map((g) => [Number(g.igdb_id), g]));
+    const bySlug = new Map<string, string>(existing.map((g) => [g.slug, g.id]));
 
     const fields =
       'fields id,name,summary,first_release_date,slug,cover.url,screenshots.url,genres.name,' +

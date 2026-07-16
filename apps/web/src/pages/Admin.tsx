@@ -18,7 +18,7 @@ import { useDeleteEntity } from '@/hooks/useMutations';
 const db = () => getSupabase() as unknown as SupabaseClient;
 
 const IGDB_PLATFORMS = [
-  'snes', 'nes', 'n64', 'gamecube', 'wii', 'wiiu', 'switch',
+  'snes', 'nes', 'n64', 'gamecube', 'wii', 'wiiu', 'switch', 'switch2',
   'gb', 'gbc', 'gba', 'nds', '3ds',
   'genesis', 'mastersystem', 'gamegear', 'saturn', 'dreamcast',
   'ps1', 'ps2', 'ps3', 'ps4', 'ps5', 'psp', 'vita',

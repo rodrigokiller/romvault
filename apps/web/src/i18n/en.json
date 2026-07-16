@@ -62,6 +62,14 @@
     "sortRating": "Highest rated",
     "sortRecent": "Newest",
     "loadMore": "Load more",
+    "moreFilters": "More filters",
+    "clearFilters": "Clear filters",
+    "filterRelease": "Release",
+    "releaseReleased": "Released only",
+    "releaseUpcoming": "In development / upcoming",
+    "releaseAll": "All",
+    "yearFrom": "Year (from)",
+    "yearTo": "Year (to)",
     "pagination": "Pagination",
     "prevPage": "Previous page",
     "nextPage": "Next page",
@@ -343,7 +351,9 @@
     "subtitle": "Hand-picked selections: the best hacks, translations and tools by theme.",
     "emptyTitle": "No collections yet",
     "emptyText": "Curated collections will show up here.",
-    "emptyItemsTitle": "This collection is empty."
+    "emptyItemsTitle": "This collection is empty.",
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items"
   },
   "apidocs": {
     "title": "ROMVault API",

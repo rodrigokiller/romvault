@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Gamepad2 } from 'lucide-react';
-import { useGamesPage, useGameLetters, useGameFacets } from '@/hooks/useGames';
+import { Gamepad2, SlidersHorizontal, ChevronUp } from 'lucide-react';
+import { useGamesPage, useGameLetters, useGameFacets, type GamesFilter } from '@/hooks/useGames';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslationLangs } from '@/hooks/useTranslationLangs';
 import { PAGE_SIZE } from '@/hooks/useMaterials';
@@ -19,19 +19,27 @@ export function Games() {
   const [genre, setGenre] = useState('');
   const [search, setSearch] = useState('');
   const [letter, setLetter] = useState<string | null>(null);
-  const [sort, setSort] = useState<'title' | 'newest' | 'oldest'>('title');
+  // padrão de loja (Steam/eShop/PS Store): mais novos primeiro, SÓ lançados
+  const [sort, setSort] = useState<'title' | 'newest' | 'oldest'>('newest');
+  const [release, setRelease] = useState<'released' | 'upcoming' | 'all'>('released');
+  const [yearFrom, setYearFrom] = useState('');
+  const [yearTo, setYearTo] = useState('');
+  const [moreOpen, setMoreOpen] = useState(false);
   const [page, setPage] = useState(0);
   const debounced = useDebounce(search, 250);
 
   // qualquer mudança de filtro volta pra primeira página
-  useEffect(() => setPage(0), [platform, genre, debounced, letter, sort]);
+  useEffect(() => setPage(0), [platform, genre, debounced, letter, sort, release, yearFrom, yearTo]);
 
-  const filters = {
+  const filters: GamesFilter = {
     platform: platform || undefined,
     genre: genre || undefined,
     search: debounced || undefined,
     letter,
     sort,
+    release,
+    yearFrom: /^\d{4}$/.test(yearFrom) ? Number(yearFrom) : undefined,
+    yearTo: /^\d{4}$/.test(yearTo) ? Number(yearTo) : undefined,
   };
   const query = useGamesPage(filters, page);
   const { data: facets } = useGameFacets();
@@ -42,6 +50,11 @@ export function Games() {
   const { data: langMap } = useTranslationLangs(games.map((g) => g.id));
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const searching = debounced.length > 0;
+  // quantos filtros extras estão ativos (pro badge do botão)
+  const extraActive = useMemo(
+    () => [release !== 'released', Boolean(yearFrom), Boolean(yearTo)].filter(Boolean).length,
+    [release, yearFrom, yearTo],
+  );
 
   return (
     <div className="container">
@@ -75,9 +88,9 @@ export function Games() {
         <Field label={t('browse:sort')}>
           {(id) => (
             <Select id={id} value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
-              <option value="title">{t('browse:sortAZ')}</option>
               <option value="newest">{t('browse:sortNewest')}</option>
               <option value="oldest">{t('browse:sortOldest')}</option>
+              <option value="title">{t('browse:sortAZ')}</option>
             </Select>
           )}
         </Field>
@@ -92,10 +105,57 @@ export function Games() {
             />
           )}
         </Field>
+        <button
+          type="button"
+          className={`more-filters-btn ${moreOpen || extraActive > 0 ? 'is-active' : ''}`}
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-expanded={moreOpen}
+        >
+          {moreOpen ? <ChevronUp aria-hidden /> : <SlidersHorizontal aria-hidden />}
+          {t('browse:moreFilters')}
+          {extraActive > 0 && <span className="search-chip-n">{extraActive}</span>}
+        </button>
         {total > 0 && (
           <span className="filter-count">{t('browse:results', { count: total })}</span>
         )}
       </div>
+
+      {/* linha expansível de filtros avançados */}
+      {moreOpen && (
+        <div className="filter-bar filter-bar-extra">
+          <Field label={t('browse:filterRelease')}>
+            {(id) => (
+              <Select id={id} value={release} onChange={(e) => setRelease(e.target.value as typeof release)}>
+                <option value="released">{t('browse:releaseReleased')}</option>
+                <option value="upcoming">{t('browse:releaseUpcoming')}</option>
+                <option value="all">{t('browse:releaseAll')}</option>
+              </Select>
+            )}
+          </Field>
+          <Field label={t('browse:yearFrom')}>
+            {(id) => (
+              <Input id={id} type="number" min={1970} max={2100} placeholder="1990"
+                value={yearFrom} onChange={(e) => setYearFrom(e.target.value)} />
+            )}
+          </Field>
+          <Field label={t('browse:yearTo')}>
+            {(id) => (
+              <Input id={id} type="number" min={1970} max={2100} placeholder="1999"
+                value={yearTo} onChange={(e) => setYearTo(e.target.value)} />
+            )}
+          </Field>
+          {extraActive > 0 && (
+            <button
+              type="button"
+              className="search-chip"
+              style={{ alignSelf: 'flex-end', marginBottom: 6 }}
+              onClick={() => { setRelease('released'); setYearFrom(''); setYearTo(''); }}
+            >
+              {t('browse:clearFilters')}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Barra A–Z (some quando há busca por texto, filtro mais forte) */}
       {!searching && (

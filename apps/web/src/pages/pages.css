@@ -1600,7 +1600,73 @@
 .batch-item-plat { font-size: 0.7rem; color: var(--muted); }
 .batch-picked { font-size: 0.72rem; color: var(--accent); }
 .qa-menu-copy { border-top: 1px solid var(--line-bright); }
-.chip-future { color: var(--amber); border-color: var(--amber); }
+.chip-future {
+  color: var(--amber);
+  border-color: var(--amber);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.chip-future svg { width: 11px; height: 11px; }
+
+/* botão "Mais filtros" + linha expansível */
+.more-filters-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  align-self: flex-end;
+  height: 38px;
+  padding: 0 var(--s3);
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.more-filters-btn svg { width: 15px; height: 15px; }
+.more-filters-btn:hover { color: var(--ink-bright); }
+.more-filters-btn.is-active { color: var(--accent); border-color: var(--accent); }
+.filter-bar-extra {
+  margin-top: calc(var(--s4) * -1);
+  padding-top: var(--s4);
+  border-bottom: 1px dashed var(--line);
+  animation: shelf-in 200ms var(--ease);
+}
+.filter-bar-extra .field { min-width: 130px; max-width: 220px; }
+
+/* mosaico de capas no hero da coleção */
+.collection-hero {
+  position: relative;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  isolation: isolate;
+  padding: var(--s6) var(--s5);
+}
+.collection-mosaic {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  z-index: -1;
+  opacity: 0.16;
+  filter: blur(2px) saturate(1.1);
+}
+.collection-mosaic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.collection-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, var(--bg) 0%, transparent 60%),
+              linear-gradient(to top, var(--bg) 0%, transparent 55%);
+  z-index: -1;
+}
+.collection-hero-body { max-width: 70ch; }
 
 /* selinho de idiomas de tradução no card (🇧🇷 …) */
 .tile-langs {

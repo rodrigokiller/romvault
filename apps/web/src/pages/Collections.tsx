@@ -57,13 +57,30 @@ export function CollectionDetail() {
   }
 
   const { collection, items } = data;
+  // mosaico: capas dos primeiros itens viram o hero da coleção
+  const mosaic = items
+    .map((entry) => (entry.item.thumbnail ?? entry.item.cover_url) as string | null)
+    .filter(Boolean)
+    .slice(0, 6) as string[];
   return (
     <div className="container">
       <Link to="/collections" className="back-link"><ArrowLeft aria-hidden /> {t('entities:backToList')}</Link>
-      <header className="page-head">
-        <span className="kicker">// {t('collections:kicker')}</span>
-        <h1>{collection.title}</h1>
-        {collection.description && <p className="page-sub">{collection.description}</p>}
+      <header className={`page-head ${mosaic.length > 0 ? 'collection-hero' : ''}`}>
+        {mosaic.length > 0 && (
+          <div className="collection-mosaic" aria-hidden>
+            {mosaic.map((src, i) => (
+              <img key={i} src={src} alt="" loading="lazy" />
+            ))}
+          </div>
+        )}
+        <div className="collection-hero-body">
+          <span className="kicker">// {t('collections:kicker')}</span>
+          <h1>{collection.title}</h1>
+          {collection.description && <p className="page-sub">{collection.description}</p>}
+          <span className="mono muted-text" style={{ fontSize: '0.76rem' }}>
+            {t('collections:itemCount', { count: items.length })}
+          </span>
+        </div>
       </header>
       {items.length === 0 ? (
         <EmptyState icon={Layers} title={t('collections:emptyItemsTitle')} />

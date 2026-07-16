@@ -27,11 +27,59 @@ async function sha256Hex(input: string): Promise<string> {
 
 const MATERIALS = new Set(['romhacks', 'translations', 'documents', 'tools']);
 
+const esc = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** RSS 2.0 das últimas novidades do catálogo (hacks + traduções). Público. */
+// deno-lint-ignore no-explicit-any
+async function rssFeed(admin: any): Promise<Response> {
+  const site = Deno.env.get('SITE_URL') ?? 'https://romvault.app';
+  const [hacks, trans] = await Promise.all([
+    admin.from('romhacks').select('id, title, description, created_at')
+      .eq('is_public', true).order('created_at', { ascending: false }).limit(20),
+    admin.from('translations').select('id, title, description, created_at')
+      .eq('is_public', true).order('created_at', { ascending: false }).limit(20),
+  ]);
+  const items = [
+    // deno-lint-ignore no-explicit-any
+    ...(hacks.data ?? []).map((r: any) => ({ ...r, url: `${site}/romhacks/${r.id}`, kind: 'Romhack' })),
+    // deno-lint-ignore no-explicit-any
+    ...(trans.data ?? []).map((r: any) => ({ ...r, url: `${site}/translations/${r.id}`, kind: 'Tradução' })),
+  ]
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    .slice(0, 30);
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+<title>ROMVault — novidades</title>
+<link>${site}</link>
+<description>Últimos romhacks e traduções catalogados no ROMVault</description>
+<language>pt-BR</language>
+${items.map((i) => `<item>
+<title>[${i.kind}] ${esc(i.title ?? '')}</title>
+<link>${i.url}</link>
+<guid isPermaLink="true">${i.url}</guid>
+<pubDate>${new Date(i.created_at).toUTCString()}</pubDate>
+<description>${esc((i.description ?? '').slice(0, 300))}</description>
+</item>`).join('\n')}
+</channel></rss>`;
+  return new Response(xml, {
+    headers: { ...CORS, 'Content-Type': 'application/rss+xml; charset=utf-8', 'Cache-Control': 'public, max-age=900' },
+  });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+
+  // /feed é PÚBLICO (RSS não tem como mandar header de chave)
+  {
+    const parts0 = new URL(req.url).pathname.split('/').filter(Boolean);
+    const i0 = parts0.indexOf('public-api');
+    if ((i0 >= 0 ? parts0[i0 + 1] : parts0[0]) === 'feed') return rssFeed(admin);
+  }
 
   // 1) auth por API key
   const key = req.headers.get('x-api-key');

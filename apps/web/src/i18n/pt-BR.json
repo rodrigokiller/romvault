@@ -62,6 +62,14 @@
     "sortRating": "Melhor avaliados",
     "sortRecent": "Mais recentes",
     "loadMore": "Carregar mais",
+    "moreFilters": "Mais filtros",
+    "clearFilters": "Limpar filtros",
+    "filterRelease": "Lançamento",
+    "releaseReleased": "Só lançados",
+    "releaseUpcoming": "Em desenvolvimento / previstos",
+    "releaseAll": "Todos",
+    "yearFrom": "Ano (de)",
+    "yearTo": "Ano (até)",
     "pagination": "Paginação",
     "prevPage": "Página anterior",
     "nextPage": "Próxima página",
@@ -343,7 +351,9 @@
     "subtitle": "Seleções feitas à mão: os melhores hacks, traduções e ferramentas por tema.",
     "emptyTitle": "Nenhuma coleção ainda",
     "emptyText": "As coleções curadas aparecem aqui.",
-    "emptyItemsTitle": "Esta coleção está vazia."
+    "emptyItemsTitle": "Esta coleção está vazia.",
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} itens"
   },
   "apidocs": {
     "title": "API do ROMVault",

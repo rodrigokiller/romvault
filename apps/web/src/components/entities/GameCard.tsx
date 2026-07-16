@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Gamepad2 } from 'lucide-react';
+import { Gamepad2, CalendarClock } from 'lucide-react';
 import type { Game } from '@romvault/core';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -34,7 +34,11 @@ export function GameCard({ game, translationBadges }: { game: Game; translationB
             <div className="tile-meta">
               {game.release_date && (
                 game.release_date > new Date().toISOString().slice(0, 10)
-                  ? <span className="chip chip-future">{game.release_date.slice(0, 4)} ⏳</span>
+                  ? (
+                    <span className="chip chip-future">
+                      <CalendarClock aria-hidden /> {game.release_date.slice(0, 4)}
+                    </span>
+                  )
                   : <span>{game.release_date.slice(0, 4)}</span>
               )}
               {game.developer && <span className="dot">{game.developer}</span>}

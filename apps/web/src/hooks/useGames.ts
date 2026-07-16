@@ -16,8 +16,13 @@ export interface GamesFilter {
   search?: string;
   /** Letra inicial (A–Z) ou '#' (não-letra); undefined/null = todas. */
   letter?: string | null;
-  /** Ordenação: título (padrão), mais novos ou mais antigos primeiro. */
+  /** Ordenação: título, mais novos (padrão do Explorar) ou mais antigos. */
   sort?: 'title' | 'newest' | 'oldest';
+  /** Lançamento: só lançados (padrão), só previstos/futuros, ou todos. */
+  release?: 'released' | 'upcoming' | 'all';
+  /** Faixa de anos (inclusive). */
+  yearFrom?: number;
+  yearTo?: number;
 }
 
 export const gamesKeys = {
@@ -88,6 +93,14 @@ export function useGamesPage(filters: GamesFilter, page: number, pageSize = PAGE
       if (filters.search) q = q.ilike('title', `%${filters.search}%`);
       if (filters.letter === '#') q = q.filter('title', 'imatch', '^[^A-Za-z]');
       else if (filters.letter) q = q.ilike('title', `${filters.letter}%`);
+      // lançamento: por padrão só o que JÁ saiu (sem data conta como lançado —
+      // retrô antigo muitas vezes não tem data); "upcoming" = data futura.
+      const today = new Date().toISOString().slice(0, 10);
+      const release = filters.release ?? 'released';
+      if (release === 'released') q = q.or(`release_date.lte.${today},release_date.is.null`);
+      else if (release === 'upcoming') q = q.gt('release_date', today);
+      if (filters.yearFrom) q = q.gte('release_date', `${filters.yearFrom}-01-01`);
+      if (filters.yearTo) q = q.lte('release_date', `${filters.yearTo}-12-31`);
       const sort = filters.sort ?? 'title';
       if (sort === 'newest') q = q.order('release_date', { ascending: false, nullsFirst: false });
       else if (sort === 'oldest') q = q.order('release_date', { ascending: true, nullsFirst: false });

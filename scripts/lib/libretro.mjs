@@ -136,7 +136,10 @@ export async function importCoversLibretro(ctx) {
         const imgRes = await fetch(`${BASE}/${encodeURIComponent(dir)}/Named_Boxarts/${encodeURIComponent(file)}`);
         if (!imgRes.ok) { stats.erros++; continue; }
         const bytes = new Uint8Array(await imgRes.arrayBuffer());
-        const path = `covers/libretro/${norm(platform).replace(/\s+/g, '-')}/${file.replace(/[^\w.\-()' ]+/g, '_')}`;
+        // chave do Storage 100% segura: so [a-z0-9-] (parenteses/apostrofos
+        // davam "Bad Request" no upload)
+        const safeName = norm(file.replace(/\.png$/i, '')).replace(/\s+/g, '-') || 'cover';
+        const path = `covers/libretro/${norm(platform).replace(/\s+/g, '-')}/${safeName}.png`;
         const { error: upErr } = await sb.storage.from('uploads')
           .upload(path, bytes, { contentType: 'image/png', upsert: true });
         if (upErr) { stats.erros++; if (stats.erros <= 3) log(c.red(`  ✖ upload ${file}: ${upErr.message}`)); continue; }
