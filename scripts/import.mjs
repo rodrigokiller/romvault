@@ -462,6 +462,63 @@ async function importIgdb(sb) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * MODO LANGS-IGDB — idiomas OFICIAIS de cada jogo (language_supports do IGDB)
+ * -> games.metadata.official_langs = ['EN','JA','BR',...]. Diferencia
+ * "traducao oficial" de "patch de fa" na pagina do jogo.
+ *   npm run import -- --source=langs-igdb [--dry]
+ * ═══════════════════════════════════════════════════════════════════════════ */
+function localeToCode(locale) {
+  const l = String(locale ?? '').toLowerCase();
+  if (l === 'pt-br') return 'BR';
+  if (l.startsWith('pt')) return 'PT';
+  if (l.startsWith('zh')) return 'ZH';
+  if (l.startsWith('sv')) return 'SE';
+  return l.slice(0, 2).toUpperCase() || null;
+}
+
+async function importLangsIgdb(sb) {
+  step('Idiomas oficiais via IGDB (language_supports)');
+  const auth = await igdbToken();
+  const games = (await fetchAll(() =>
+    sb.from('games').select('id, igdb_id, metadata').not('igdb_id', 'is', null)))
+    .filter((g) => !(g.metadata && g.metadata.official_langs));
+  log(`  ${games.length} jogos com igdb_id sem official_langs`);
+
+  const byIgdb = new Map(games.map((g) => [Number(g.igdb_id), g]));
+  const langsOf = new Map(); // igdb_id -> Set(codes)
+  const ids = [...byIgdb.keys()];
+  for (let i = 0; i < ids.length; i += 350) {
+    const chunk = ids.slice(i, i + 350);
+    const res = await igdbQuery(
+      auth, 'language_supports',
+      `fields game, language.locale; where game = (${chunk.join(',')}); limit 500;`,
+    );
+    for (const r of res ?? []) {
+      const code = localeToCode(r.language?.locale);
+      if (!code) continue;
+      langsOf.set(r.game, (langsOf.get(r.game) ?? new Set()).add(code));
+    }
+    itemLog(i + 350, c.dim(`  … consultados ${Math.min(i + 350, ids.length)}`));
+    await sleep(300);
+  }
+
+  const stats = { preenchidos: 0, sem_dados: 0 };
+  for (const [igdbId, set] of langsOf) {
+    const g = byIgdb.get(igdbId);
+    if (!g) continue;
+    const codes = [...set].sort();
+    if (DRY) { stats.preenchidos++; itemLog(stats.preenchidos, `  ${c.dim('[dry]')} igdb:${igdbId} -> ${codes.join(' ')}`); continue; }
+    await sb.from('games').update({
+      metadata: { ...(g.metadata ?? {}), official_langs: codes },
+    }).eq('id', g.id);
+    stats.preenchidos++;
+    itemLog(stats.preenchidos, `  ${c.green('~')} igdb:${igdbId} ${c.dim(codes.join(' '))}`);
+  }
+  stats.sem_dados = games.length - stats.preenchidos;
+  return stats;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * MODO PURGE-MODS — remove do catalogo os jogos importados ANTES do filtro de
  * game_type que na verdade sao mods/DLCs/bundles no IGDB (hacks como jogos).
  * So apaga quem NAO tem nada pendurado (hacks/trads/tracks/copias); os demais
@@ -738,9 +795,14 @@ async function main() {
     stats = await importCovers(sb);
   } else if (SOURCE === 'purge-mods') {
     stats = await importPurgeMods(sb);
+  } else if (SOURCE === 'langs-igdb') {
+    stats = await importLangsIgdb(sb);
   } else if (SOURCE === 'covers-libretro' || SOURCE === 'libretro') {
     const { importCoversLibretro } = await import('./lib/libretro.mjs');
     stats = await importCoversLibretro({ sb, flag, DRY, log, c, step, itemLog, fetchAll });
+  } else if (SOURCE === 'mobygames' || SOURCE === 'moby') {
+    const { importMobygames } = await import('./lib/mobygames.mjs');
+    stats = await importMobygames({ sb, flag, DRY, log, c, step, itemLog, fetchAll, ENV });
   } else if (SOURCE === 'screenscraper' || SOURCE === 'ss') {
     const { importScreenscraper } = await import('./lib/screenscraper.mjs');
     stats = await importScreenscraper({ sb, flag, DRY, log, c, step, itemLog, fetchAll, ENV });

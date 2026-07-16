@@ -33,6 +33,8 @@ row('npm run import -- --source=covers', 'capas via IGDB p/ jogos sem imagem');
 row('npm run import -- --source=covers-libretro', 'BOX ART real (libretro → nosso Storage)');
 row('npm run import -- --source=covers-libretro --backfill', 'boxart tb p/ quem JÁ tem capa de loja');
 row('npm run import -- --source=screenscraper --inspect', 'box 3D/verso (requer conta dev SS_*)');
+row('npm run import -- --source=mobygames --inspect', 'scans frente/verso/mídia (MOBY_API_KEY)');
+row('npm run import -- --source=langs-igdb', 'idiomas OFICIAIS de cada jogo (IGDB)');
 row('npm run import -- --source=all', 'pipeline: dataset→dedupe→covers→libretro');
 row('npm run import -- --source=purge-mods --dry', 'remove hacks/DLCs importados como jogos');
 

@@ -91,20 +91,15 @@ export function GameDetail() {
               {game.platforms.map((p) => (
                 <Badge key={p} tone="accent">{p}</Badge>
               ))}
-              {(() => {
-                const ui = uiLangCode(i18n.language || 'pt-BR');
-                const codes = [...new Set((translations.data ?? [])
-                  .map((tr) => tr.language && langCode(tr.language))
-                  .filter(Boolean) as string[])]
-                  .sort((a, b) => (a === ui ? -1 : b === ui ? 1 : a.localeCompare(b)));
-                return codes.map((code) => (
-                  <span key={code} className={`lang-chip ${code === ui ? 'is-ui' : ''}`} title={t('games:hasTranslations')}>
-                    {code}
-                  </span>
-                ));
-              })()}
             </div>
           )}
+          <LangsRow
+            uiCode={uiLangCode(i18n.language || 'pt-BR')}
+            patchCodes={[...new Set((translations.data ?? [])
+              .map((tr) => tr.language && langCode(tr.language))
+              .filter(Boolean) as string[])]}
+            officialCodes={((game?.metadata as unknown as { official_langs?: string[] } | null)?.official_langs) ?? []}
+          />
           {game && (
             <div className="detail-actions">
               <TrackButton gameId={game.id} />
@@ -161,6 +156,36 @@ export function GameDetail() {
       )}
 
       {game && <Reviews subjectType="game" subjectId={game.id} />}
+    </div>
+  );
+}
+
+/** Idiomas do jogo: TRADUÇÕES DE FÃS (patch) vs OFICIAIS, em bloco próprio. */
+function LangsRow({ uiCode, patchCodes, officialCodes }: { uiCode: string; patchCodes: string[]; officialCodes: string[] }) {
+  const { t } = useTranslation();
+  const sortUi = (arr: string[]) =>
+    [...new Set(arr)].sort((a, b) => (a === uiCode ? -1 : b === uiCode ? 1 : a.localeCompare(b)));
+  const patch = sortUi(patchCodes);
+  const official = sortUi(officialCodes);
+  if (patch.length === 0 && official.length === 0) return null;
+  return (
+    <div className="langs-row">
+      {patch.length > 0 && (
+        <div className="langs-group">
+          <span className="langs-label">{t('games:langsPatch')}</span>
+          {patch.map((code) => (
+            <span key={code} className={`lang-chip ${code === uiCode ? 'is-ui' : ''}`}>{code}</span>
+          ))}
+        </div>
+      )}
+      {official.length > 0 && (
+        <div className="langs-group">
+          <span className="langs-label">{t('games:langsOfficial')}</span>
+          {official.map((code) => (
+            <span key={code} className="lang-chip lang-chip-official">{code}</span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

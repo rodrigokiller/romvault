@@ -241,7 +241,7 @@ export function Library() {
       </div>
       )}
 
-      {!showcase && (platforms.length > 0 || dupeCount > 0) && (
+      {(platforms.length > 0 || dupeCount > 0) && (
         <div className="search-filters" style={{ marginTop: 'calc(var(--s3) * -1)' }}>
           <button
             type="button"

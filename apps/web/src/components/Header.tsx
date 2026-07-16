@@ -31,10 +31,19 @@ export function Header() {
               {t('nav:home')}
             </NavLink>
             <NavLink to="/games" className="header-link">
-              {t('nav:browse')}
+              {t('nav:games')}
             </NavLink>
-            <NavLink to="/submit" className="header-link">
-              {t('nav:submit')}
+            <NavLink to="/translations" className="header-link">
+              {t('nav:translations')}
+            </NavLink>
+            <NavLink to="/romhacks" className="header-link">
+              {t('nav:romhacks')}
+            </NavLink>
+            <NavLink to="/tools" className="header-link">
+              {t('nav:tools')}
+            </NavLink>
+            <NavLink to="/docs" className="header-link">
+              {t('nav:docs')}
             </NavLink>
             <NavLink to="/users" className="header-link">
               {t('nav:community')}
@@ -56,9 +65,10 @@ export function Header() {
               <Shield aria-hidden />
             </Link>
           )}
+          {/* Enviar saiu da nav (catálogo ocupou o espaço) — ícone sempre visível */}
           <Link
             to="/submit"
-            className="header-icon-btn header-icon-btn-mobile"
+            className="header-icon-btn"
             aria-label={t('nav:submit')}
             title={t('nav:submit')}
           >
