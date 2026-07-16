@@ -72,12 +72,19 @@ export async function importMobygames(ctx) {
   if (!plat) { log(c.red(`✖ plataforma nao achada no Moby: ${platKey}`)); process.exit(1); }
   log(`  platform_id: ${plat.platform_id} (${plat.platform_name})`);
 
-  // alvo: jogos da plataforma sem scans do moby ainda
+  // alvo: jogos da plataforma sem scans do moby ainda (e sem miss registrado —
+  // um "sem match" marcado nao volta pra fila, senao re-gasta rate-limit toda rodada)
   const games = (await fetchAll(() =>
     sb.from('games').select('id, title, cover_url, metadata').contains('platforms', [platKey])))
-    .filter((g) => !(g.metadata && g.metadata.moby))
+    .filter((g) => !(g.metadata && (g.metadata.moby || g.metadata.moby_miss)))
     .slice(0, limit);
   log(`  ${games.length} jogos nesta leva`);
+
+  /** Marca o jogo como tentado-sem-resultado (re-tentar: limpar moby_miss no SQL). */
+  async function markMiss(g) {
+    if (DRY) return;
+    await sb.from('games').update({ metadata: { ...(g.metadata ?? {}), moby_miss: true } }).eq('id', g.id);
+  }
 
   const stats = { com_scans: 0, sem_match: 0, erros: 0 };
   for (const g of games) {
@@ -87,19 +94,19 @@ export async function importMobygames(ctx) {
       key, log, c,
     );
     const hit = (search?.games ?? []).find((m) => norm(m.title) === norm(g.title)) ?? search?.games?.[0];
-    if (!hit) { stats.sem_match++; itemLog(stats.sem_match, c.dim(`  – sem match: ${g.title}`)); continue; }
+    if (!hit) { stats.sem_match++; itemLog(stats.sem_match, c.dim(`  – sem match: ${g.title}`)); await markMiss(g); continue; }
 
     await sleep(5500);
     const covers = await mobyJson(`/games/${hit.game_id}/platforms/${plat.platform_id}/covers`, key, log, c);
     // grupos de capa por região; preferimos US/Worldwide, senão o primeiro
     const groups = covers?.cover_groups ?? [];
     const pick = groups.find((cg) => (cg.countries ?? []).some((x) => /united states|worldwide/i.test(x))) ?? groups[0];
-    if (!pick) { stats.sem_match++; continue; }
+    if (!pick) { stats.sem_match++; await markMiss(g); continue; }
     const byType = (type) => (pick.covers ?? []).find((cv) => new RegExp(type, 'i').test(cv.scan_of ?? ''))?.image ?? null;
     const front = byType('front');
     const back = byType('back');
     const media = byType('media');
-    if (!front && !back) { stats.sem_match++; continue; }
+    if (!front && !back) { stats.sem_match++; await markMiss(g); continue; }
 
     if (DRY) {
       stats.com_scans++;
