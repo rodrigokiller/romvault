@@ -27,7 +27,25 @@
     "submit": "Submit material",
     "community": "Community",
     "admin": "Admin",
-    "language": "Language"
+    "language": "Language",
+    "stats": "Stats"
+  },
+  "palette": {
+    "title": "Command palette",
+    "placeholder": "Type to navigate or search…",
+    "recents": "recents",
+    "pages": "pages",
+    "actions": "actions",
+    "results": "catalog",
+    "back": "Go back (previous page)",
+    "myProfile": "My profile",
+    "myLibrary": "My library",
+    "myVitrine": "My showcase",
+    "searchFor": "Search \"{{q}}\" in the catalog",
+    "noResults": "Nothing found for \"{{q}}\"",
+    "hintNav": "navigate",
+    "hintOpen": "open",
+    "hintClose": "close"
   },
   "home": {
     "heroKicker": "// preservation + creation",
@@ -359,7 +377,11 @@
     "artRemove": "Remove",
     "artUploadSoon": "Upload (soon)",
     "artSaved": "Custom art saved!",
-    "artRemoved": "Custom art removed."
+    "artRemoved": "Custom art removed.",
+    "dragHint": "drag to reorder",
+    "teaserKicker": "showcase",
+    "teaserPlatforms_one": "{{count}} platform",
+    "teaserPlatforms_other": "{{count}} platforms"
   },
   "users": {
     "kicker": "// community",

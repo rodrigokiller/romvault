@@ -1,0 +1,115 @@
+/* ── COMMAND PALETTE (Ctrl+K) — navegação estilo terminal ─────────────────── */
+.cmdk {
+  width: min(620px, calc(100vw - var(--s5) * 2));
+  margin: 12vh auto auto;
+  padding: 0;
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  color: var(--ink);
+  box-shadow: 0 8px 0 -4px rgba(0, 0, 0, 0.45);
+}
+.cmdk::backdrop {
+  background: rgba(4, 6, 8, 0.72);
+  backdrop-filter: blur(2px);
+}
+
+.cmdk-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+.cmdk-prompt {
+  color: var(--accent);
+  font-weight: 700;
+  user-select: none;
+}
+.cmdk-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--ink-bright);
+  font-size: 0.95rem;
+  caret-color: var(--accent);
+}
+.cmdk-input:focus { outline: none; }
+.cmdk-input::placeholder { color: var(--muted); }
+
+.cmdk-list {
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+  padding: var(--s2) 0 var(--s3);
+}
+.cmdk-section-title {
+  padding: var(--s3) var(--s4) var(--s1);
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  padding: 7px var(--s4);
+  background: transparent;
+  border: none;
+  border-left: 1px solid transparent; /* trilho de 1px, não side-stripe */
+  color: var(--ink);
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+}
+.cmdk-item.is-active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-left-color: var(--accent);
+  color: var(--ink-bright);
+}
+.cmdk-item-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.cmdk-item.is-active .cmdk-item-icon { color: var(--accent); }
+.cmdk-item-label {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cmdk-item-hint {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.cmdk-empty {
+  padding: var(--s5) var(--s4);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.cmdk-foot {
+  display: flex;
+  gap: var(--s4);
+  padding: var(--s2) var(--s4);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.cmdk-foot span { display: inline-flex; align-items: center; gap: 5px; }
+.cmdk-kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--bg);
+  border: 1px solid var(--line-bright);
+  border-bottom-width: 2px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+}

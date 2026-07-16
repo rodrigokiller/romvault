@@ -2033,6 +2033,9 @@
   position: absolute;
   bottom: 6px;
   left: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   padding: 1px 6px;
   background: rgba(11, 14, 16, 0.85);
   border: 1px solid var(--amber);
@@ -2040,6 +2043,31 @@
   font-family: var(--mono);
   font-size: 0.68rem;
 }
+.shelf-runs svg { width: 11px; height: 11px; }
+
+/* quick view na estante (olho no canto do card, aparece no hover) */
+.shelf-eye {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  background: rgba(11, 14, 16, 0.82);
+  border: 1px solid var(--line-bright);
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+}
+.shelf-item:hover .shelf-eye,
+.shelf-eye:focus-visible { opacity: 1; }
+@media (hover: none) {
+  .shelf-eye { opacity: 1; }
+}
+.shelf-eye:hover { color: var(--accent); border-color: var(--accent); }
+.shelf-eye svg { width: 13px; height: 13px; }
 .lib-showcase {
   background: transparent;
   border: 1px solid var(--line-bright);
@@ -2449,11 +2477,10 @@
 
 .vitrine-modes { display: flex; gap: var(--s2); flex-wrap: wrap; }
 
-/* editor de arte custom (lápis no canto do card, só na própria vitrine) */
-.vitrine-edit {
+/* botões de hover no card (olho = quick view; lápis = arte custom) */
+.vitrine-hover-btn {
   position: absolute;
   top: 6px;
-  right: 6px;
   display: grid;
   place-items: center;
   width: 26px;
@@ -2465,11 +2492,27 @@
   opacity: 0;
   transition: opacity 0.15s ease-out;
 }
-.vitrine-card-wrap:hover .vitrine-edit,
-.vitrine-edit:focus-visible,
-.vitrine-card-wrap:has(.vitrine-art-editor) .vitrine-edit { opacity: 1; }
-.vitrine-edit:hover { color: var(--accent); border-color: var(--accent); }
-.vitrine-edit svg { width: 13px; height: 13px; }
+.vitrine-edit { right: 6px; }
+.vitrine-eye { left: 6px; }
+.vitrine-card-wrap:hover .vitrine-hover-btn,
+.vitrine-hover-btn:focus-visible,
+.vitrine-card-wrap:has(.vitrine-art-editor) .vitrine-hover-btn { opacity: 1; }
+@media (hover: none) {
+  .vitrine-hover-btn { opacity: 1; } /* touch: sempre visíveis */
+}
+.vitrine-hover-btn:hover { color: var(--accent); border-color: var(--accent); }
+.vitrine-hover-btn svg { width: 13px; height: 13px; }
+
+/* reordenação por arrastar (dono da vitrine) */
+.vitrine-drag-hint { color: var(--muted); font-size: 0.8em; }
+.vitrine-card-wrap.is-dragging, .spine.is-dragging { opacity: 0.35; }
+.vitrine-card-wrap.is-drop-target .vitrine-card,
+.spine.is-drop-target {
+  outline: 2px solid var(--vt-accent, var(--accent));
+  outline-offset: 2px;
+}
+.vitrine-card-wrap[draggable='true'] { cursor: grab; }
+.vitrine-card-wrap[draggable='true']:active { cursor: grabbing; }
 .vitrine-art-editor {
   position: absolute;
   top: calc(100% + 4px);
@@ -2539,14 +2582,61 @@
 }
 /* formatos por família de caixa (altura x largura aproximando o real) */
 .spine-carton     { --spine-h: 130px; --spine-w: 26px; } /* papelão VHS (SNES/NES) */
+.spine-clamshell  { --spine-h: 145px; --spine-w: 22px; } /* estojo Sega (Genesis/MS) */
 .spine-jewel      { --spine-h: 125px; --spine-w: 12px; } /* CD jewel (PS1/Saturn) */
 .spine-dvd        { --spine-h: 170px; --spine-w: 15px; } /* DVD (PS2/GC/Xbox) */
 .spine-bluray     { --spine-h: 152px; --spine-w: 13px; } /* bluray (PS3/PS4/PS5) */
 .spine-switchcase { --spine-h: 106px; --spine-w: 11px; } /* caixinha Switch */
 .spine-ds         { --spine-h: 118px; --spine-w: 14px; } /* DS/3DS/PSP/Vita */
-.spine-carton .spine-title { font-size: 0.7rem; }
+.spine-digital    { --spine-h: 100px; --spine-w: 10px; } /* sem caixa (Arcade/mobile) */
+.spine-carton .spine-title,
+.spine-clamshell .spine-title { font-size: 0.7rem; }
+.spine-digital { border-style: dashed; }
 
 @media (prefers-reduced-motion: reduce) {
   .vitrine-card, .spine, .vitrine-edit { transition: none; }
   .vitrine-card:hover, .spine:hover { transform: none; }
+}
+
+/* ── Cartão-vitrine do perfil: mini-prateleira das últimas aquisições ──────── */
+.vt-teaser {
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+  margin-top: var(--s5);
+  padding: var(--s4) var(--s5);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  transition: border-color 0.15s ease-out;
+}
+.vt-teaser:hover { border-color: var(--accent); }
+.vt-teaser-covers {
+  display: flex;
+  align-items: flex-end;
+  flex-shrink: 0;
+  /* as capas apoiam numa tabuinha de madeira, como a estante */
+  padding-bottom: 4px;
+  box-shadow: 0 -1px 0 0 #2a2019 inset, 0 -4px 0 0 #4a3421 inset;
+}
+.vt-teaser-covers img {
+  height: 84px;
+  width: auto;
+  margin-left: -20px;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  background: var(--panel-2);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.45);
+}
+.vt-teaser-covers img:first-child { margin-left: 0; }
+.vt-teaser-info {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.vt-teaser-count { color: var(--ink-bright); font-size: 0.92rem; }
+.vt-teaser-cta { color: var(--accent); font-size: 0.78rem; }
+.vt-teaser:hover .vt-teaser-cta { text-decoration: underline; }
+
+@media (max-width: 560px) {
+  .vt-teaser { flex-direction: column; align-items: flex-start; gap: var(--s3); }
 }

@@ -1,6 +1,7 @@
 import { Outlet, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Header } from './Header';
+import { CommandPalette } from './CommandPalette';
 import { env } from '@/lib/env';
 import '@/pages/pages.css';
 
@@ -10,6 +11,7 @@ export function Layout() {
   return (
     <>
       <Header />
+      <CommandPalette />
       {!env.configured && (
         <div className="config-banner" role="status">
           <span className="kicker">// {t('errors:notConfiguredTitle')}</span>

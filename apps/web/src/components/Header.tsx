@@ -1,9 +1,9 @@
 import { Link, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings, LogIn, LogOut, User as UserIcon, Shield, Upload } from 'lucide-react';
+import { Settings, LogIn, LogOut, User as UserIcon, Shield, Upload, Search } from 'lucide-react';
 import { Logo } from './Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
-import { SearchBox } from './SearchBox';
+import { openPalette } from './CommandPalette';
 import { useAuth } from '@/auth/AuthProvider';
 import { useIsAdmin } from '@/hooks/useProfile';
 import './header.css';
@@ -27,9 +27,6 @@ export function Header() {
             <Logo />
           </Link>
           <nav className="header-nav" aria-label="Principal">
-            <NavLink to="/" end className="header-link">
-              {t('nav:home')}
-            </NavLink>
             <NavLink to="/games" className="header-link">
               {t('nav:games')}
             </NavLink>
@@ -51,7 +48,12 @@ export function Header() {
           </nav>
         </div>
 
-        <SearchBox variant="header" />
+        {/* busca compacta: abre a command palette (Ctrl+K) sem disputar espaço com a nav */}
+        <button type="button" className="header-search-btn" onClick={openPalette}>
+          <Search aria-hidden />
+          <span className="header-search-btn-label">{t('common:searchPlaceholder')}</span>
+          <kbd className="header-search-kbd">Ctrl K</kbd>
+        </button>
 
         <div className="header-right">
           <LanguageSwitcher />

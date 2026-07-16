@@ -27,7 +27,25 @@
     "submit": "Enviar material",
     "community": "Comunidade",
     "admin": "Admin",
-    "language": "Idioma"
+    "language": "Idioma",
+    "stats": "Estatísticas"
+  },
+  "palette": {
+    "title": "Paleta de comandos",
+    "placeholder": "Digite pra navegar ou pesquisar…",
+    "recents": "recentes",
+    "pages": "páginas",
+    "actions": "ações",
+    "results": "catálogo",
+    "back": "Voltar (página anterior)",
+    "myProfile": "Meu perfil",
+    "myLibrary": "Minha biblioteca",
+    "myVitrine": "Minha vitrine",
+    "searchFor": "Pesquisar \"{{q}}\" no catálogo",
+    "noResults": "Nada encontrado pra \"{{q}}\"",
+    "hintNav": "navegar",
+    "hintOpen": "abrir",
+    "hintClose": "fechar"
   },
   "home": {
     "heroKicker": "// preservação + criação",
@@ -359,7 +377,11 @@
     "artRemove": "Remover",
     "artUploadSoon": "Upload (em breve)",
     "artSaved": "Arte custom salva!",
-    "artRemoved": "Arte custom removida."
+    "artRemoved": "Arte custom removida.",
+    "dragHint": "arraste pra reordenar",
+    "teaserKicker": "vitrine",
+    "teaserPlatforms_one": "{{count}} plataforma",
+    "teaserPlatforms_other": "{{count}} plataformas"
   },
   "users": {
     "kicker": "// comunidade",

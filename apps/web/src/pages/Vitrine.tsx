@@ -1,37 +1,24 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Store, ArrowLeft, Pencil, Upload, Trash2, Rows3, LayoutGrid } from 'lucide-react';
+import { Store, ArrowLeft, Pencil, Upload, Trash2, Rows3, LayoutGrid, Eye, X } from 'lucide-react';
 import type { Game } from '@romvault/core';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
 import { useProfileByUsername, useMyProfile } from '@/hooks/useProfile';
 import { useSetCustomArt } from '@/hooks/useTracks';
+import { useShelfOrder, useSaveShelfOrder } from '@/hooks/useShelves';
+import { GameQuickView } from '@/components/entities/GameQuickView';
 import { FadeImg } from '@/components/ui/FadeImg';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
-import { PLATFORM_THEMES as THEMES } from '@/lib/platformThemes';
+import { PLATFORM_THEMES as THEMES, SPINE_FAMILY } from '@/lib/platformThemes';
 
 const db = () => getSupabase() as unknown as SupabaseClient;
-
-/**
- * Família de caixa por plataforma — decide o FORMATO da lombada na vista
- * "Lombadas": papelão estilo VHS (SNES), jewel de CD (PS1), DVD (PS2),
- * bluray (PS3+), caixinha do Switch, etc.
- */
-const SPINE_FAMILY: Record<string, string> = {
-  SNES: 'carton', NES: 'carton', N64: 'carton', 'Game Boy': 'carton', GBC: 'carton',
-  GBA: 'carton', FDS: 'carton', DOS: 'carton', 'Master System': 'carton', Genesis: 'carton', 'Game Gear': 'carton',
-  PS1: 'jewel', 'Sega CD': 'jewel', Saturn: 'jewel', 'Neo Geo': 'jewel', PC: 'jewel', Dreamcast: 'jewel',
-  PS2: 'dvd', GameCube: 'dvd', Xbox: 'dvd', 'Xbox 360': 'dvd', Wii: 'dvd', 'Wii U': 'dvd',
-  PS3: 'bluray', PS4: 'bluray', PS5: 'bluray', 'Xbox One': 'bluray',
-  Switch: 'switchcase', 'Switch 2': 'switchcase',
-  NDS: 'ds', '3DS': 'ds', 'PS Vita': 'ds', PSP: 'ds',
-};
 
 interface OwnedGame {
   game: Game;
@@ -80,11 +67,22 @@ function useOwnedGames(userId: string | undefined) {
   });
 }
 
+/** Aplica a ordem manual salva: itens ordenados primeiro, o resto no fim. */
+function applyOrder(items: OwnedGame[], order: string[] | undefined): OwnedGame[] {
+  if (!order?.length) return items;
+  const pos = new Map(order.map((id, i) => [id, i]));
+  return [...items].sort((a, b) => {
+    const pa = pos.get(a.game.id) ?? Number.MAX_SAFE_INTEGER;
+    const pb = pos.get(b.game.id) ?? Number.MAX_SAFE_INTEGER;
+    return pa !== pb ? pa - pb : a.acquired.localeCompare(b.acquired);
+  });
+}
+
 /**
  * VITRINE — apresentação dos jogos que o usuário TEM (spec v2, estilo app do
  * Nintendo Switch Online): grid masonry de PROPORÇÃO NATURAL (paisagem ocupa
  * largura, retrato ocupa altura — sem tarjas), views TODOS + por plataforma,
- * e vista alternativa "Lombadas" (prateleira de colecionador).
+ * vista alternativa "Lombadas" e reordenação por arrastar (dono da vitrine).
  */
 export function Vitrine() {
   const { t } = useTranslation();
@@ -97,16 +95,48 @@ export function Vitrine() {
   const [spines, setSpines] = useState(false);
   const isMe = Boolean(me && profile && me.id === profile.id);
 
+  const { data: savedOrder } = useShelfOrder(profile?.id, view);
+  const saveOrder = useSaveShelfOrder(view);
+  const toast = useToast();
+
   // views: TODOS + cada plataforma em que há cópias
   const platforms = useMemo(
     () => [...new Set(owned.flatMap((o) => o.platforms))].sort(),
     [owned],
   );
-  const shown = useMemo(
-    () => (view === 'all' ? owned : owned.filter((o) => o.platforms.includes(view))),
-    [owned, view],
-  );
+  const shown = useMemo(() => {
+    const inView = view === 'all' ? owned : owned.filter((o) => o.platforms.includes(view));
+    return applyOrder(inView, savedOrder);
+  }, [owned, view, savedOrder]);
   const accent = view !== 'all' ? THEMES[view] : undefined;
+
+  /* ── drag-and-drop (só o dono): solta ANTES do item alvo e persiste ── */
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+
+  function drop(target: number) {
+    if (dragIdx === null || dragIdx === target) { setDragIdx(null); setOverIdx(null); return; }
+    const ids = shown.map((o) => o.game.id);
+    const [moved] = ids.splice(dragIdx, 1);
+    ids.splice(target > dragIdx ? target - 1 : target, 0, moved);
+    setDragIdx(null);
+    setOverIdx(null);
+    saveOrder.mutate(ids, { onError: () => toast.error(t('forms:submitError')) });
+  }
+
+  /** Props de arrasto compartilhadas entre capas e lombadas. */
+  function dragProps(i: number) {
+    if (!isMe) return {};
+    return {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => { e.dataTransfer.effectAllowed = 'move'; setDragIdx(i); },
+      onDragOver: (e: React.DragEvent) => { e.preventDefault(); if (overIdx !== i) setOverIdx(i); },
+      onDrop: (e: React.DragEvent) => { e.preventDefault(); drop(i); },
+      onDragEnd: () => { setDragIdx(null); setOverIdx(null); },
+    };
+  }
+  const dragClass = (i: number) =>
+    `${dragIdx === i ? 'is-dragging' : ''} ${overIdx === i && dragIdx !== null && dragIdx !== i ? 'is-drop-target' : ''}`;
 
   if (profileLoading || isLoading) return <LoadingPage />;
   if (!profile) {
@@ -130,7 +160,10 @@ export function Vitrine() {
               <ArrowLeft aria-hidden /> @{profile.username}
             </Link>
             <h1>{t('vitrine:title', { user: profile.username ?? username })}</h1>
-            <p className="page-sub">{t('vitrine:subtitle', { count: owned.length })}</p>
+            <p className="page-sub">
+              {t('vitrine:subtitle', { count: owned.length })}
+              {isMe && !spines && <span className="vitrine-drag-hint"> · {t('vitrine:dragHint')}</span>}
+            </p>
           </div>
           <div className="vitrine-modes">
             <button
@@ -178,11 +211,36 @@ export function Vitrine() {
         {shown.length === 0 ? (
           <EmptyState icon={Store} title={t('vitrine:emptyTitle')} text={t('vitrine:emptyText')} />
         ) : spines ? (
-          <SpineShelf items={shown} view={view} />
+          <div className="spine-shelf">
+            {shown.map((o, i) => {
+              const plat = view !== 'all' && o.platforms.includes(view) ? view : o.platforms[0];
+              const family = SPINE_FAMILY[plat] ?? 'dvd';
+              const color = THEMES[plat];
+              return (
+                <Link
+                  key={o.game.id}
+                  to={`/games/${o.game.slug}`}
+                  className={`spine spine-${family} ${dragClass(i)}`}
+                  style={color ? ({ '--spine-accent': color } as React.CSSProperties) : undefined}
+                  title={`${o.game.title} (${plat})`}
+                  {...dragProps(i)}
+                >
+                  <span className="spine-title">{o.game.title}</span>
+                </Link>
+              );
+            })}
+          </div>
         ) : (
           <div className="vitrine-grid">
-            {shown.map((o) => (
-              <VitrineCard key={o.game.id} owned={o} artMode={artMode} canEdit={isMe} />
+            {shown.map((o, i) => (
+              <VitrineCard
+                key={o.game.id}
+                owned={o}
+                artMode={artMode}
+                canEdit={isMe}
+                className={dragClass(i)}
+                dragProps={dragProps(i)}
+              />
             ))}
           </div>
         )}
@@ -191,13 +249,33 @@ export function Vitrine() {
   );
 }
 
-/** Card da grade de capas + editor de arte custom (só na própria vitrine). */
-function VitrineCard({ owned: o, artMode, canEdit }: { owned: OwnedGame; artMode: 'box' | 'store'; canEdit: boolean }) {
+/** Card da grade de capas: quick view + editor de arte custom (só o dono). */
+function VitrineCard({
+  owned: o, artMode, canEdit, className, dragProps,
+}: {
+  owned: OwnedGame;
+  artMode: 'box' | 'store';
+  canEdit: boolean;
+  className?: string;
+  dragProps?: Record<string, unknown>;
+}) {
   const { t } = useTranslation();
   const toast = useToast();
   const setArt = useSetCustomArt();
   const [editing, setEditing] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
   const [url, setUrl] = useState('');
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  // clique fora fecha o editor de arte
+  useEffect(() => {
+    if (!editing) return;
+    function onDown(e: MouseEvent) {
+      if (!wrapRef.current?.contains(e.target as Node)) setEditing(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [editing]);
 
   const meta = (o.game.metadata as unknown as { box3d?: string; boxart?: string } | null) ?? null;
   // prioridade: arte CUSTOM do usuário > (caixa: box3d > boxart > loja) > loja
@@ -217,7 +295,7 @@ function VitrineCard({ owned: o, artMode, canEdit }: { owned: OwnedGame; artMode
   }
 
   return (
-    <div className="vitrine-card-wrap">
+    <div className={`vitrine-card-wrap ${className ?? ''}`} ref={wrapRef} {...dragProps}>
       <Link to={`/games/${o.game.slug}`} className="vitrine-card" title={o.game.title}>
         {art ? (
           <FadeImg src={art} alt={o.game.title} />
@@ -225,10 +303,18 @@ function VitrineCard({ owned: o, artMode, canEdit }: { owned: OwnedGame; artMode
           <span className="vitrine-card-fallback">{o.game.title}</span>
         )}
       </Link>
+      <button
+        type="button"
+        className="vitrine-hover-btn vitrine-eye"
+        title={t('games:quickView')}
+        onClick={() => setViewOpen(true)}
+      >
+        <Eye aria-hidden />
+      </button>
       {canEdit && (
         <button
           type="button"
-          className="vitrine-edit"
+          className="vitrine-hover-btn vitrine-edit"
           title={t('vitrine:editArt')}
           onClick={() => { setUrl(o.customArt ?? ''); setEditing((e) => !e); }}
         >
@@ -236,12 +322,16 @@ function VitrineCard({ owned: o, artMode, canEdit }: { owned: OwnedGame; artMode
         </button>
       )}
       {editing && (
-        <div className="vitrine-art-editor">
+        <div
+          className="vitrine-art-editor"
+          onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false); }}
+        >
           <Input
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder={t('vitrine:artUrlPh')}
             aria-label={t('vitrine:editArt')}
+            autoFocus
           />
           <div className="vitrine-art-actions">
             <Button size="sm" variant="primary" disabled={setArt.isPending || !url.trim()} onClick={() => void save(url.trim())}>
@@ -252,6 +342,9 @@ function VitrineCard({ owned: o, artMode, canEdit }: { owned: OwnedGame; artMode
                 <Trash2 /> {t('vitrine:artRemove')}
               </Button>
             )}
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+              <X /> {t('forms:actionReset')}
+            </Button>
             {/* molde não-funcional: upload real vem com storage próprio (ver ROADMAP) */}
             <Button size="sm" variant="ghost" disabled title={t('vitrine:artUploadSoon')}>
               <Upload /> {t('vitrine:artUploadSoon')}
@@ -259,34 +352,7 @@ function VitrineCard({ owned: o, artMode, canEdit }: { owned: OwnedGame; artMode
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-/**
- * Vista LOMBADAS: prateleira de colecionador — cada jogo vira a lombada da
- * caixa da sua plataforma (papelão SNES, jewel PS1, bluray PS3...), gerada em
- * CSS. Sem arte de lombada ainda: mostra o nome do jogo, como combinado.
- */
-function SpineShelf({ items, view }: { items: OwnedGame[]; view: string }) {
-  return (
-    <div className="spine-shelf">
-      {items.map((o) => {
-        const plat = view !== 'all' && o.platforms.includes(view) ? view : o.platforms[0];
-        const family = SPINE_FAMILY[plat] ?? 'dvd';
-        const color = THEMES[plat];
-        return (
-          <Link
-            key={o.game.id}
-            to={`/games/${o.game.slug}`}
-            className={`spine spine-${family}`}
-            style={color ? ({ '--spine-accent': color } as React.CSSProperties) : undefined}
-            title={`${o.game.title} (${plat})`}
-          >
-            <span className="spine-title">{o.game.title}</span>
-          </Link>
-        );
-      })}
+      {viewOpen && <GameQuickView game={o.game} open={viewOpen} onClose={() => setViewOpen(false)} />}
     </div>
   );
 }

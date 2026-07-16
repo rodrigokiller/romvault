@@ -2,7 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 import { useFlip } from '@/hooks/useFlip';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download } from 'lucide-react';
+import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye } from 'lucide-react';
+import { GameQuickView } from '@/components/entities/GameQuickView';
 import { useProfileByUsername } from '@/hooks/useProfile';
 import {
   useLibrary, useLibraryCopies, useUserPlaythroughs, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
@@ -305,8 +306,14 @@ const CARTON_PLATFORMS = new Set([
 
 function ShelfItem({ track, runs, showcase, artMode }: { track: TrackWithGame; runs: number; showcase: boolean; artMode: 'store' | 'box' }) {
   const { t } = useTranslation();
+  const [viewOpen, setViewOpen] = useState(false);
   const g = track.game;
   const SIcon = STATUS_ICON[track.status];
+  /** Bloqueia a navegação do Link pai (quick view abre modal no lugar). */
+  function halt(e: { preventDefault: () => void; stopPropagation: () => void }) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
   const meta = (g.metadata as unknown as { box3d?: string; boxart?: string } | null) ?? null;
   // vitrine em modo "caixa": box 3D real > box art física > capa de loja NO MOLDE
   const box3d = showcase && artMode === 'box' ? (meta?.box3d ?? null) : null;
@@ -340,9 +347,17 @@ function ShelfItem({ track, runs, showcase, artMode }: { track: TrackWithGame; r
         <span className={`shelf-badge badge-${track.status}`} title={t(`library:status_${track.status}`)}>
           <SIcon aria-hidden />
         </span>
+        <button
+          type="button"
+          className="shelf-eye"
+          title={t('games:quickView')}
+          onClick={(e) => { halt(e); setViewOpen(true); }}
+        >
+          <Eye aria-hidden />
+        </button>
         {runs >= 2 && (
           <span className="shelf-runs" title={t('library:runsBadge', { count: runs })}>
-            🏆×{runs}
+            <Trophy aria-hidden /> ×{runs}
           </span>
         )}
       </div>
@@ -351,6 +366,11 @@ function ShelfItem({ track, runs, showcase, artMode }: { track: TrackWithGame; r
         <span className="shelf-meta mono">
           {g.platforms?.[0] ?? ''}
           {track.hours_played ? ` · ${track.hours_played}h` : ''}
+        </span>
+      )}
+      {viewOpen && (
+        <span onClick={halt}>
+          <GameQuickView game={g} open={viewOpen} onClose={() => setViewOpen(false)} />
         </span>
       )}
     </Link>

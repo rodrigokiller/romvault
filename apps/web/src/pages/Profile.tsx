@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { User, Pencil, Check, X, Library as LibraryIcon, Store, UserPlus, UserMinus, Trophy } from 'lucide-react';
+import { getSupabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
@@ -84,6 +87,8 @@ export function Profile() {
         {isMe ? <ProfileEditor profile={profile} /> : <FollowButton userId={profile.id} />}
       </div>
 
+      <VitrineTeaser userId={profile.id} username={profile.username ?? username ?? ''} />
+
       {isMe && <FriendsFeed />}
 
       <section className="section">
@@ -127,6 +132,70 @@ export function Profile() {
       )}
     </div>
   );
+}
+
+/**
+ * Cartão-vitrine do perfil: as últimas aquisições em mini-prateleira +
+ * contadores — a porta de entrada visual pra /vitrine.
+ */
+function VitrineTeaser({ userId, username }: { userId: string; username: string }) {
+  const { t } = useTranslation();
+  const { data } = useVitrineTeaser(userId);
+  if (!data || data.games === 0) return null;
+  return (
+    <Link to={`/u/${username}/vitrine`} className="vt-teaser">
+      <span className="vt-teaser-covers" aria-hidden>
+        {data.covers.map((src, i) => (
+          <img key={src} src={src} alt="" style={{ zIndex: data.covers.length - i }} loading="lazy" />
+        ))}
+      </span>
+      <span className="vt-teaser-info">
+        <span className="kicker">// {t('vitrine:teaserKicker')}</span>
+        <span className="vt-teaser-count">
+          {t('vitrine:subtitle', { count: data.games })}
+          {' · '}
+          {t('vitrine:teaserPlatforms', { count: data.platforms })}
+        </span>
+        <span className="vt-teaser-cta mono">{t('vitrine:viewVitrine')} {'->'}</span>
+      </span>
+    </Link>
+  );
+}
+
+/** Últimas aquisições + contadores pra o cartão-vitrine do perfil. */
+function useVitrineTeaser(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['vitrineTeaser', userId],
+    enabled: Boolean(userId),
+    queryFn: async () => {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const [{ data: recent }, { data: all }] = await Promise.all([
+        sb.from('game_copies')
+          .select('game_id, game:games(cover_url, thumbnail)')
+          .eq('user_id', userId as string)
+          .order('created_at', { ascending: false })
+          .limit(14),
+        sb.from('game_copies')
+          .select('game_id, platform')
+          .eq('user_id', userId as string)
+          .range(0, 4999),
+      ]);
+      const covers: string[] = [];
+      const seen = new Set<string>();
+      for (const r of (recent ?? []) as unknown as { game_id: string; game: { cover_url: string | null; thumbnail: string | null } | null }[]) {
+        if (seen.has(r.game_id)) continue;
+        seen.add(r.game_id);
+        const src = r.game?.cover_url ?? r.game?.thumbnail;
+        if (src) covers.push(src);
+        if (covers.length >= 5) break;
+      }
+      return {
+        covers,
+        games: new Set((all ?? []).map((r) => r.game_id as string)).size,
+        platforms: new Set((all ?? []).map((r) => r.platform as string)).size,
+      };
+    },
+  });
 }
 
 /** Botão seguir/deixar de seguir (só em perfis alheios). */
