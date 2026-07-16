@@ -327,7 +327,10 @@
     "exportHint": "Baixa sua biblioteca (jogos, status, horas, cópias) em JSON",
     "order_recent": "Recentes",
     "order_az": "A–Z",
-    "order_platform": "Por plataforma"
+    "order_platform": "Por plataforma",
+    "artModeHint": "Alterna a arte das caixinhas",
+    "artBox": "Arte: Caixa",
+    "artStore": "Arte: Loja"
   },
   "users": {
     "kicker": "// comunidade",

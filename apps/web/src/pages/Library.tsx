@@ -66,6 +66,8 @@ export function Library() {
   const [platform, setPlatform] = useState<string | null>(null);
   const [onlyDupes, setOnlyDupes] = useState(false);
   const [order, setOrder] = useState<'recent' | 'az' | 'platform'>('recent');
+  // arte da vitrine: capa de loja (retrato) ou box art física
+  const [artMode, setArtMode] = useState<'store' | 'box'>('box');
   const shelfRef = useRef<HTMLDivElement | null>(null);
 
   const counts = useMemo(() => {
@@ -183,6 +185,16 @@ export function Library() {
           >
             <Sparkles aria-hidden /> {t('library:showcase')}
           </button>
+          {showcase && (
+            <button
+              type="button"
+              className="lib-stat lib-showcase"
+              onClick={() => setArtMode((m) => (m === 'box' ? 'store' : 'box'))}
+              title={t('library:artModeHint')}
+            >
+              {artMode === 'box' ? t('library:artBox') : t('library:artStore')}
+            </button>
+          )}
           {isMe && !showcase && <BatchAdd />}
           {isMe && !showcase && tracks.length > 0 && (
             <button
@@ -286,7 +298,7 @@ export function Library() {
             : undefined}
         >
           {shown.map((track) => (
-            <ShelfItem key={track.game_id} track={track} runs={runsByGame.get(track.game_id) ?? 0} showcase={showcase} />
+            <ShelfItem key={track.game_id} track={track} runs={runsByGame.get(track.game_id) ?? 0} showcase={showcase} artMode={artMode} />
           ))}
         </div>
       )}
@@ -294,17 +306,21 @@ export function Library() {
   );
 }
 
-function ShelfItem({ track, runs, showcase }: { track: TrackWithGame; runs: number; showcase: boolean }) {
+function ShelfItem({ track, runs, showcase, artMode }: { track: TrackWithGame; runs: number; showcase: boolean; artMode: 'store' | 'box' }) {
   const { t } = useTranslation();
   const g = track.game;
   const SIcon = STATUS_ICON[track.status];
-  // box 3D real (ScreenScraper) tem prioridade na vitrine física
-  const box3d = showcase ? ((g.metadata as unknown as { box3d?: string } | null)?.box3d ?? null) : null;
+  const meta = (g.metadata as unknown as { box3d?: string; boxart?: string } | null) ?? null;
+  // vitrine em modo "caixa": box 3D real > box art física > capa de loja
+  const box3d = showcase && artMode === 'box' ? (meta?.box3d ?? null) : null;
+  const boxart = showcase && artMode === 'box' && !box3d ? (meta?.boxart ?? null) : null;
   return (
     <Link to={`/games/${g.slug}`} className="shelf-item" title={g.title} data-flip={track.game_id}>
       <div className={`shelf-cover status-${track.status} ${box3d ? 'shelf-cover-3d' : ''}`}>
         {box3d ? (
           <img src={box3d} alt={g.title} loading="lazy" />
+        ) : boxart ? (
+          <img src={boxart} alt={g.title} loading="lazy" style={{ objectFit: 'contain' }} />
         ) : g.cover_url || g.thumbnail ? (
           <img src={g.cover_url ?? g.thumbnail ?? ''} alt={g.title} loading="lazy" />
         ) : (

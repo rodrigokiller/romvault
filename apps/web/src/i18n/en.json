@@ -327,7 +327,10 @@
     "exportHint": "Downloads your library (games, statuses, hours, copies) as JSON",
     "order_recent": "Recent",
     "order_az": "A–Z",
-    "order_platform": "By platform"
+    "order_platform": "By platform",
+    "artModeHint": "Toggles the box art style",
+    "artBox": "Art: Box",
+    "artStore": "Art: Store"
   },
   "users": {
     "kicker": "// community",

@@ -164,6 +164,25 @@ export function Games() {
                 value={yearTo} onChange={(e) => setYearTo(e.target.value)} />
             )}
           </Field>
+          {/* atalhos de década → preenchem de/até com um clique */}
+          <div className="decade-chips">
+            {[[1980, 1989], [1990, 1999], [2000, 2009], [2010, 2019], [2020, 2029]].map(([a, b]) => {
+              const active = yearFrom === String(a) && yearTo === String(b);
+              return (
+                <button
+                  key={a}
+                  type="button"
+                  className={`search-chip ${active ? 'is-active' : ''}`}
+                  onClick={() => {
+                    if (active) { setYearFrom(''); setYearTo(''); }
+                    else { setYearFrom(String(a)); setYearTo(String(b)); }
+                  }}
+                >
+                  {String(a).slice(2)}s
+                </button>
+              );
+            })}
+          </div>
           {extraActive > 0 && (
             <button
               type="button"

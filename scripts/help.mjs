@@ -31,7 +31,9 @@ row('npm run import -- --source=smwc --all', 'hacks do SMW Central (API)');
 head('Import — capas & mídia');
 row('npm run import -- --source=covers', 'capas via IGDB p/ jogos sem imagem');
 row('npm run import -- --source=covers-libretro', 'BOX ART real (libretro → nosso Storage)');
+row('npm run import -- --source=covers-libretro --backfill', 'boxart tb p/ quem JÁ tem capa de loja');
 row('npm run import -- --source=screenscraper --inspect', 'box 3D/verso (requer conta dev SS_*)');
+row('npm run import -- --source=all', 'pipeline: dataset→dedupe→covers→libretro');
 
 head('Manutenção');
 row('npm run import -- --source=dedupe --dry', 'lista jogos duplicados (SEMPRE --dry antes)');

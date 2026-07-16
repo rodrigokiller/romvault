@@ -1646,6 +1646,12 @@
   animation: shelf-in 200ms var(--ease);
 }
 .filter-bar-extra .field { min-width: 130px; max-width: 220px; }
+.decade-chips {
+  display: flex;
+  gap: var(--s2);
+  align-self: flex-end;
+  margin-bottom: 6px;
+}
 
 /* mosaico de capas no hero da coleção */
 .collection-hero {

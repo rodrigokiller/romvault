@@ -88,13 +88,24 @@ async function fetchIndex(systemDir, log, c) {
 
 export async function importCoversLibretro(ctx) {
   const { sb, flag, DRY, log, c, step, itemLog, fetchAll } = ctx;
-  const only = flag('platform') ? String(flag('platform')).toUpperCase() : null;
+  const only = flag('platform') && flag('platform') !== true ? String(flag('platform')).toUpperCase() : null;
   const limit = Number(flag('limit', 0)) || 0;
+  // --backfill: preenche metadata.boxart de quem JA TEM capa de loja
+  // (padrao: so jogos SEM capa nenhuma — a boxart tambem vira capa fallback)
+  const backfill = Boolean(flag('backfill', false));
 
-  step('Capas via libretro-thumbnails');
-  const games = await fetchAll(() =>
-    sb.from('games').select('id, title, platforms, metadata').is('cover_url', null));
-  log(`  ${games.length} jogos sem capa no catalogo`);
+  step(`Capas via libretro-thumbnails${backfill ? ' (backfill de boxart)' : ''}`);
+  let games;
+  if (backfill) {
+    games = (await fetchAll(() =>
+      sb.from('games').select('id, title, platforms, metadata').not('cover_url', 'is', null)))
+      .filter((g) => !(g.metadata && g.metadata.boxart));
+    log(`  ${games.length} jogos com capa mas sem boxart fisica`);
+  } else {
+    games = await fetchAll(() =>
+      sb.from('games').select('id, title, platforms, metadata').is('cover_url', null));
+    log(`  ${games.length} jogos sem capa no catalogo`);
+  }
 
   // agrupa jogos sem capa por plataforma mapeada
   const byPlatform = new Map();
@@ -146,12 +157,15 @@ export async function importCoversLibretro(ctx) {
         const publicUrl = sb.storage.from('uploads').getPublicUrl(path).data.publicUrl;
 
         // box art física vai pra metadata.boxart (material da vitrine);
-        // vira capa TAMBÉM porque este jogo não tinha nenhuma (fallback)
-        await sb.from('games').update({
-          cover_url: publicUrl,
-          thumbnail: publicUrl,
-          metadata: { ...(g.metadata ?? {}), boxart: publicUrl, cover_source: 'libretro-thumbnails' },
-        }).eq('id', g.id);
+        // sem --backfill ela vira capa TAMBÉM (o jogo não tinha nenhuma)
+        const patch = {
+          metadata: { ...(g.metadata ?? {}), boxart: publicUrl, boxart_source: 'libretro-thumbnails' },
+        };
+        if (!backfill) {
+          patch.cover_url = publicUrl;
+          patch.thumbnail = publicUrl;
+        }
+        await sb.from('games').update(patch).eq('id', g.id);
         stats.preenchidos++;
         itemLog(stats.preenchidos, `  ${c.green('~')} ${g.title} ${c.dim(`<- ${file}`)}`);
         await new Promise((r) => setTimeout(r, 120)); // gentileza com o CDN
