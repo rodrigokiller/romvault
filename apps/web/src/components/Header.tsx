@@ -45,6 +45,11 @@ export function Header() {
             <NavLink to="/users" className="header-link">
               {t('nav:community')}
             </NavLink>
+            {session && (
+              <NavLink to={`/u/${username}/library`} className="header-link header-link-shelf">
+                {t('nav:myShelf')}
+              </NavLink>
+            )}
           </nav>
         </div>
 

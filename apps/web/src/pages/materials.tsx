@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { ArrowLeft, Download, Star, Gamepad2 } from 'lucide-react';
+import { ArrowLeft, Download, Star, Gamepad2, Trophy } from 'lucide-react';
+import { usePatchUsage } from '@/hooks/useAccounts';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
@@ -28,6 +29,18 @@ import type { Article } from '@romvault/core';
 const SUBJECT_OF: Record<string, DownloadSubject> = {
   romhack: 'romhack', translation: 'translation', doc: 'document', tool: 'tool',
 };
+
+/** "N pessoas zeraram com esta tradução/hack" — a ponte tracker->hub. */
+function PatchUsageStat({ kind, id }: { kind: 'translation' | 'romhack'; id: string }) {
+  const { t } = useTranslation();
+  const { data: count = 0 } = usePatchUsage(kind, id);
+  if (count <= 0) return null;
+  return (
+    <span className="tile-stat tile-stat-usage" title={t('entities:patchUsageHint')}>
+      <Trophy aria-hidden /> {t('entities:patchUsage', { count })}
+    </span>
+  );
+}
 
 type Row = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === 'string' && v ? v : null);
@@ -244,6 +257,9 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
                 <Star aria-hidden /> {(num(item.rating) as number).toFixed(1)}
               </span>
             ) : null}
+            {(kind === 'translation' || kind === 'romhack') && (
+              <PatchUsageStat kind={kind} id={String(item.id)} />
+            )}
           </div>
 
           <div className="detail-actions">

@@ -11,7 +11,7 @@ import { FavoriteButton } from '@/components/entities/FavoriteButton';
 import { ShareButton } from '@/components/entities/ShareButton';
 import { TrackButton } from '@/components/entities/TrackButton';
 import { CopiesWidget } from '@/components/entities/CopiesWidget';
-import { PlaythroughsWidget } from '@/components/entities/PlaythroughsWidget';
+import { PlaythroughsWidget, type PatchOption } from '@/components/entities/PlaythroughsWidget';
 import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { BoxScans } from '@/components/entities/BoxScans';
 
@@ -47,6 +47,21 @@ export function GameDetail() {
   const rc = romhacks.data?.length ?? 0;
   const tc = translations.data?.length ?? 0;
   const dc = documents.data?.length ?? 0;
+
+  // a PONTE hub<->tracker: traduções/hacks deste jogo viram opções de
+  // "jogou com"/"patcheada com" nas zeradas e cópias
+  const patchOptions: PatchOption[] = [
+    ...((translations.data ?? []) as Row[]).map((tr) => ({
+      kind: 'translation' as const,
+      id: String(tr.id),
+      label: String(tr.language ?? tr.title ?? ''),
+    })),
+    ...((romhacks.data ?? []) as Row[]).map((rh) => ({
+      kind: 'romhack' as const,
+      id: String(rh.id),
+      label: String(rh.title ?? ''),
+    })),
+  ].filter((o) => o.label);
 
   const withCount = (label: string, n: number) => (n ? `${label} (${n})` : label);
 
@@ -114,8 +129,8 @@ export function GameDetail() {
               <ShareButton title={title} />
             </div>
           )}
-          {game && <CopiesWidget gameId={game.id} platforms={game.platforms ?? []} />}
-          {game && <PlaythroughsWidget gameId={game.id} />}
+          {game && <CopiesWidget gameId={game.id} platforms={game.platforms ?? []} patchOptions={patchOptions} />}
+          {game && <PlaythroughsWidget gameId={game.id} patchOptions={patchOptions} />}
         </div>
       </div>
 

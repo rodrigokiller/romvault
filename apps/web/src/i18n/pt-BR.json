@@ -28,7 +28,8 @@
     "community": "Comunidade",
     "admin": "Admin",
     "language": "Idioma",
-    "stats": "Estatísticas"
+    "stats": "Estatísticas",
+    "myShelf": "Estante"
   },
   "palette": {
     "title": "Paleta de comandos",
@@ -64,7 +65,10 @@
     "statGames": "jogos",
     "statRomhacks": "romhacks",
     "statTranslations": "traduções",
-    "statTools": "ferramentas"
+    "statTools": "ferramentas",
+    "myShelfTitle": "Sua estante",
+    "myPlaying": "Jogando agora",
+    "myPlayable": "Backlog jogável em {{lang}} ({{count}})"
   },
   "browse": {
     "filterPlatform": "Plataforma",
@@ -171,7 +175,10 @@
     "completion": "Conclusão",
     "license": "Licença",
     "credits": "Créditos",
-    "noneForGame": "Nada vinculado a este jogo ainda."
+    "noneForGame": "Nada vinculado a este jogo ainda.",
+    "patchUsage_one": "{{count}} zerada com este patch",
+    "patchUsage_other": "{{count}} zeradas com este patch",
+    "patchUsageHint": "Zeradas registradas na comunidade usando esta tradução/hack"
   },
   "search": {
     "resultsFor": "Resultados para \"{{q}}\"",
@@ -260,6 +267,17 @@
     "sectionAccount": "Conta",
     "sectionPrivacy": "Privacidade",
     "sectionPrivacyHint": "Quem pode ver sua biblioteca, vitrine e zeradas",
+    "accountsTitle": "Contas vinculadas",
+    "accountsHint": "Vincule suas contas pra sincronizar jogos, horas e conquistas automaticamente",
+    "accountsLinked": "Vinculada: {{id}}",
+    "accountsNotLinked": "Não vinculada",
+    "accountsSoon": "Em breve",
+    "accountsSync": "Sincronizar",
+    "accountsUnlink": "Desvincular",
+    "raHint": "Conquistas retrô: jogos 100% viram Terminado; progresso vira Jogando (perfil público no RA)",
+    "raUserPh": "Seu usuário no RetroAchievements",
+    "raDone": "RA: {{matched}} de {{total}} jogos casados com o catálogo, {{tracks}} novos na biblioteca!",
+    "fnNotDeployed": "Função {{fn}} ainda não deployada (supabase functions deploy {{fn}} --no-verify-jwt).",
     "privacyLabel": "biblioteca + vitrine",
     "privacyPublic": "Públicas (qualquer um vê)",
     "privacyPrivate": "Privadas (só você)",
@@ -351,6 +369,12 @@
     "timelineCount_one": "{{count}} jogo",
     "timelineCount_other": "{{count}} jogos",
     "runReviewPh": "Mini-review desta zerada (opcional — com estrelas vira sua avaliação do jogo)",
+    "runWith": "Jogou com (tradução/hack)",
+    "runWithNone": "Jogo original (sem patch)",
+    "copyPatched": "Patcheada com (tradução/hack)",
+    "copyPatchedNone": "Sem patch gravado",
+    "playableChip": "Jogável em {{lang}} ({{count}})",
+    "playableHint": "Tem tradução de fã em {{lang}}",
     "ownThis": "Tenho este jogo (+ cópia)",
     "batchAdd": "Adicionar vários",
     "batchTitle": "Adicionar vários jogos",
@@ -458,6 +482,9 @@
     "joined": "Entrou em",
     "empty": "Este usuário ainda não publicou nada.",
     "notFound": "Perfil não encontrado.",
+    "sceneTitle": "Zeradas com a cena",
+    "sceneCount_one": "{{count}} zerada usando tradução ou hack de fã — crédito pra cena.",
+    "sceneCount_other": "{{count}} zeradas usando traduções ou hacks de fãs — crédito pra cena.",
     "contributions": "Contribuições ({{count}})",
     "edit": "Editar perfil",
     "save": "Salvar",

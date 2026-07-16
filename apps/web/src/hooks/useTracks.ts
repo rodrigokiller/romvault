@@ -101,6 +101,9 @@ export interface GameCopy {
   notes: string | null;
   acquired_at: string | null;
   price_paid: number | null;
+  /** Cópia patcheada (repro/EverDrive/ISO): qual tradução/hack está gravada. */
+  patch_kind: 'translation' | 'romhack' | null;
+  patch_id: string | null;
 }
 
 /** Cópias do usuário logado para um jogo. */
@@ -230,11 +233,16 @@ export function useMyTrackMap() {
 }
 
 /* ── Zeradas (playthroughs): N por usuário+jogo, data obrigatória ───────────── */
+export type PatchKind = 'translation' | 'romhack';
+
 export interface Playthrough {
   id: string;
   finished_on: string;
   precision: 'day' | 'month' | 'year';
   notes: string | null;
+  /** A PONTE hub<->tracker: com qual tradução/hack o jogo foi zerado. */
+  patch_kind: PatchKind | null;
+  patch_id: string | null;
 }
 
 export function useMyPlaythroughs(gameId: string | undefined) {
@@ -245,7 +253,7 @@ export function useMyPlaythroughs(gameId: string | undefined) {
     enabled: env.configured && Boolean(gameId && uid),
     queryFn: async (): Promise<Playthrough[]> => {
       const { data, error } = await db()
-        .from('game_playthroughs').select('id, finished_on, precision, notes')
+        .from('game_playthroughs').select('id, finished_on, precision, notes, patch_kind, patch_id')
         .eq('user_id', uid as string).eq('game_id', gameId as string)
         .order('finished_on', { ascending: false });
       if (error) throw error;
@@ -258,7 +266,13 @@ export function useAddPlaythrough(gameId: string | undefined) {
   const { user } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: { finished_on: string; precision: Playthrough['precision']; notes?: string | null }) => {
+    mutationFn: async (p: {
+      finished_on: string;
+      precision: Playthrough['precision'];
+      notes?: string | null;
+      patch_kind?: PatchKind | null;
+      patch_id?: string | null;
+    }) => {
       const uid = user?.id;
       if (!uid || !gameId) throw new Error('Não autenticado.');
       const { error } = await db().from('game_playthroughs')

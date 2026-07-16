@@ -94,3 +94,15 @@ Importar da Steam** (SteamID64 ou vanity URL; o perfil precisa ser público).
 supabase secrets set STEAM_API_KEY=xxxx   # gratis: steamcommunity.com/dev/apikey
 supabase functions deploy steam-import --no-verify-jwt
 ```
+
+## ra-import (RetroAchievements)
+
+Importa o progresso de conquistas retrô do usuário: jogos 100% viram
+"Terminado", progresso parcial vira "Jogando" (achievements_earned/total nos
+tracks). Match por título+plataforma contra o catálogo — NUNCA cria jogo.
+
+```sh
+supabase secrets set RA_API_USER=<seu usuário no RA>
+supabase secrets set RA_API_KEY=<web API key: retroachievements.org/controlpanel.php>
+supabase functions deploy ra-import --no-verify-jwt
+```

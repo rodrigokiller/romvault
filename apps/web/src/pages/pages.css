@@ -2729,3 +2729,126 @@
   font-size: 0.68rem;
   text-align: center;
 }
+
+/* ── PONTES hub<->tracker ──────────────────────────────────────────────────── */
+/* chip de patch nas zeradas/cópias ("jogou com a tradução X") */
+.patch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: var(--s2);
+  padding: 1px 6px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+.patch-chip svg { width: 11px; height: 11px; }
+
+/* selinho "tem tradução no meu idioma" na estante */
+.shelf-lang {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  padding: 1px 6px;
+  background: var(--accent);
+  color: #06110c;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+/* "N zeraram com este patch" no detalhe de tradução/hack */
+.tile-stat-usage { color: var(--amber); }
+
+/* faixa pessoal da home */
+.my-strip-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s6);
+}
+.my-strip-group { display: grid; gap: var(--s2); }
+.my-strip-label {
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+.my-strip-covers {
+  display: flex;
+  gap: var(--s2);
+}
+.my-strip-covers a {
+  display: block;
+  border: 1px solid var(--line);
+  transition: border-color 0.15s ease-out, transform 0.15s ease-out;
+}
+.my-strip-covers a:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.my-strip-covers img {
+  display: block;
+  width: 74px;
+  height: 100px;
+  object-fit: cover;
+}
+.my-strip-fallback {
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 100px;
+  padding: var(--s1);
+  color: var(--muted);
+  font-size: 0.6rem;
+  text-align: center;
+}
+
+/* "zeradas com a cena" no perfil */
+.scene-list {
+  display: grid;
+  gap: var(--s2);
+  list-style: none;
+  padding: 0;
+  max-width: 560px;
+}
+.scene-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 0.8rem;
+}
+.scene-kind { color: var(--blue); font-size: 0.68rem; }
+.scene-label {
+  flex: 1;
+  color: var(--ink-bright);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.scene-n { color: var(--amber); }
+
+/* contas vinculadas (settings) */
+.account-row {
+  display: grid;
+  gap: var(--s2);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line);
+}
+.account-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.account-name { color: var(--ink-bright); font-weight: 600; }
+.account-status { color: var(--accent); font-size: 0.72rem; }
+.account-status-off { color: var(--muted); }
+.account-row-soon .account-name { color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .my-strip-covers a { transition: none; }
+  .my-strip-covers a:hover { transform: none; }
+}

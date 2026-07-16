@@ -2,8 +2,9 @@ import { useMemo, useRef, useState } from 'react';
 import { useFlip } from '@/hooks/useFlip';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye } from 'lucide-react';
+import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages } from 'lucide-react';
 import { GameQuickView } from '@/components/entities/GameQuickView';
+import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
 import { useProfileByUsername } from '@/hooks/useProfile';
 import {
   useLibrary, useLibraryCopies, useUserPlaythroughs, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
@@ -40,7 +41,7 @@ function exportLibrary(tracks: TrackWithGame[], copies: { game_id: string; platf
 
 /** Estante de jogos do usuário: abas por status + prateleira de capas. */
 export function Library() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { username } = useParams<{ username: string }>();
   const [params, setParams] = useSearchParams();
   const showcase = params.get('view') === 'showcase';
@@ -53,6 +54,7 @@ export function Library() {
   const [status, setStatus] = useState<TrackStatus | 'all'>('all');
   const [platform, setPlatform] = useState<string | null>(null);
   const [onlyDupes, setOnlyDupes] = useState(false);
+  const [onlyPlayable, setOnlyPlayable] = useState(false); // tem tradução no idioma da UI
   const [order, setOrder] = useState<'recent' | 'az' | 'platform'>('recent');
   // arte da vitrine: capa de loja (retrato) ou box art física
   const [artMode, setArtMode] = useState<'store' | 'box'>('box');
@@ -77,6 +79,15 @@ export function Library() {
     return [...set].sort();
   }, [copies, tracks]);
 
+  // a PONTE hub->tracker: quais jogos da estante têm tradução, e em que idiomas
+  const gameIds = useMemo(() => tracks.map((x) => x.game_id), [tracks]);
+  const { data: langsByGame } = useTranslationLangs(gameIds);
+  const uiCode = uiLangCode(i18n.language || 'pt-BR');
+  const playableCount = useMemo(
+    () => tracks.filter((x) => (langsByGame?.get(x.game_id) ?? []).includes(uiCode)).length,
+    [tracks, langsByGame, uiCode],
+  );
+
   const shown = useMemo(() => {
     let list = status === 'all' ? tracks : tracks.filter((x) => x.status === status);
     if (platform) {
@@ -89,6 +100,8 @@ export function Library() {
     }
     // "repetidos": jogos com mais de uma cópia
     if (onlyDupes) list = list.filter((x) => (copiesByGame.get(x.game_id) ?? []).length > 1);
+    // "jogável no meu idioma": tem tradução de fã no idioma da interface
+    if (onlyPlayable) list = list.filter((x) => (langsByGame?.get(x.game_id) ?? []).includes(uiCode));
     // reordenar a coleção (o FLIP anima a troca de lugares)
     if (order === 'az') list = [...list].sort((a, b) => a.game.title.localeCompare(b.game.title));
     else if (order === 'platform') {
@@ -97,10 +110,10 @@ export function Library() {
         a.game.title.localeCompare(b.game.title));
     }
     return list;
-  }, [tracks, status, platform, copiesByGame, onlyDupes, order]);
+  }, [tracks, status, platform, copiesByGame, onlyDupes, onlyPlayable, langsByGame, uiCode, order]);
 
   // anima a reorganização da estante (filtros/ordenação)
-  useFlip(shelfRef, `${status}|${platform}|${onlyDupes}|${order}|${shown.length}`);
+  useFlip(shelfRef, `${status}|${platform}|${onlyDupes}|${onlyPlayable}|${order}|${shown.length}`);
 
   const totalHours = useMemo(
     () => tracks.reduce((sum, x) => sum + (x.hours_played ?? 0), 0),
@@ -264,6 +277,17 @@ export function Library() {
               {t('library:dupesChip', { count: dupeCount })}
             </button>
           )}
+          {playableCount > 0 && (
+            <button
+              type="button"
+              className={`search-chip ${onlyPlayable ? 'is-active' : ''}`}
+              onClick={() => setOnlyPlayable((v) => !v)}
+              title={t('library:playableHint', { lang: uiCode })}
+            >
+              <Languages aria-hidden style={{ width: 12, height: 12, verticalAlign: '-2px', marginRight: 4 }} />
+              {t('library:playableChip', { lang: uiCode, count: playableCount })}
+            </button>
+          )}
           <span className="chips-sep" aria-hidden>·</span>
           {(['recent', 'az', 'platform'] as const).map((o) => (
             <button
@@ -289,7 +313,11 @@ export function Library() {
             : undefined}
         >
           {shown.map((track) => (
-            <ShelfItem key={track.game_id} track={track} runs={runsByGame.get(track.game_id) ?? 0} showcase={showcase} artMode={artMode} />
+            <ShelfItem
+              key={track.game_id} track={track} runs={runsByGame.get(track.game_id) ?? 0}
+              showcase={showcase} artMode={artMode}
+              langBadge={(langsByGame?.get(track.game_id) ?? []).includes(uiCode) ? uiCode : null}
+            />
           ))}
         </div>
       )}
@@ -304,7 +332,7 @@ const CARTON_PLATFORMS = new Set([
   'GBC', 'GBA', 'Virtual Boy', '32X', 'FDS', 'TG-16',
 ]);
 
-function ShelfItem({ track, runs, showcase, artMode }: { track: TrackWithGame; runs: number; showcase: boolean; artMode: 'store' | 'box' }) {
+function ShelfItem({ track, runs, showcase, artMode, langBadge }: { track: TrackWithGame; runs: number; showcase: boolean; artMode: 'store' | 'box'; langBadge?: string | null }) {
   const { t } = useTranslation();
   const [viewOpen, setViewOpen] = useState(false);
   const g = track.game;
@@ -358,6 +386,11 @@ function ShelfItem({ track, runs, showcase, artMode }: { track: TrackWithGame; r
         {runs >= 2 && (
           <span className="shelf-runs" title={t('library:runsBadge', { count: runs })}>
             <Trophy aria-hidden /> ×{runs}
+          </span>
+        )}
+        {langBadge && (
+          <span className="shelf-lang mono" title={t('library:playableHint', { lang: langBadge })}>
+            {langBadge}
           </span>
         )}
       </div>

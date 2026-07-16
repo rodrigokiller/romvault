@@ -114,6 +114,8 @@ export function Profile() {
 
       {playthroughs.length > 0 && <RunsTimeline playthroughs={playthroughs} />}
 
+      <SceneStats userId={profile.id} />
+
       {isMe && favorites.length > 0 && (
         <section className="section">
           <div className="section-head">
@@ -196,6 +198,67 @@ function useVitrineTeaser(userId: string | undefined) {
       };
     },
   });
+}
+
+/**
+ * "Zeradas com a cena": quantas vezes o usuário terminou jogos COM tradução/
+ * hack de fã, e quais materiais mais usou — crédito do tracker pra cena.
+ */
+function SceneStats({ userId }: { userId: string }) {
+  const { t } = useTranslation();
+  const { data } = useQuery({
+    queryKey: ['sceneStats', userId],
+    enabled: Boolean(userId),
+    queryFn: async () => {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const { data: runs } = await sb
+        .from('game_playthroughs').select('patch_kind, patch_id')
+        .eq('user_id', userId).not('patch_id', 'is', null)
+        .range(0, 4999);
+      const rows = (runs ?? []) as { patch_kind: 'translation' | 'romhack'; patch_id: string }[];
+      if (rows.length === 0) return { total: 0, top: [] as { label: string; kind: string; n: number }[] };
+      const counts = new Map<string, number>();
+      for (const r of rows) {
+        const k = `${r.patch_kind}:${r.patch_id}`;
+        counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+      const trIds = rows.filter((r) => r.patch_kind === 'translation').map((r) => r.patch_id);
+      const rhIds = rows.filter((r) => r.patch_kind === 'romhack').map((r) => r.patch_id);
+      const [trs, rhs] = await Promise.all([
+        trIds.length ? sb.from('translations').select('id, title, language').in('id', trIds) : Promise.resolve({ data: [] }),
+        rhIds.length ? sb.from('romhacks').select('id, title').in('id', rhIds) : Promise.resolve({ data: [] }),
+      ]);
+      const label = new Map<string, string>();
+      for (const x of (trs.data ?? []) as { id: string; title: string | null; language: string | null }[]) {
+        label.set(`translation:${x.id}`, x.title ?? x.language ?? '?');
+      }
+      for (const x of (rhs.data ?? []) as { id: string; title: string | null }[]) {
+        label.set(`romhack:${x.id}`, x.title ?? '?');
+      }
+      const top = [...counts.entries()]
+        .sort((a, b) => b[1] - a[1]).slice(0, 3)
+        .map(([k, n]) => ({ label: label.get(k) ?? '?', kind: k.split(':')[0], n }));
+      return { total: rows.length, top };
+    },
+  });
+  if (!data || data.total === 0) return null;
+  return (
+    <section className="section">
+      <div className="section-head">
+        <h2>{t('profile:sceneTitle')}</h2>
+      </div>
+      <p className="page-sub">{t('profile:sceneCount', { count: data.total })}</p>
+      <ul className="scene-list">
+        {data.top.map((x) => (
+          <li key={`${x.kind}-${x.label}`} className="scene-item mono">
+            <span className="scene-kind">{x.kind === 'translation' ? t('entities:kindTranslation') : t('entities:kindRomhack')}</span>
+            <span className="scene-label">{x.label}</span>
+            <span className="scene-n">×{x.n}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 /** Botão seguir/deixar de seguir (só em perfis alheios). */

@@ -28,7 +28,8 @@
     "community": "Community",
     "admin": "Admin",
     "language": "Language",
-    "stats": "Stats"
+    "stats": "Stats",
+    "myShelf": "My shelf"
   },
   "palette": {
     "title": "Command palette",
@@ -64,7 +65,10 @@
     "statGames": "games",
     "statRomhacks": "romhacks",
     "statTranslations": "translations",
-    "statTools": "tools"
+    "statTools": "tools",
+    "myShelfTitle": "Your shelf",
+    "myPlaying": "Now playing",
+    "myPlayable": "Backlog playable in {{lang}} ({{count}})"
   },
   "browse": {
     "filterPlatform": "Platform",
@@ -171,7 +175,10 @@
     "completion": "Completion",
     "license": "License",
     "credits": "Credits",
-    "noneForGame": "Nothing linked to this game yet."
+    "noneForGame": "Nothing linked to this game yet.",
+    "patchUsage_one": "{{count}} completion with this patch",
+    "patchUsage_other": "{{count}} completions with this patch",
+    "patchUsageHint": "Completions logged by the community using this translation/hack"
   },
   "search": {
     "resultsFor": "Results for \"{{q}}\"",
@@ -260,6 +267,17 @@
     "sectionAccount": "Account",
     "sectionPrivacy": "Privacy",
     "sectionPrivacyHint": "Who can see your library, showcase and completions",
+    "accountsTitle": "Linked accounts",
+    "accountsHint": "Link your accounts to sync games, hours and achievements automatically",
+    "accountsLinked": "Linked: {{id}}",
+    "accountsNotLinked": "Not linked",
+    "accountsSoon": "Soon",
+    "accountsSync": "Sync",
+    "accountsUnlink": "Unlink",
+    "raHint": "Retro achievements: 100% games become Finished; progress becomes Playing (public RA profile)",
+    "raUserPh": "Your RetroAchievements username",
+    "raDone": "RA: {{matched}} of {{total}} games matched the catalog, {{tracks}} added to your library!",
+    "fnNotDeployed": "Function {{fn}} not deployed yet (supabase functions deploy {{fn}} --no-verify-jwt).",
     "privacyLabel": "library + showcase",
     "privacyPublic": "Public (anyone can see)",
     "privacyPrivate": "Private (only you)",
@@ -351,6 +369,12 @@
     "timelineCount_one": "{{count}} game",
     "timelineCount_other": "{{count}} games",
     "runReviewPh": "Mini-review for this completion (optional — with stars it becomes your game review)",
+    "runWith": "Played with (translation/hack)",
+    "runWithNone": "Original game (no patch)",
+    "copyPatched": "Patched with (translation/hack)",
+    "copyPatchedNone": "No patch applied",
+    "playableChip": "Playable in {{lang}} ({{count}})",
+    "playableHint": "Has a fan translation in {{lang}}",
     "ownThis": "I own this game (+ copy)",
     "batchAdd": "Add several",
     "batchTitle": "Add several games",
@@ -458,6 +482,9 @@
     "joined": "Joined",
     "empty": "This user hasn't published anything yet.",
     "notFound": "Profile not found.",
+    "sceneTitle": "Completions with the scene",
+    "sceneCount_one": "{{count}} completion using a fan translation or hack — credit to the scene.",
+    "sceneCount_other": "{{count}} completions using fan translations or hacks — credit to the scene.",
     "contributions": "Contributions ({{count}})",
     "edit": "Edit profile",
     "save": "Save",

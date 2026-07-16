@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, Upload, TrendingUp, Newspaper, Download, Layers } from 'lucide-react';
@@ -9,6 +10,9 @@ import { useStats, useTrending } from '@/hooks/useHome';
 import { useArticles } from '@/hooks/useArticles';
 import { useCollections } from '@/hooks/useCollections';
 import { useGamesPage } from '@/hooks/useGames';
+import { useMyProfile } from '@/hooks/useProfile';
+import { useLibrary } from '@/hooks/useTracks';
+import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
 import { GameCard } from '@/components/entities/GameCard';
 import { KIND_META, type Kind } from '@/components/entities/kinds';
 
@@ -66,6 +70,8 @@ export function Home() {
       </section>
 
       <div className="container">
+        <MyShelfStrip />
+
         {/* Trending */}
         <section className="section">
           <div className="section-head">
@@ -187,5 +193,67 @@ export function Home() {
         </section>
       </div>
     </>
+  );
+}
+
+/**
+ * Faixa pessoal da home (logado): "jogando agora" + backlog jogável no seu
+ * idioma — o tracker como asa de primeira classe, não um anexo do perfil.
+ */
+function MyShelfStrip() {
+  const { t, i18n } = useTranslation();
+  const { data: me } = useMyProfile();
+  const { data: tracks = [] } = useLibrary(me?.id ?? undefined);
+  const gameIds = useMemo(() => tracks.map((x) => x.game_id), [tracks]);
+  const { data: langsByGame } = useTranslationLangs(gameIds);
+  if (!me || tracks.length === 0) return null;
+
+  const uiCode = uiLangCode(i18n.language || 'pt-BR');
+  const playing = tracks.filter((x) => x.status === 'playing').slice(0, 6);
+  const playableBacklog = tracks.filter(
+    (x) => x.status === 'backlog' && (langsByGame?.get(x.game_id) ?? []).includes(uiCode),
+  );
+
+  return (
+    <section className="section my-strip">
+      <div className="section-head">
+        <h2>{t('home:myShelfTitle')}</h2>
+        <Link to={`/u/${me.username}/library`} className="section-link">
+          {t('library:viewLibrary')} <ArrowRight aria-hidden style={{ width: 14, height: 14, verticalAlign: '-2px' }} />
+        </Link>
+      </div>
+      <div className="my-strip-body">
+        {playing.length > 0 && (
+          <div className="my-strip-group">
+            <span className="my-strip-label mono">// {t('home:myPlaying').toLowerCase()}</span>
+            <div className="my-strip-covers">
+              {playing.map((x) => (
+                <Link key={x.game_id} to={`/games/${x.game.slug}`} title={x.game.title}>
+                  {x.game.cover_url || x.game.thumbnail
+                    ? <img src={x.game.cover_url ?? x.game.thumbnail ?? ''} alt={x.game.title} loading="lazy" />
+                    : <span className="my-strip-fallback">{x.game.title}</span>}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+        {playableBacklog.length > 0 && (
+          <div className="my-strip-group">
+            <span className="my-strip-label mono">
+              // {t('home:myPlayable', { lang: uiCode, count: playableBacklog.length }).toLowerCase()}
+            </span>
+            <div className="my-strip-covers">
+              {playableBacklog.slice(0, 6).map((x) => (
+                <Link key={x.game_id} to={`/games/${x.game.slug}`} title={x.game.title}>
+                  {x.game.cover_url || x.game.thumbnail
+                    ? <img src={x.game.cover_url ?? x.game.thumbnail ?? ''} alt={x.game.title} loading="lazy" />
+                    : <span className="my-strip-fallback">{x.game.title}</span>}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

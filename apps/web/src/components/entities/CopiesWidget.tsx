@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Disc3, Plus, X, MonitorDown } from 'lucide-react';
+import { Disc3, Plus, X, MonitorDown, Languages, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/auth/AuthProvider';
-import { useMyCopies, useAddCopy, useRemoveCopy } from '@/hooks/useTracks';
+import { useMyCopies, useAddCopy, useRemoveCopy, type PatchKind, type GameCopy } from '@/hooks/useTracks';
+import type { PatchOption } from './PlaythroughsWidget';
 
 /**
  * "Minhas cópias": o nível COLEÇÃO — o mesmo jogo pode existir em várias
- * plataformas e em várias cópias (física/digital, loja, edição).
+ * plataformas e em várias cópias (física/digital, loja, edição), inclusive
+ * PATCHEADA (repro/EverDrive/ISO com tradução ou hack gravada).
  */
-export function CopiesWidget({ gameId, platforms }: { gameId: string; platforms: string[] }) {
+export function CopiesWidget({ gameId, platforms, patchOptions = [] }: { gameId: string; platforms: string[]; patchOptions?: PatchOption[] }) {
   const { t } = useTranslation();
   const toast = useToast();
   const { user, disabled } = useAuth();
@@ -25,6 +27,7 @@ export function CopiesWidget({ gameId, platforms }: { gameId: string; platforms:
   const [store, setStore] = useState('');
   const [acquiredAt, setAcquiredAt] = useState('');
   const [price, setPrice] = useState('');
+  const [patch, setPatch] = useState(''); // "kind:id" ou vazio
   const [adding, setAdding] = useState(false);
 
   if (disabled || !user) return null;
@@ -32,8 +35,12 @@ export function CopiesWidget({ gameId, platforms }: { gameId: string; platforms:
   // scanner de duplicatas: já tem este jogo? em quais plataformas?
   const ownedPlatforms = [...new Set(copies.map((c) => c.platform))];
 
+  const patchLabel = (c: GameCopy): PatchOption | null =>
+    (c.patch_id && patchOptions.find((o) => o.id === c.patch_id && o.kind === c.patch_kind)) || null;
+
   async function add() {
     if (!platform) return;
+    const [pk, pid] = patch ? patch.split(':') : [null, null];
     try {
       await addCopy.mutateAsync({
         platform,
@@ -41,8 +48,10 @@ export function CopiesWidget({ gameId, platforms }: { gameId: string; platforms:
         store: store.trim() || null,
         acquired_at: acquiredAt || null,
         price_paid: price ? Number(price) : null,
+        patch_kind: (pk as PatchKind) ?? null,
+        patch_id: pid ?? null,
       });
-      setStore(''); setAcquiredAt(''); setPrice('');
+      setStore(''); setAcquiredAt(''); setPrice(''); setPatch('');
       setAdding(false);
       toast.success(t('library:copyAdded'));
     } catch (err) {
@@ -73,6 +82,12 @@ export function CopiesWidget({ gameId, platforms }: { gameId: string; platforms:
                   {copy.store ? ` · ${copy.store}` : ''}
                   {copy.edition ? ` · ${copy.edition}` : ''}
                 </span>
+                {patchLabel(copy) && (
+                  <span className="patch-chip mono" title={t('library:copyPatched')}>
+                    {patchLabel(copy)!.kind === 'translation' ? <Languages aria-hidden /> : <Sparkles aria-hidden />}
+                    {patchLabel(copy)!.label}
+                  </span>
+                )}
               </span>
               <button
                 type="button" className="copies-remove" aria-label={t('library:copyRemove')}
@@ -109,6 +124,16 @@ export function CopiesWidget({ gameId, platforms }: { gameId: string; platforms:
               type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)}
               placeholder={t('library:copyPricePh')} aria-label={t('library:copyPricePh')}
             />
+            {patchOptions.length > 0 && (
+              <Select value={patch} onChange={(e) => setPatch(e.target.value)} aria-label={t('library:copyPatched')}>
+                <option value="">{t('library:copyPatchedNone')}</option>
+                {patchOptions.map((o) => (
+                  <option key={`${o.kind}:${o.id}`} value={`${o.kind}:${o.id}`}>
+                    {o.kind === 'translation' ? t('entities:kindTranslation') : t('entities:kindRomhack')}: {o.label}
+                  </option>
+                ))}
+              </Select>
+            )}
             <Button size="sm" variant="primary" onClick={() => void add()} disabled={addCopy.isPending}>
               <Plus /> {t('library:copyConfirm')}
             </Button>
