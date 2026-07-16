@@ -86,12 +86,12 @@ export function useContributions(userId: string | undefined) {
   });
 }
 
-/** Atualiza o próprio perfil (username, bio, avatar). */
+/** Atualiza o próprio perfil (username, bio, avatar, privacidade). */
 export function useUpdateProfile() {
   const { user } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (patch: Partial<Pick<Profile, 'username' | 'bio' | 'avatar_url'>> & { yearly_goal?: number | null }) => {
+    mutationFn: async (patch: Partial<Pick<Profile, 'username' | 'bio' | 'avatar_url'>> & { yearly_goal?: number | null; library_public?: boolean }) => {
       const uid = user?.id;
       if (!uid) throw new Error('Não autenticado.');
       const { data, error } = await db()

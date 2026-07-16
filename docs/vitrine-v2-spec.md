@@ -48,8 +48,21 @@ auto-adiciona à biblioteca com esse status quando o jogo ainda não tem track
 - **v2.2**: desenhos estilizados dos consoles no fundo (assets do Killer),
   fundos custom por estante.
 
-## Perguntas em aberto (pro Killer)
-1. Reordenação manual: **arrastar** (desktop) serve? No touch, setas/long-press?
-2. A vitrine é **pública** como a library (respeita library_public)? URL
-   `/u/x/vitrine` ok?
-3. Arte custom por jogo: upload direto (Storage) ou URL colada? Ambos?
+## Perguntas em aberto — RESPONDIDAS (Killer, 2026-07-16)
+1. Reordenação manual: drag no desktop, **botões (setas) no touch**. OK.
+2. Vitrine pública SIM, respeitando `library_public`, **com toggle de
+   privacidade nas configurações do perfil** (feito: seção Privacidade em
+   /settings).
+3. Arte custom: **URL colada funcional já** (feito no card da vitrine);
+   upload fica como **molde não-funcional** ("Upload (em breve)") até termos
+   storage próprio fora do Supabase (R2/B2 — ver ROADMAP infra).
+
+## Extras aprovados
+- **Vista Lombadas** (2026-07-16): modo alternativo da vitrine com lombadas
+  geradas em CSS por família de caixa (papelão SNES/VHS, jewel PS1, DVD PS2,
+  bluray PS3+, caixinha Switch, DS). Sem arte de lombada real: mostra o nome
+  do jogo na vertical. Futuro: recortar a lombada das artes "caixa aberta"
+  (full scan) por plataforma — exige análise manual de cada layout de scan
+  (MobyGames tem fronts/backs; alguns têm spine no scan completo).
+- Desenhos dos consoles: Killer vai procurar designer/refs; placeholder
+  tipográfico até lá (SVG/PNG fundo transparente quando chegarem).

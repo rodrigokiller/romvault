@@ -151,6 +151,36 @@ export function useAddCopy(gameId: string | undefined) {
   });
 }
 
+/**
+ * Arte custom do usuário pra um jogo (vitrine): atualiza o track; se o jogo
+ * ainda não tem track, cria um "Na coleção" — nunca mexe num status existente.
+ */
+export function useSetCustomArt() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ gameId, url }: { gameId: string; url: string | null }) => {
+      const uid = user?.id;
+      if (!uid) throw new Error('Não autenticado.');
+      const { data, error } = await db().from('game_tracks')
+        .update({ custom_art: url })
+        .eq('user_id', uid).eq('game_id', gameId)
+        .select('game_id');
+      if (error) throw error;
+      if (!data?.length) {
+        const { error: insErr } = await db().from('game_tracks').insert({
+          user_id: uid, game_id: gameId, status: 'owned', custom_art: url, source: 'manual',
+        });
+        if (insErr) throw insErr;
+      }
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['ownedGames'] });
+      void qc.invalidateQueries({ queryKey: ['library'] });
+    },
+  });
+}
+
 export function useRemoveCopy(gameId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({

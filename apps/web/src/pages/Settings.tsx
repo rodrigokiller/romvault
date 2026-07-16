@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/auth/AuthProvider';
 import { useApiKeys, useCreateApiKey, useRevokeApiKey } from '@/hooks/useApiKeys';
+import { useMyProfile, useUpdateProfile } from '@/hooks/useProfile';
 import { SUPPORTED_LANGS } from '@/i18n/config';
 
 export function Settings() {
@@ -93,9 +94,53 @@ export function Settings() {
         )}
       </Card>
 
+      {session && !disabled && <PrivacySection />}
       {session && !disabled && <SteamImportSection />}
       {session && !disabled && <ApiKeysSection />}
     </div>
+  );
+}
+
+/** Privacidade: biblioteca + vitrine + zeradas públicas ou só pra você. */
+function PrivacySection() {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const { data: me } = useMyProfile();
+  const update = useUpdateProfile();
+  const isPublic = (me as unknown as { library_public?: boolean } | null)?.library_public ?? true;
+
+  async function setPublic(value: boolean) {
+    try {
+      await update.mutateAsync({ library_public: value });
+      toast.success(t('settings:privacySaved'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    }
+  }
+
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('settings:sectionPrivacy')}</div>
+        <div className="card-sub">{t('settings:sectionPrivacyHint')}</div>
+      </div>
+      <div className="setting-row">
+        <span className="mono" style={{ color: 'var(--muted)' }}>
+          {t('settings:privacyLabel')}
+        </span>
+        <div style={{ minWidth: 200 }}>
+          <Select
+            value={isPublic ? 'public' : 'private'}
+            onChange={(e) => void setPublic(e.target.value === 'public')}
+            disabled={update.isPending}
+            aria-label={t('settings:privacyLabel')}
+          >
+            <option value="public">{t('settings:privacyPublic')}</option>
+            <option value="private">{t('settings:privacyPrivate')}</option>
+          </Select>
+        </div>
+      </div>
+    </Card>
   );
 }
 

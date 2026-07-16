@@ -2417,10 +2417,13 @@
   column-gap: var(--s3);
   padding-bottom: var(--s7);
 }
-.vitrine-card {
-  display: block;
+.vitrine-card-wrap {
+  position: relative;
   break-inside: avoid;
   margin-bottom: var(--s3);
+}
+.vitrine-card {
+  display: block;
   border: 1px solid var(--line);
   background: var(--panel);
   transition: border-color 0.15s ease-out, transform 0.15s ease-out;
@@ -2443,7 +2446,107 @@
   color: var(--muted);
   font-size: 0.78rem;
 }
+
+.vitrine-modes { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+/* editor de arte custom (lápis no canto do card, só na própria vitrine) */
+.vitrine-edit {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  background: rgba(11, 14, 16, 0.82);
+  border: 1px solid var(--line-bright);
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+}
+.vitrine-card-wrap:hover .vitrine-edit,
+.vitrine-edit:focus-visible,
+.vitrine-card-wrap:has(.vitrine-art-editor) .vitrine-edit { opacity: 1; }
+.vitrine-edit:hover { color: var(--accent); border-color: var(--accent); }
+.vitrine-edit svg { width: 13px; height: 13px; }
+.vitrine-art-editor {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s2);
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+}
+.vitrine-art-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
+
+/*
+ * Vista LOMBADAS: cada jogo é a lombada da caixa da sua plataforma, gerada em
+ * CSS — papelão (SNES, estilo VHS), jewel de CD (PS1), DVD (PS2/GC), bluray
+ * (PS3+), caixinha do Switch. Sem arte de lombada: nome do jogo na vertical.
+ */
+.spine-shelf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  column-gap: 2px;
+  row-gap: 22px;
+  padding-bottom: var(--s7);
+}
+.spine {
+  --spine-h: 170px;
+  --spine-w: 15px;
+  position: relative;
+  display: block;
+  width: var(--spine-w);
+  height: var(--spine-h);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.25)),
+    color-mix(in srgb, var(--spine-accent, #3a4148) 42%, #14181c);
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  /* "chão" da prateleira: cada lombada apoia num segmento de tábua */
+  box-shadow: 0 4px 0 -1px #4a3421;
+  transition: transform 0.15s ease-out;
+}
+/* faixa da plataforma no topo da lombada (como as caixas reais) */
+.spine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 14%;
+  background: var(--spine-accent, var(--line-bright));
+  border-bottom: 1px solid rgba(0, 0, 0, 0.45);
+}
+.spine:hover { transform: translateY(-6px); z-index: 2; }
+.spine-title {
+  position: absolute;
+  inset: 16% 0 4% 0;
+  writing-mode: vertical-rl;
+  overflow: hidden;
+  padding-top: 3px;
+  color: var(--ink-bright);
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: var(--spine-w);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* formatos por família de caixa (altura x largura aproximando o real) */
+.spine-carton     { --spine-h: 130px; --spine-w: 26px; } /* papelão VHS (SNES/NES) */
+.spine-jewel      { --spine-h: 125px; --spine-w: 12px; } /* CD jewel (PS1/Saturn) */
+.spine-dvd        { --spine-h: 170px; --spine-w: 15px; } /* DVD (PS2/GC/Xbox) */
+.spine-bluray     { --spine-h: 152px; --spine-w: 13px; } /* bluray (PS3/PS4/PS5) */
+.spine-switchcase { --spine-h: 106px; --spine-w: 11px; } /* caixinha Switch */
+.spine-ds         { --spine-h: 118px; --spine-w: 14px; } /* DS/3DS/PSP/Vita */
+.spine-carton .spine-title { font-size: 0.7rem; }
+
 @media (prefers-reduced-motion: reduce) {
-  .vitrine-card { transition: none; }
-  .vitrine-card:hover { transform: none; }
+  .vitrine-card, .spine, .vitrine-edit { transition: none; }
+  .vitrine-card:hover, .spine:hover { transform: none; }
 }

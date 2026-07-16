@@ -54,3 +54,7 @@ Visão: estante pessoal estilo Backloggd/HLTB, MUITO bonita visualmente.
 - ✅ Edge Functions: igdb-sync (admin) + public-api (x-api-key). Deploy com
   `--no-verify-jwt`.
 - 💡 Rate-limit na public-api; caching CDN.
+- 💡 **Storage próprio pra uploads de usuário** (arte custom da vitrine,
+  avatares): fora do Supabase Storage — avaliar Cloudflare R2 (S3-compatível,
+  egress grátis) ou Backblaze B2. Por enquanto arte custom é só URL colada;
+  o botão "Upload (em breve)" na vitrine é molde não-funcional até isso sair.
