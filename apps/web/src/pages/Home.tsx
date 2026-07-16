@@ -8,6 +8,8 @@ import { EmptyState, Skeleton } from '@/components/ui/feedback';
 import { useStats, useTrending } from '@/hooks/useHome';
 import { useArticles } from '@/hooks/useArticles';
 import { useCollections } from '@/hooks/useCollections';
+import { useGamesPage } from '@/hooks/useGames';
+import { GameCard } from '@/components/entities/GameCard';
 import { KIND_META, type Kind } from '@/components/entities/kinds';
 
 const STAT_KEYS = [
@@ -30,6 +32,8 @@ export function Home() {
   const { data: trending = [], isLoading: trendingLoading } = useTrending(8);
   const { data: articles = [], isLoading: articlesLoading } = useArticles(3);
   const { data: collections = [] } = useCollections(3);
+  // 6 lançamentos mais recentes (só o que JÁ saiu — mesmo filtro do Explorar)
+  const { data: recent } = useGamesPage({ sort: 'newest', release: 'released' }, 0, 6);
 
   return (
     <>
@@ -105,6 +109,24 @@ export function Home() {
             </div>
           )}
         </section>
+
+        {/* Lançamentos recentes */}
+        {(recent?.games.length ?? 0) > 0 && (
+          <section className="section">
+            <div className="section-head">
+              <div>
+                <span className="kicker">{t('home:recentKicker')}</span>
+                <h2>{t('home:recentTitle')}</h2>
+              </div>
+              <Link to="/games" className="section-link">{t('common:viewAll')}</Link>
+            </div>
+            <div className="card-grid card-grid-cover">
+              {recent!.games.map((g) => (
+                <GameCard key={g.id} game={g} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Coleções curadas */}
         {collections.length > 0 && (

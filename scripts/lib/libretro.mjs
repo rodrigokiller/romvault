@@ -93,7 +93,7 @@ export async function importCoversLibretro(ctx) {
 
   step('Capas via libretro-thumbnails');
   const games = await fetchAll(() =>
-    sb.from('games').select('id, title, platforms').is('cover_url', null));
+    sb.from('games').select('id, title, platforms, metadata').is('cover_url', null));
   log(`  ${games.length} jogos sem capa no catalogo`);
 
   // agrupa jogos sem capa por plataforma mapeada
@@ -145,10 +145,12 @@ export async function importCoversLibretro(ctx) {
         if (upErr) { stats.erros++; if (stats.erros <= 3) log(c.red(`  ✖ upload ${file}: ${upErr.message}`)); continue; }
         const publicUrl = sb.storage.from('uploads').getPublicUrl(path).data.publicUrl;
 
+        // box art física vai pra metadata.boxart (material da vitrine);
+        // vira capa TAMBÉM porque este jogo não tinha nenhuma (fallback)
         await sb.from('games').update({
           cover_url: publicUrl,
           thumbnail: publicUrl,
-          metadata: { cover_source: 'libretro-thumbnails' },
+          metadata: { ...(g.metadata ?? {}), boxart: publicUrl, cover_source: 'libretro-thumbnails' },
         }).eq('id', g.id);
         stats.preenchidos++;
         itemLog(stats.preenchidos, `  ${c.green('~')} ${g.title} ${c.dim(`<- ${file}`)}`);

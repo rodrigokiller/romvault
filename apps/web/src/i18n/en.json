@@ -35,6 +35,8 @@
     "heroSubtitle": "Games, romhacks, translations, documentation and tools — catalogued, versioned and linked to their source game. A modern romhacking.net, dark and sharp.",
     "heroBrowse": "Browse games",
     "heroSubmit": "Submit material",
+    "recentKicker": "// just released",
+    "recentTitle": "New releases",
     "trendingKicker": "// hot this week",
     "trendingTitle": "Trending",
     "trendingEmpty": "The weekly ranking shows up here once downloads are recorded.",

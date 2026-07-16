@@ -68,7 +68,7 @@ export function GameDetail() {
       >
         <div className="detail-cover">
           {game?.cover_url ? (
-            <img src={game.cover_url} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={game.cover_url} alt={title} />
           ) : (
             <Gamepad2 aria-hidden />
           )}

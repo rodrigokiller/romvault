@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Gamepad2, SlidersHorizontal, ChevronUp } from 'lucide-react';
 import { useGamesPage, useGameLetters, useGameFacets, type GamesFilter } from '@/hooks/useGames';
@@ -15,21 +16,40 @@ import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 
 export function Games() {
   const { t } = useTranslation();
-  const [platform, setPlatform] = useState('');
-  const [genre, setGenre] = useState('');
-  const [search, setSearch] = useState('');
-  const [letter, setLetter] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+  // estado inicial vem da URL — filtros compartilháveis e à prova de refresh
+  const [platform, setPlatform] = useState(params.get('platform') ?? '');
+  const [genre, setGenre] = useState(params.get('genre') ?? '');
+  const [search, setSearch] = useState(params.get('q') ?? '');
+  const [letter, setLetter] = useState<string | null>(params.get('letter'));
   // padrão de loja (Steam/eShop/PS Store): mais novos primeiro, SÓ lançados
-  const [sort, setSort] = useState<'title' | 'newest' | 'oldest'>('newest');
-  const [release, setRelease] = useState<'released' | 'upcoming' | 'all'>('released');
-  const [yearFrom, setYearFrom] = useState('');
-  const [yearTo, setYearTo] = useState('');
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<'title' | 'newest' | 'oldest'>(
+    (params.get('sort') as 'title' | 'newest' | 'oldest') || 'newest');
+  const [release, setRelease] = useState<'released' | 'upcoming' | 'all'>(
+    (params.get('release') as 'released' | 'upcoming' | 'all') || 'released');
+  const [yearFrom, setYearFrom] = useState(params.get('de') ?? '');
+  const [yearTo, setYearTo] = useState(params.get('ate') ?? '');
+  const [moreOpen, setMoreOpen] = useState(Boolean(params.get('release') || params.get('de') || params.get('ate')));
+  const [page, setPage] = useState(Number(params.get('p')) || 0);
   const debounced = useDebounce(search, 250);
 
   // qualquer mudança de filtro volta pra primeira página
   useEffect(() => setPage(0), [platform, genre, debounced, letter, sort, release, yearFrom, yearTo]);
+
+  // espelha o estado na URL (só o que difere do padrão, pra URL ficar limpa)
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (platform) next.set('platform', platform);
+    if (genre) next.set('genre', genre);
+    if (debounced) next.set('q', debounced);
+    if (letter) next.set('letter', letter);
+    if (sort !== 'newest') next.set('sort', sort);
+    if (release !== 'released') next.set('release', release);
+    if (yearFrom) next.set('de', yearFrom);
+    if (yearTo) next.set('ate', yearTo);
+    if (page > 0) next.set('p', String(page));
+    setParams(next, { replace: true });
+  }, [platform, genre, debounced, letter, sort, release, yearFrom, yearTo, page, setParams]);
 
   const filters: GamesFilter = {
     platform: platform || undefined,

@@ -38,6 +38,8 @@
  *                                                        SS_DEVID/SS_USER no .env)
  *   npm run import -- --source=dedupe --dry            # FUNDE jogos duplicados
  *   npm run import -- --source=dedupe                  #   (sempre --dry primeiro!)
+ *   npm run import -- --source=all                     # pipeline de manutencao:
+ *                                                        dataset->dedupe->covers->libretro
  *
  * Variaveis (.env na raiz do repo — copie de .env.example):
  *   SUPABASE_URL              (= a mesma URL do projeto)
@@ -686,6 +688,20 @@ async function main() {
   } else if (SOURCE === 'dedupe') {
     const { dedupeGames } = await import('./lib/dedupe-games.mjs');
     stats = await dedupeGames({ sb, flag, DRY, log, c, step, itemLog, fetchAll });
+  } else if (SOURCE === 'all') {
+    // pipeline de manutencao: dataset -> dedupe -> capas IGDB -> box art libretro
+    const ctx = { sb, flag, DRY, log, c, step, itemLog, fetchAll, slugifyText };
+    const { dedupeGames } = await import('./lib/dedupe-games.mjs');
+    const { importCoversLibretro } = await import('./lib/libretro.mjs');
+    log(c.cyan('\n══ PIPELINE COMPLETO: dataset → dedupe → covers → libretro ══'));
+    const s1 = await importDataset(sb);
+    const s2 = await dedupeGames(ctx);
+    const s3 = await importCovers(sb);
+    const s4 = await importCoversLibretro(ctx);
+    stats = {
+      'dataset.games': s1.games, 'dedupe.fundidos': s2.fundidos,
+      'covers.igdb': s3.preenchidos, 'covers.libretro': s4.preenchidos ?? 0,
+    };
   } else stats = await importDataset(sb);
 
   step('Resumo');

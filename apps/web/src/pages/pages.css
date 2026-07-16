@@ -373,14 +373,25 @@
   z-index: -1;
 }
 .detail-cover {
-  width: 180px;
-  aspect-ratio: 3 / 4;
+  /* flexível: mostra a arte INTEIRA em qualquer proporção (retrato IGDB,
+     box art SNES alta, caixa N64 paisagem) — nada de cortar */
+  width: 232px;
+  min-height: 160px;
+  max-height: 360px;
   flex-shrink: 0;
+  align-self: flex-start;
   background: linear-gradient(135deg, var(--panel-2), var(--bg));
   border: 1px solid var(--line);
   display: grid;
   place-items: center;
   color: var(--line-bright);
+  overflow: hidden;
+}
+.detail-cover img {
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+  object-fit: contain;
 }
 .detail-cover svg {
   width: 40px;
