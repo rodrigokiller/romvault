@@ -43,6 +43,7 @@ row('npm run import -- --source=dedupe --dry', 'lista jogos duplicados (SEMPRE -
 row('npm run import -- --source=dedupe', 'funde os duplicados');
 row('node scripts/seed-collections.mjs', 'cria/atualiza as coleções curadas');
 row('node scripts/fix-entities.mjs', 'limpa entidades HTML residuais nos títulos');
+row('npm run check-images [-- --limit=1000 --fix]', 'testa links de capa/boxart; --fix limpa mortos');
 
 head('Flags comuns do import');
 row('--dry', 'simula sem escrever (implica --verbose)');

@@ -449,5 +449,12 @@
     "copyLink": "Copiar link",
     "linkCopied": "Link copiado!",
     "shareNative": "Compartilhar…"
+  },
+  "stats": {
+    "kicker": "// numeros do acervo",
+    "title": "Estatísticas",
+    "subtitle": "O tamanho do cofre: jogos, hacks e traduções catalogados até agora.",
+    "byPlatform": "Jogos por plataforma",
+    "byLanguage": "Traduções por idioma"
   }
 }

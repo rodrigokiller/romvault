@@ -38,6 +38,7 @@ const ApiDocs = lazy(() => import('./pages/ApiDocs').then((m) => ({ default: m.A
 const Library = lazy(() => import('./pages/Library').then((m) => ({ default: m.Library })));
 const YearReview = lazy(() => import('./pages/YearReview').then((m) => ({ default: m.YearReview })));
 const Users = lazy(() => import('./pages/Users').then((m) => ({ default: m.Users })));
+const Stats = lazy(() => import('./pages/Stats').then((m) => ({ default: m.Stats })));
 const CollectionsList = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionsList })));
 const CollectionDetail = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionDetail })));
 
@@ -73,6 +74,7 @@ export function App() {
                       <Route path="collections/:slug" element={<CollectionDetail />} />
 
                       <Route path="users" element={<Users />} />
+                      <Route path="stats" element={<Stats />} />
                       <Route path="u/:username" element={<Profile />} />
                       <Route path="u/:username/library" element={<Library />} />
                       <Route path="u/:username/year/:year" element={<YearReview />} />

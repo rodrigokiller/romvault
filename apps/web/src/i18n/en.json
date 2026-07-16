@@ -449,5 +449,12 @@
     "copyLink": "Copy link",
     "linkCopied": "Link copied!",
     "shareNative": "Share…"
+  },
+  "stats": {
+    "kicker": "// vault numbers",
+    "title": "Statistics",
+    "subtitle": "The vault's size: games, hacks and translations catalogued so far.",
+    "byPlatform": "Games per platform",
+    "byLanguage": "Translations per language"
   }
 }

@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Header } from './Header';
 import { env } from '@/lib/env';
@@ -23,7 +23,10 @@ export function Layout() {
         <div className="site-footer-inner">
           <span className="mono">ROMVault</span>
           <span className="muted-text">
-            {t('common:tagline')} · {new Date().getFullYear()}
+            <Link to="/stats" className="section-link">{t('stats:title')}</Link>
+            {' · '}
+            <Link to="/api" className="section-link">API</Link>
+            {' · '}{t('common:tagline')} · {new Date().getFullYear()}
           </span>
         </div>
       </footer>

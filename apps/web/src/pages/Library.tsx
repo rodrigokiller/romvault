@@ -307,14 +307,26 @@ export function Library() {
   );
 }
 
+/** Tipo de "chassi" físico por plataforma (protótipo do molde de caixa). */
+const JEWEL_PLATFORMS = new Set(['PS1', 'PS2', 'Saturn', 'Dreamcast', 'Sega CD']);
+const CARTON_PLATFORMS = new Set([
+  'SNES', 'NES', 'N64', 'Genesis', 'Master System', 'Game Gear', 'Game Boy',
+  'GBC', 'GBA', 'Virtual Boy', '32X', 'FDS', 'TG-16',
+]);
+
 function ShelfItem({ track, runs, showcase, artMode }: { track: TrackWithGame; runs: number; showcase: boolean; artMode: 'store' | 'box' }) {
   const { t } = useTranslation();
   const g = track.game;
   const SIcon = STATUS_ICON[track.status];
   const meta = (g.metadata as unknown as { box3d?: string; boxart?: string } | null) ?? null;
-  // vitrine em modo "caixa": box 3D real > box art física > capa de loja
+  // vitrine em modo "caixa": box 3D real > box art física > capa de loja NO MOLDE
   const box3d = showcase && artMode === 'box' ? (meta?.box3d ?? null) : null;
   const boxart = showcase && artMode === 'box' && !box3d ? (meta?.boxart ?? null) : null;
+  const plat = g.platforms?.[0] ?? '';
+  // sem arte física: a capa de loja entra num CHASSI da plataforma (molde)
+  const caseType = showcase && artMode === 'box' && !box3d && !boxart
+    ? (JEWEL_PLATFORMS.has(plat) ? 'jewel' : CARTON_PLATFORMS.has(plat) ? 'carton' : null)
+    : null;
   return (
     <Link to={`/games/${g.slug}`} className="shelf-item" title={g.title} data-flip={track.game_id}>
       <div className={`shelf-cover status-${track.status} ${box3d ? 'shelf-cover-3d' : ''}`}>
@@ -322,6 +334,15 @@ function ShelfItem({ track, runs, showcase, artMode }: { track: TrackWithGame; r
           <FadeImg src={box3d} alt={g.title} />
         ) : boxart ? (
           <FadeImg src={boxart} alt={g.title} style={{ objectFit: 'contain' }} />
+        ) : caseType && (g.cover_url || g.thumbnail) ? (
+          <span
+            className={`case case-${caseType}`}
+            style={PLATFORM_THEMES[plat] ? ({ '--case-accent': PLATFORM_THEMES[plat] } as React.CSSProperties) : undefined}
+          >
+            {caseType === 'jewel' && <span className="case-spine" aria-hidden />}
+            {caseType === 'carton' && <span className="case-band mono" aria-hidden>{plat}</span>}
+            <FadeImg className="case-art" src={g.cover_url ?? g.thumbnail ?? ''} alt={g.title} />
+          </span>
         ) : g.cover_url || g.thumbnail ? (
           <FadeImg src={g.cover_url ?? g.thumbnail ?? ''} alt={g.title} />
         ) : (

@@ -1908,6 +1908,93 @@
 @media (prefers-reduced-motion: reduce) {
   .shelf-physical .shelf-item:hover .shelf-cover { transform: none; }
 }
+/* ── Moldes de caixa por plataforma (protótipo v1 — capa de loja "encaixada") ── */
+.case {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+}
+.case-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* jewel case (PS1/Saturn/DC): lombada preta à esquerda + plástico nas bordas */
+.case-jewel {
+  background: #0b0b0d;
+}
+.case-jewel .case-spine {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 13px;
+  z-index: 1;
+  background: linear-gradient(90deg, #000 0%, #1c1c20 55%, #000 100%);
+  border-right: 1px solid #2e2e34;
+}
+.case-jewel .case-spine::after {
+  content: '';
+  position: absolute;
+  left: 5px; top: 12%; bottom: 12%;
+  width: 2px;
+  background: color-mix(in srgb, var(--case-accent, #666) 70%, #fff 10%);
+  opacity: 0.7;
+}
+.case-jewel .case-art { left: 13px; width: calc(100% - 13px); }
+.case-jewel::before,
+.case-jewel::after {
+  content: '';
+  position: absolute;
+  left: 13px; right: 0;
+  height: 5px;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.02));
+}
+.case-jewel::before { top: 0; }
+.case-jewel::after { bottom: 0; transform: scaleY(-1); }
+/* caixa de papelão (SNES/NES/GB...): banner da plataforma no topo */
+.case-carton {
+  background: #101013;
+}
+.case-carton .case-band {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 17%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.12), transparent 40%),
+    var(--case-accent, #3a3a42);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(0,0,0,0.5);
+}
+.case-carton .case-art { top: 17%; height: 83%; }
+
+/* ── Barras da página /stats ──────────────────────────────────────────────── */
+.stat-bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  max-width: 720px;
+}
+.stat-bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+.stat-bar-label { width: 120px; font-size: 0.76rem; color: var(--ink-bright); text-align: right; }
+.stat-bar-track { flex: 1; height: 14px; background: var(--panel-2); border: 1px solid var(--line); }
+.stat-bar-fill { height: 100%; background: var(--accent); opacity: 0.85; }
+.stat-bar-num { width: 70px; font-size: 0.72rem; color: var(--muted); }
+
 /* box 3D real (ScreenScraper): a arte já tem profundidade — sem lombada fake */
 .shelf.shelf-physical .shelf-cover-3d {
   background: transparent;
