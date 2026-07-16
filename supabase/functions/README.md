@@ -106,3 +106,24 @@ supabase secrets set RA_API_USER=<seu usuário no RA>
 supabase secrets set RA_API_KEY=<web API key: retroachievements.org/controlpanel.php>
 supabase functions deploy ra-import --no-verify-jwt
 ```
+
+### ra-import — modo cron (sync automático diário)
+
+Com `CRON_SECRET` setada, a função aceita `x-cron-secret` e sincroniza TODAS
+as contas vinculadas (tabela user_accounts). Agendar (SQL Editor):
+
+```sql
+select public.setup_ra_cron('https://SEU-PROJETO.supabase.co/functions/v1/ra-import', 'SEGREDO-IGUAL-AO-CRON_SECRET');
+```
+
+## backlog-digest ("seu backlog ganhou tradução")
+
+Cruza traduções publicadas nos últimos N dias com os backlogs e cria
+notificações (sino do header). Auth: x-cron-secret OU JWT de admin.
+
+```sh
+supabase functions deploy backlog-digest --no-verify-jwt
+```
+```sql
+select public.setup_digest_cron('https://SEU-PROJETO.supabase.co/functions/v1/backlog-digest', 'SEGREDO-IGUAL-AO-CRON_SECRET');
+```

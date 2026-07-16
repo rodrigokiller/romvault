@@ -2852,3 +2852,84 @@
   .my-strip-covers a { transition: none; }
   .my-strip-covers a:hover { transform: none; }
 }
+
+/* ── Sino de notificações ──────────────────────────────────────────────────── */
+.bell { position: relative; }
+.bell-btn { position: relative; }
+.bell-dot {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #06110c;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.bell-menu {
+  width: min(360px, 86vw);
+  max-height: 380px;
+  overflow-y: auto;
+}
+.bell-item { align-items: flex-start; }
+.bell-item.is-unread { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.bell-item-text { flex: 1; line-height: 1.4; }
+.bell-item-date { flex-shrink: 0; color: var(--muted); font-size: 0.66rem; padding-top: 2px; }
+.bell-empty {
+  display: block;
+  padding: var(--s4);
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+/* ── /scene — ranking da cena ──────────────────────────────────────────────── */
+.scene-rank {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+  max-width: 760px;
+}
+.scene-rank-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.scene-rank-item:hover { border-color: var(--line-bright); }
+.scene-rank-pos { color: var(--muted); font-size: 0.8rem; }
+.scene-rank-item:nth-child(1) .scene-rank-pos,
+.scene-rank-item:nth-child(2) .scene-rank-pos,
+.scene-rank-item:nth-child(3) .scene-rank-pos { color: var(--amber); font-weight: 700; }
+.scene-rank-icon { width: 15px; height: 15px; flex-shrink: 0; color: var(--blue); }
+.scene-rank-body { flex: 1; min-width: 0; display: grid; }
+.scene-rank-title {
+  color: var(--ink-bright);
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.scene-rank-title:hover { color: var(--accent); }
+.scene-rank-game { color: var(--muted); font-size: 0.76rem; }
+.scene-rank-game a:hover { color: var(--ink); text-decoration: underline; }
+.scene-rank-n {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  color: var(--amber);
+  font-size: 0.76rem;
+}
+.scene-rank-n svg { width: 13px; height: 13px; }
+
+/* meta secundária dos cards da estante (última sessão / fonte) */
+.shelf-meta-sub { color: var(--muted); font-size: 0.66rem; opacity: 0.85; }

@@ -375,6 +375,14 @@
     "copyPatchedNone": "No patch applied",
     "playableChip": "Playable in {{lang}} ({{count}})",
     "playableHint": "Has a fan translation in {{lang}}",
+    "lastSession": "Last activity",
+    "today": "today",
+    "daysAgo_one": "{{count}} day ago",
+    "daysAgo_other": "{{count}} days ago",
+    "monthsAgo_one": "{{count}} month ago",
+    "monthsAgo_other": "{{count}} months ago",
+    "yearsAgo_one": "{{count}} year ago",
+    "yearsAgo_other": "{{count}} years ago",
     "ownThis": "I own this game (+ copy)",
     "batchAdd": "Add several",
     "batchTitle": "Add several games",
@@ -389,6 +397,20 @@
     "artModeHint": "Toggles the box art style",
     "artBox": "Art: Box",
     "artStore": "Art: Store"
+  },
+  "notif": {
+    "title": "Notifications",
+    "empty": "Nothing here yet — when a game in your backlog gets a translation, you'll know.",
+    "backlogTranslation": "{{game}} from your backlog just got a translation ({{lang}})!"
+  },
+  "scene": {
+    "kicker": "// the scene in numbers",
+    "title": "Scene",
+    "subtitle": "The translations and hacks the community finishes the most — social proof for makers, discovery for players.",
+    "completions_one": "{{count}} completion",
+    "completions_other": "{{count}} completions",
+    "emptyTitle": "No patched completions yet",
+    "emptyText": "Once the community logs completions with the translation/hack used, the ranking is born here."
   },
   "vitrine": {
     "title": "{{user}}'s showcase",

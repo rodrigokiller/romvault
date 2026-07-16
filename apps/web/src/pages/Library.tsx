@@ -39,6 +39,15 @@ function exportLibrary(tracks: TrackWithGame[], copies: { game_id: string; platf
   URL.revokeObjectURL(a.href);
 }
 
+/** "há 3 dias" / "há 2 meses" — última sessão nos cards da estante. */
+function relativeDate(iso: string, t: (k: string, o?: Record<string, unknown>) => string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return t('library:today');
+  if (days < 30) return t('library:daysAgo', { count: days });
+  if (days < 365) return t('library:monthsAgo', { count: Math.floor(days / 30) });
+  return t('library:yearsAgo', { count: Math.floor(days / 365) });
+}
+
 /** Estante de jogos do usuário: abas por status + prateleira de capas. */
 export function Library() {
   const { t, i18n } = useTranslation();
@@ -396,10 +405,19 @@ function ShelfItem({ track, runs, showcase, artMode, langBadge }: { track: Track
       </div>
       <span className="shelf-title">{g.title}</span>
       {!showcase && (
-        <span className="shelf-meta mono">
-          {g.platforms?.[0] ?? ''}
-          {track.hours_played ? ` · ${track.hours_played}h` : ''}
-        </span>
+        <>
+          <span className="shelf-meta mono">
+            {g.platforms?.[0] ?? ''}
+            {track.hours_played ? ` · ${track.hours_played}h` : ''}
+            {track.achievements_total
+              ? ` · ${track.achievements_earned ?? 0}/${track.achievements_total}`
+              : ''}
+          </span>
+          <span className="shelf-meta shelf-meta-sub mono" title={t('library:lastSession')}>
+            {relativeDate(track.updated_at, t)}
+            {track.source !== 'manual' ? ` · ${track.source}` : ''}
+          </span>
+        </>
       )}
       {viewOpen && (
         <span onClick={halt}>

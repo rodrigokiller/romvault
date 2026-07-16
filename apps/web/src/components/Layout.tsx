@@ -27,6 +27,8 @@ export function Layout() {
           <span className="muted-text">
             <Link to="/stats" className="section-link">{t('stats:title')}</Link>
             {' · '}
+            <Link to="/scene" className="section-link">{t('scene:title')}</Link>
+            {' · '}
             <Link to="/api" className="section-link">API</Link>
             {' · '}{t('common:tagline')} · {new Date().getFullYear()}
           </span>

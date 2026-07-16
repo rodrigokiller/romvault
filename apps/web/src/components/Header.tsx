@@ -4,6 +4,7 @@ import { Settings, LogIn, LogOut, User as UserIcon, Shield, Upload, Search } fro
 import { Logo } from './Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { openPalette } from './CommandPalette';
+import { NotificationsBell } from './NotificationsBell';
 import { useAuth } from '@/auth/AuthProvider';
 import { useIsAdmin } from '@/hooks/useProfile';
 import './header.css';
@@ -61,6 +62,7 @@ export function Header() {
         </button>
 
         <div className="header-right">
+          <NotificationsBell />
           <LanguageSwitcher />
           {isAdmin && (
             <Link

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Key, Copy, Trash2, Plus, BookOpen, RefreshCw } from 'lucide-react';
@@ -178,7 +178,13 @@ function SyncAccountRow({
   const link = useLinkAccount();
   const unlink = useUnlinkAccount();
   const [value, setValue] = useState(linked?.account_id ?? '');
+  const [touched, setTouched] = useState(false);
   const [running, setRunning] = useState(false);
+
+  // contas chegam async: preenche o input quando o vínculo carregar
+  useEffect(() => {
+    if (!touched && linked?.account_id) setValue(linked.account_id);
+  }, [linked?.account_id, touched]);
 
   async function run() {
     const id = value.trim();
@@ -212,7 +218,7 @@ function SyncAccountRow({
       </div>
       <div className="api-create">
         <Field label={title} hint={hint}>
-          {(id) => <Input id={id} value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} />}
+          {(id) => <Input id={id} value={value} onChange={(e) => { setTouched(true); setValue(e.target.value); }} placeholder={placeholder} />}
         </Field>
         <Button variant="primary" onClick={() => void run()} disabled={running || !value.trim()}>
           {running ? <Spinner /> : <><RefreshCw /> {t('settings:accountsSync')}</>}

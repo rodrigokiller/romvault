@@ -14,17 +14,17 @@ import { CopiesWidget } from '@/components/entities/CopiesWidget';
 import { PlaythroughsWidget, type PatchOption } from '@/components/entities/PlaythroughsWidget';
 import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { BoxScans } from '@/components/entities/BoxScans';
+import { langCode, uiLangCode } from '@/hooks/useTranslationLangs';
+import { Tabs, type TabItem } from '@/components/ui/Tabs';
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState, LoadingPage } from '@/components/ui/feedback';
+import type { Kind } from '@/components/entities/kinds';
 
 /** Há algum scan físico em metadata (moby/boxart/box3d)? */
 function hasScans(metadata: unknown): boolean {
   const m = (metadata ?? {}) as { boxart?: string; box3d?: string; moby?: { front?: string } };
   return Boolean(m.boxart || m.box3d || m.moby?.front);
 }
-import { langCode, uiLangCode } from '@/hooks/useTranslationLangs';
-import { Tabs, type TabItem } from '@/components/ui/Tabs';
-import { Badge } from '@/components/ui/Badge';
-import { EmptyState, LoadingPage } from '@/components/ui/feedback';
-import type { Kind } from '@/components/entities/kinds';
 
 function humanize(slug: string): string {
   return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Home, Gamepad2, Languages, Sparkles, Wrench, FileText, Users, BarChart3,
-  Upload, Settings, Shield, User, Library, Store, ArrowLeft, Search, Clock,
+  Upload, Settings, Shield, User, Library, Store, ArrowLeft, Search, Clock, Trophy,
   type LucideIcon,
 } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -151,6 +151,7 @@ export function CommandPalette() {
       { id: 'docs', label: t('nav:docs'), icon: FileText, hint: '/docs', run: () => go('/docs') },
       { id: 'users', label: t('nav:community'), icon: Users, hint: '/users', run: () => go('/users') },
       { id: 'stats', label: t('nav:stats'), icon: BarChart3, hint: '/stats', run: () => go('/stats') },
+      { id: 'scene', label: t('scene:title'), icon: Trophy, hint: '/scene', run: () => go('/scene') },
       { id: 'submit', label: t('nav:submit'), icon: Upload, hint: '/submit', run: () => go('/submit') },
       { id: 'settings', label: t('nav:settings'), icon: Settings, hint: '/settings', run: () => go('/settings') },
       ...(isAdmin ? [{ id: 'admin', label: t('nav:admin'), icon: Shield, hint: '/admin', run: () => go('/admin') }] : []),

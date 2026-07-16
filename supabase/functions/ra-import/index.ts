@@ -15,7 +15,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 const json = (body: unknown, status = 200) =>
@@ -75,6 +75,107 @@ interface RaGame {
   HardcoreMode: string | number;
 }
 
+// deno-lint-ignore no-explicit-any
+type Admin = any;
+
+/** Sincroniza UM usuário: tracks + cópias (a vitrine mostra o que ele TEM). */
+async function syncUser(
+  admin: Admin, raUser: string, raKey: string, userId: string, target: string,
+  byKey: Map<string, string>,
+) {
+  // jogos com progresso no RA (inclui linhas duplicadas hardcore/softcore)
+  const raRes = await fetch(
+    `https://retroachievements.org/API/API_GetUserCompletedGames.php?z=${encodeURIComponent(raUser)}&y=${encodeURIComponent(raKey)}&u=${encodeURIComponent(target)}`,
+  );
+  if (!raRes.ok) throw new Error(`RetroAchievements API: HTTP ${raRes.status}`);
+  const raw = (await raRes.json()) as RaGame[] | { Error?: string };
+  if (!Array.isArray(raw)) {
+    throw new Error((raw as { Error?: string }).Error ?? 'Usuário do RA não encontrado.');
+  }
+  // dedupe por GameID ficando com o MAIOR progresso (hardcore e softcore vêm separados)
+  const best = new Map<number, RaGame>();
+  for (const g of raw) {
+    const prev = best.get(g.GameID);
+    if (!prev || Number(g.NumAwarded) > Number(prev.NumAwarded)) best.set(g.GameID, g);
+  }
+  const games = [...best.values()].filter((g) => Number(g.NumAwarded) > 0);
+  if (games.length === 0) throw new Error('Nenhum jogo com progresso público nesse usuário.');
+
+  // match RA -> catálogo (NUNCA cria jogo)
+  let unmatchedConsole = 0;
+  const matched: { gid: string; ra: RaGame; platform: string }[] = [];
+  const misses: string[] = [];
+  for (const g of games) {
+    const plat = RA_PLATFORM[norm(g.ConsoleName)];
+    if (!plat) { unmatchedConsole++; continue; }
+    const gid = byKey.get(`${plat}|${keyTitle(g.Title)}`);
+    if (gid) matched.push({ gid, ra: g, platform: plat });
+    else misses.push(`${g.Title} (${plat})`);
+  }
+
+  // tracks: cria os que faltam; atualiza SÓ os source='retroachievements'
+  const myTracks = await fetchAll(() =>
+    admin.from('game_tracks').select('game_id, source').eq('user_id', userId));
+  const trackByGame = new Map(myTracks.map((t) => [t.game_id as string, t.source as string]));
+
+  const newTracks: Record<string, unknown>[] = [];
+  let updated = 0;
+  for (const m of matched) {
+    const earned = Number(m.ra.NumAwarded);
+    const total = Number(m.ra.MaxPossible);
+    const status = total > 0 && earned >= total ? 'finished' : 'playing';
+    const src = trackByGame.get(m.gid);
+    if (src === undefined) {
+      newTracks.push({
+        user_id: userId, game_id: m.gid, status, platform: m.platform,
+        achievements_earned: earned, achievements_total: total,
+        source: 'retroachievements',
+      });
+    } else if (src === 'retroachievements') {
+      await admin.from('game_tracks')
+        .update({ achievements_earned: earned, achievements_total: total, ...(status === 'finished' ? { status } : {}) })
+        .eq('user_id', userId).eq('game_id', m.gid);
+      updated++;
+    }
+  }
+  for (let i = 0; i < newTracks.length; i += 200) {
+    await admin.from('game_tracks').upsert(newTracks.slice(i, i + 200), { onConflict: 'user_id,game_id' });
+  }
+
+  // cópias: jogado no RA = tem a ROM -> entra na VITRINE (só as que faltam)
+  const myCopies = await fetchAll(() =>
+    admin.from('game_copies').select('game_id').eq('user_id', userId).eq('store', 'RetroAchievements'));
+  const copyGames = new Set(myCopies.map((c: { game_id: string }) => c.game_id));
+  const newCopies: Record<string, unknown>[] = [];
+  for (const m of matched) {
+    if (!copyGames.has(m.gid)) {
+      copyGames.add(m.gid);
+      newCopies.push({
+        user_id: userId, game_id: m.gid, platform: m.platform,
+        distribution: 'digital', store: 'RetroAchievements',
+      });
+    }
+  }
+  for (let i = 0; i < newCopies.length; i += 200) {
+    await admin.from('game_copies').insert(newCopies.slice(i, i + 200));
+  }
+
+  // carimbo do sync automático
+  await admin.from('user_accounts')
+    .update({ last_sync: new Date().toISOString() })
+    .eq('user_id', userId).eq('provider', 'retroachievements');
+
+  return {
+    ra_games: games.length,
+    matched: matched.length,
+    tracks_added: newTracks.length,
+    tracks_updated: updated,
+    copies_added: newCopies.length,
+    unmatched: misses.length + unmatchedConsole,
+    sample_misses: misses.slice(0, 10),
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
@@ -83,41 +184,13 @@ Deno.serve(async (req: Request) => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const raUser = Deno.env.get('RA_API_USER');
     const raKey = Deno.env.get('RA_API_KEY');
+    const cronSecret = Deno.env.get('CRON_SECRET');
     if (!raUser || !raKey) {
       return json({ error: 'RA_API_USER/RA_API_KEY não configuradas (supabase secrets set).' }, 500);
     }
-
-    // 1) usuário logado (o import é NA CONTA DELE)
-    const asUser = createClient(url, anonKey, {
-      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-    });
-    const { data: { user } } = await asUser.auth.getUser();
-    if (!user) return json({ error: 'Não autenticado.' }, 401);
     const admin = createClient(url, serviceKey);
 
-    const body = await req.json().catch(() => ({}));
-    const target = String(body.ra_user ?? '').trim();
-    if (!target) return json({ error: 'Informe o usuário do RetroAchievements.' }, 400);
-
-    // 2) jogos com progresso no RA (inclui linhas duplicadas hardcore/softcore)
-    const raRes = await fetch(
-      `https://retroachievements.org/API/API_GetUserCompletedGames.php?z=${encodeURIComponent(raUser)}&y=${encodeURIComponent(raKey)}&u=${encodeURIComponent(target)}`,
-    );
-    if (!raRes.ok) return json({ error: `RetroAchievements API: HTTP ${raRes.status}` }, 502);
-    const raw = (await raRes.json()) as RaGame[] | { Error?: string };
-    if (!Array.isArray(raw)) {
-      return json({ error: (raw as { Error?: string }).Error ?? 'Usuário do RA não encontrado.' }, 404);
-    }
-    // dedupe por GameID ficando com o MAIOR progresso (hardcore e softcore vêm separados)
-    const best = new Map<number, RaGame>();
-    for (const g of raw) {
-      const prev = best.get(g.GameID);
-      if (!prev || Number(g.NumAwarded) > Number(prev.NumAwarded)) best.set(g.GameID, g);
-    }
-    const games = [...best.values()].filter((g) => Number(g.NumAwarded) > 0);
-    if (games.length === 0) return json({ error: 'Nenhum jogo com progresso público nesse usuário.' }, 404);
-
-    // 3) nosso catálogo: índice título+plataforma (paginado)
+    // catálogo: índice título+plataforma (compartilhado entre usuários no modo cron)
     const catalog = await fetchAll(() => admin.from('games').select('id, title, platforms'));
     const byKey = new Map<string, string>();
     for (const g of catalog) {
@@ -126,56 +199,34 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 4) match RA -> catálogo (NUNCA cria jogo)
-    let unmatchedConsole = 0;
-    const matched: { gid: string; ra: RaGame; platform: string }[] = [];
-    const misses: string[] = [];
-    for (const g of games) {
-      const plat = RA_PLATFORM[norm(g.ConsoleName)];
-      if (!plat) { unmatchedConsole++; continue; }
-      const gid = byKey.get(`${plat}|${keyTitle(g.Title)}`);
-      if (gid) matched.push({ gid, ra: g, platform: plat });
-      else misses.push(`${g.Title} (${plat})`);
-    }
-
-    // 5) tracks: cria os que faltam; atualiza SÓ os source='retroachievements'
-    const myTracks = await fetchAll(() =>
-      admin.from('game_tracks').select('game_id, source').eq('user_id', user.id));
-    const trackByGame = new Map(myTracks.map((t) => [t.game_id as string, t.source as string]));
-
-    const newTracks: Record<string, unknown>[] = [];
-    let updated = 0;
-    for (const m of matched) {
-      const earned = Number(m.ra.NumAwarded);
-      const total = Number(m.ra.MaxPossible);
-      const status = total > 0 && earned >= total ? 'finished' : 'playing';
-      const src = trackByGame.get(m.gid);
-      if (src === undefined) {
-        newTracks.push({
-          user_id: user.id, game_id: m.gid, status, platform: m.platform,
-          achievements_earned: earned, achievements_total: total,
-          source: 'retroachievements',
-        });
-      } else if (src === 'retroachievements') {
-        await admin.from('game_tracks')
-          .update({ achievements_earned: earned, achievements_total: total, ...(status === 'finished' ? { status } : {}) })
-          .eq('user_id', user.id).eq('game_id', m.gid);
-        updated++;
+    // MODO CRON: sincroniza TODAS as contas vinculadas (estilo PlayTracker)
+    if (cronSecret && req.headers.get('x-cron-secret') === cronSecret) {
+      const accounts = await fetchAll(() =>
+        admin.from('user_accounts').select('user_id, account_id').eq('provider', 'retroachievements'));
+      let ok = 0, failed = 0;
+      for (const acc of accounts) {
+        try {
+          await syncUser(admin, raUser, raKey, acc.user_id as string, acc.account_id as string, byKey);
+          ok++;
+        } catch { failed++; }
+        await new Promise((r) => setTimeout(r, 1200)); // gentileza com a API do RA
       }
-    }
-    for (let i = 0; i < newTracks.length; i += 200) {
-      await admin.from('game_tracks').upsert(newTracks.slice(i, i + 200), { onConflict: 'user_id,game_id' });
+      return json({ ok: true, mode: 'cron', accounts: accounts.length, synced: ok, failed });
     }
 
-    return json({
-      ok: true,
-      ra_games: games.length,
-      matched: matched.length,
-      tracks_added: newTracks.length,
-      tracks_updated: updated,
-      unmatched: misses.length + unmatchedConsole,
-      sample_misses: misses.slice(0, 10),
+    // MODO USUÁRIO: o import é na conta do caller
+    const asUser = createClient(url, anonKey, {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
     });
+    const { data: { user } } = await asUser.auth.getUser();
+    if (!user) return json({ error: 'Não autenticado.' }, 401);
+
+    const body = await req.json().catch(() => ({}));
+    const target = String(body.ra_user ?? '').trim();
+    if (!target) return json({ error: 'Informe o usuário do RetroAchievements.' }, 400);
+
+    const result = await syncUser(admin, raUser, raKey, user.id, target, byKey);
+    return json({ ok: true, ...result });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }

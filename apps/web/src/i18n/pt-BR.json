@@ -375,6 +375,14 @@
     "copyPatchedNone": "Sem patch gravado",
     "playableChip": "Jogável em {{lang}} ({{count}})",
     "playableHint": "Tem tradução de fã em {{lang}}",
+    "lastSession": "Última atividade",
+    "today": "hoje",
+    "daysAgo_one": "há {{count}} dia",
+    "daysAgo_other": "há {{count}} dias",
+    "monthsAgo_one": "há {{count}} mês",
+    "monthsAgo_other": "há {{count}} meses",
+    "yearsAgo_one": "há {{count}} ano",
+    "yearsAgo_other": "há {{count}} anos",
     "ownThis": "Tenho este jogo (+ cópia)",
     "batchAdd": "Adicionar vários",
     "batchTitle": "Adicionar vários jogos",
@@ -389,6 +397,20 @@
     "artModeHint": "Alterna a arte das caixinhas",
     "artBox": "Arte: Caixa",
     "artStore": "Arte: Loja"
+  },
+  "notif": {
+    "title": "Notificações",
+    "empty": "Nada por aqui ainda — quando um jogo do seu backlog ganhar tradução, você fica sabendo.",
+    "backlogTranslation": "{{game}} do seu backlog ganhou tradução ({{lang}})!"
+  },
+  "scene": {
+    "kicker": "// a cena em números",
+    "title": "Cena",
+    "subtitle": "As traduções e hacks mais zerados pela comunidade — prova social de quem faz e descoberta pra quem joga.",
+    "completions_one": "{{count}} zerada",
+    "completions_other": "{{count}} zeradas",
+    "emptyTitle": "Ainda sem zeradas com patch",
+    "emptyText": "Quando a comunidade registrar zeradas informando a tradução/hack usada, o ranking nasce aqui."
   },
   "vitrine": {
     "title": "Vitrine de {{user}}",

@@ -206,7 +206,7 @@ function MyShelfStrip() {
   const { data: tracks = [] } = useLibrary(me?.id ?? undefined);
   const gameIds = useMemo(() => tracks.map((x) => x.game_id), [tracks]);
   const { data: langsByGame } = useTranslationLangs(gameIds);
-  if (!me || tracks.length === 0) return null;
+  if (!me?.username || tracks.length === 0) return null;
 
   const uiCode = uiLangCode(i18n.language || 'pt-BR');
   const playing = tracks.filter((x) => x.status === 'playing').slice(0, 6);
