@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useFlip } from '@/hooks/useFlip';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Target, Download } from 'lucide-react';
+import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download } from 'lucide-react';
 import { useProfileByUsername } from '@/hooks/useProfile';
 import {
   useLibrary, useLibraryCopies, useUserPlaythroughs, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
@@ -12,21 +12,7 @@ import { BatchAdd } from '@/components/entities/BatchAdd';
 import { FadeImg } from '@/components/ui/FadeImg';
 import { useAuth } from '@/auth/AuthProvider';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
-
-/**
- * Cor-tema por plataforma: filtrar a estante por uma plataforma muda o accent
- * (borda/hover/badges) pra "cara" daquele console.
- */
-const PLATFORM_THEMES: Record<string, string> = {
-  SNES: '#a191dd', NES: '#e05a5a', N64: '#3aa655', GameCube: '#7a5fd0',
-  Wii: '#9db7d4', 'Wii U': '#1fa8c9', Switch: '#e60012',
-  'Game Boy': '#8bac0f', GBC: '#7b4fd8', GBA: '#5c67d8', NDS: '#8f9aa6', '3DS': '#d94a4a',
-  Genesis: '#3b6fd4', 'Master System': '#d43b3b', 'Game Gear': '#333c8f',
-  'Sega CD': '#4a90d9', Saturn: '#5b7d9e', Dreamcast: '#f0862e',
-  PS1: '#8f9aa6', PS2: '#3b53a8', PS3: '#5b6f8f', PS4: '#2e6db4', PS5: '#e8ecf2', PSP: '#4a5d78', 'PS Vita': '#2e6db4',
-  Xbox: '#107c10', 'Xbox 360': '#7ab648', 'Xbox One': '#107c10',
-  PC: '#66c0f4', DOS: '#c4b26a', Arcade: '#f0c02e', 'TG-16': '#f07d2e', 'Neo Geo': '#2e6db4', FDS: '#c9302c',
-};
+import { PLATFORM_THEMES } from '@/lib/platformThemes';
 
 /** Exporta a biblioteca como JSON (tracks + cópias) via download no navegador. */
 function exportLibrary(tracks: TrackWithGame[], copies: { game_id: string; platform: string; distribution: string; store: string | null; price_paid: number | null }[]) {
@@ -186,6 +172,9 @@ export function Library() {
           >
             <Sparkles aria-hidden /> {t('library:showcase')}
           </button>
+          <Link to={`/u/${username}/vitrine`} className="lib-stat lib-showcase">
+            <Store aria-hidden /> {t('vitrine:viewVitrine')}
+          </Link>
           {showcase && (
             <button
               type="button"

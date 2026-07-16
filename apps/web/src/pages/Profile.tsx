@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { User, Pencil, Check, X, Library as LibraryIcon, UserPlus, UserMinus, Trophy } from 'lucide-react';
+import { User, Pencil, Check, X, Library as LibraryIcon, Store, UserPlus, UserMinus, Trophy } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
@@ -71,9 +71,14 @@ export function Profile() {
               <> · {t('profile:followers', { count: followCounts.followers })} · {t('profile:following', { count: followCounts.following })}</>
             )}
           </p>
-          <Link to={`/u/${profile.username}/library`} className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 'var(--s3)' }}>
-            <LibraryIcon aria-hidden style={{ width: 15, height: 15 }} /> {t('library:viewLibrary')}
-          </Link>
+          <span style={{ display: 'inline-flex', gap: 'var(--s4)', marginTop: 'var(--s3)' }}>
+            <Link to={`/u/${profile.username}/library`} className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <LibraryIcon aria-hidden style={{ width: 15, height: 15 }} /> {t('library:viewLibrary')}
+            </Link>
+            <Link to={`/u/${profile.username}/vitrine`} className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Store aria-hidden style={{ width: 15, height: 15 }} /> {t('vitrine:viewVitrine')}
+            </Link>
+          </span>
           <BacklogProgress tracks={libTracks} />
         </div>
         {isMe ? <ProfileEditor profile={profile} /> : <FollowButton userId={profile.id} />}

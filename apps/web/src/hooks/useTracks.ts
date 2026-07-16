@@ -7,8 +7,8 @@ import { useAuth } from '@/auth/AuthProvider';
 
 const db = () => getSupabase() as unknown as SupabaseClient;
 
-export type TrackStatus = 'playing' | 'finished' | 'abandoned' | 'backlog';
-export const TRACK_STATUSES: TrackStatus[] = ['playing', 'finished', 'abandoned', 'backlog'];
+export type TrackStatus = 'playing' | 'finished' | 'abandoned' | 'backlog' | 'owned';
+export const TRACK_STATUSES: TrackStatus[] = ['playing', 'finished', 'abandoned', 'backlog', 'owned'];
 
 export interface Track {
   user_id: string;
@@ -130,10 +130,23 @@ export function useAddCopy(gameId: string | undefined) {
       if (!uid || !gameId) throw new Error('Não autenticado.');
       const { error } = await db().from('game_copies').insert({ ...copy, user_id: uid, game_id: gameId });
       if (error) throw error;
+      // cópia sem status = jogo "Na coleção": entra na biblioteca automaticamente
+      // (nunca sobrescreve um status já marcado — só cria quando não existe track)
+      const { count } = await db().from('game_tracks')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', uid).eq('game_id', gameId);
+      if ((count ?? 0) === 0) {
+        await db().from('game_tracks').insert({
+          user_id: uid, game_id: gameId, status: 'owned', platform: copy.platform, source: 'manual',
+        });
+      }
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['copies', gameId] });
       void qc.invalidateQueries({ queryKey: ['libraryCopies'] });
+      void qc.invalidateQueries({ queryKey: ['track', gameId] });
+      void qc.invalidateQueries({ queryKey: ['trackMap'] });
+      void qc.invalidateQueries({ queryKey: ['library'] });
     },
   });
 }

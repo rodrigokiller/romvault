@@ -269,10 +269,12 @@
     "status_finished": "Finished",
     "status_abandoned": "Abandoned",
     "status_backlog": "Want to play",
+    "status_owned": "In collection",
     "added_playing": "Marked as playing!",
     "added_finished": "Marked as finished!",
     "added_abandoned": "Marked as abandoned.",
     "added_backlog": "Added to your backlog!",
+    "added_owned": "Added to your collection!",
     "statGames_one": "{{count}} game",
     "statGames_other": "{{count}} games",
     "statHours": "{{count}}h played",
@@ -296,7 +298,7 @@
     "runsTitle_other": "Completions ({{count}})",
     "runAdd": "Log completion",
     "runConfirm": "Save",
-    "runAdded": "Completion logged! 🏆",
+    "runAdded": "Completion logged!",
     "runRemove": "Remove completion",
     "runPrecision": "Date precision",
     "runDateRequired": "A date is required (day, month or at least the year).",
@@ -333,6 +335,16 @@
     "artModeHint": "Toggles the box art style",
     "artBox": "Art: Box",
     "artStore": "Art: Store"
+  },
+  "vitrine": {
+    "title": "{{user}}'s showcase",
+    "subtitle_zero": "No games in the collection yet.",
+    "subtitle_one": "{{count}} game in the collection",
+    "subtitle_other": "{{count}} games in the collection",
+    "viewVitrine": "View showcase",
+    "all": "All",
+    "emptyTitle": "Empty showcase",
+    "emptyText": "The showcase displays the games you OWN (physical or digital copies). Add copies from each game's page."
   },
   "users": {
     "kicker": "// community",

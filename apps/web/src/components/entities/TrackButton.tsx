@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Gamepad2, CheckCircle2, XCircle, Bookmark, Library, Trash2, ChevronDown } from 'lucide-react';
+import { Gamepad2, CheckCircle2, XCircle, Bookmark, Library, Trash2, ChevronDown, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/auth/AuthProvider';
@@ -13,6 +13,7 @@ export const STATUS_ICON: Record<TrackStatus, typeof Gamepad2> = {
   finished: CheckCircle2,
   abandoned: XCircle,
   backlog: Bookmark,
+  owned: Archive,
 };
 
 /** "Adicionar à biblioteca" com escolha de status (jogando/terminado/...). */

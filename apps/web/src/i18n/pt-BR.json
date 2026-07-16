@@ -269,10 +269,12 @@
     "status_finished": "Terminado",
     "status_abandoned": "Abandonado",
     "status_backlog": "Quero jogar",
+    "status_owned": "Na coleção",
     "added_playing": "Marcado como jogando!",
     "added_finished": "Marcado como terminado!",
     "added_abandoned": "Marcado como abandonado.",
     "added_backlog": "Adicionado à sua lista de desejos!",
+    "added_owned": "Adicionado à coleção!",
     "statGames_one": "{{count}} jogo",
     "statGames_other": "{{count}} jogos",
     "statHours": "{{count}}h jogadas",
@@ -296,7 +298,7 @@
     "runsTitle_other": "Zeradas ({{count}})",
     "runAdd": "Registrar zerada",
     "runConfirm": "Salvar",
-    "runAdded": "Zerada registrada! 🏆",
+    "runAdded": "Zerada registrada!",
     "runRemove": "Remover zerada",
     "runPrecision": "Precisão da data",
     "runDateRequired": "Informe a data (dia, mês ou pelo menos o ano).",
@@ -333,6 +335,16 @@
     "artModeHint": "Alterna a arte das caixinhas",
     "artBox": "Arte: Caixa",
     "artStore": "Arte: Loja"
+  },
+  "vitrine": {
+    "title": "Vitrine de {{user}}",
+    "subtitle_zero": "Nenhum jogo na coleção ainda.",
+    "subtitle_one": "{{count}} jogo na coleção",
+    "subtitle_other": "{{count}} jogos na coleção",
+    "viewVitrine": "Ver vitrine",
+    "all": "Todos",
+    "emptyTitle": "Vitrine vazia",
+    "emptyText": "A vitrine mostra os jogos que você TEM (cópias físicas ou digitais). Adicione cópias pela página de cada jogo."
   },
   "users": {
     "kicker": "// comunidade",

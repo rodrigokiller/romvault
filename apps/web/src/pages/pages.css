@@ -2215,6 +2215,7 @@
 .badge-finished svg { color: var(--blue); }
 .badge-abandoned svg { color: var(--red); }
 .badge-backlog svg { color: var(--amber); }
+.badge-owned svg { color: var(--muted-bright, var(--muted)); }
 
 .shelf-title {
   color: var(--ink-bright);
@@ -2350,4 +2351,99 @@
   width: 15px;
   height: 15px;
   color: var(--muted);
+}
+
+/* ── VITRINE (v2) — página própria, grid de proporção natural estilo NSO ────── */
+.vitrine {
+  position: relative;
+  min-height: 60vh;
+  overflow: hidden;
+}
+/* fundo tipográfico da plataforma (placeholder até os desenhos do console) */
+.vitrine-bg {
+  position: fixed;
+  right: -2vw;
+  bottom: -4vh;
+  z-index: 0;
+  font-size: clamp(6rem, 22vw, 20rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--vt-accent, var(--line));
+  opacity: 0.07;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+.vitrine-inner { position: relative; z-index: 1; }
+
+.vitrine-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  padding-block: var(--s6) var(--s4);
+}
+.vitrine-head h1 { margin-top: var(--s2); }
+
+.vitrine-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s5);
+}
+.vitrine-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.vitrine-tab:hover { border-color: var(--line-bright); color: var(--ink); }
+.vitrine-tab.is-active { color: var(--accent); border-color: currentColor; }
+
+/*
+ * Grid da vitrine: masonry por colunas CSS. Cada card mantém a PROPORÇÃO
+ * NATURAL da arte — box paisagem (SNES/N64) ocupa a largura da coluna e fica
+ * baixo; box retrato (PS1/Switch) fica alto. Sem tarjas, sem crop.
+ */
+.vitrine-grid {
+  columns: 6 150px;
+  column-gap: var(--s3);
+  padding-bottom: var(--s7);
+}
+.vitrine-card {
+  display: block;
+  break-inside: avoid;
+  margin-bottom: var(--s3);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  transition: border-color 0.15s ease-out, transform 0.15s ease-out;
+}
+.vitrine-card:hover {
+  border-color: var(--vt-accent, var(--accent));
+  transform: translateY(-2px);
+}
+.vitrine-card img {
+  display: block;
+  width: 100%;
+  height: auto; /* proporção natural: a largura manda, a altura acompanha */
+}
+.vitrine-card-fallback {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  padding: var(--s3);
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vitrine-card { transition: none; }
+  .vitrine-card:hover { transform: none; }
 }
