@@ -8,7 +8,8 @@
  *
  *   npm run import -- --source=mobygames --inspect            # lista plataformas
  *   npm run import -- --source=mobygames --platform=snes --limit=10 --dry
- *   npm run import -- --source=mobygames --platform=snes      # frente/verso/mídia
+ *   npm run import -- --source=mobygames --platform=snes      # 50 jogos (default)
+ *   npm run import -- --source=mobygames --platform=snes --all  # fila inteira
  *
  * Preenche games.metadata.moby = { front, back, media } (copiado pro nosso
  * Storage) e usa a frente como boxart/capa quando faltarem.
@@ -60,7 +61,8 @@ export async function importMobygames(ctx) {
   const rawPlat = flag('platform');
   const ourPlatform = rawPlat && rawPlat !== true ? String(rawPlat) : 'SNES';
   const platKey = Object.keys(PLATFORM_NAMES).find((k) => norm(k) === norm(ourPlatform)) ?? ourPlatform;
-  const limit = Number(flag('limit', 50)) || 50;
+  // --all = fila inteira da plataforma (fullset); senão --limit (default 50)
+  const limit = flag('all') ? Infinity : (Number(flag('limit', 50)) || 50);
 
   step(`MobyGames — ${platKey} (frente/verso/mídia; 1 req/5,5s — paciência)`);
 
