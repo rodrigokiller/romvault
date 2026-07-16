@@ -9,6 +9,7 @@ import {
 } from '@/hooks/useTracks';
 import { STATUS_ICON } from '@/components/entities/TrackButton';
 import { BatchAdd } from '@/components/entities/BatchAdd';
+import { FadeImg } from '@/components/ui/FadeImg';
 import { useAuth } from '@/auth/AuthProvider';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 
@@ -318,11 +319,11 @@ function ShelfItem({ track, runs, showcase, artMode }: { track: TrackWithGame; r
     <Link to={`/games/${g.slug}`} className="shelf-item" title={g.title} data-flip={track.game_id}>
       <div className={`shelf-cover status-${track.status} ${box3d ? 'shelf-cover-3d' : ''}`}>
         {box3d ? (
-          <img src={box3d} alt={g.title} loading="lazy" />
+          <FadeImg src={box3d} alt={g.title} />
         ) : boxart ? (
-          <img src={boxart} alt={g.title} loading="lazy" style={{ objectFit: 'contain' }} />
+          <FadeImg src={boxart} alt={g.title} style={{ objectFit: 'contain' }} />
         ) : g.cover_url || g.thumbnail ? (
-          <img src={g.cover_url ?? g.thumbnail ?? ''} alt={g.title} loading="lazy" />
+          <FadeImg src={g.cover_url ?? g.thumbnail ?? ''} alt={g.title} />
         ) : (
           <span className="shelf-cover-fallback">{g.title}</span>
         )}

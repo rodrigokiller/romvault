@@ -72,6 +72,23 @@ SS_DEVPASSWORD=???         #   → precisa PEDIR (passos abaixo)
 > A doação de €10 vale pra **sua conta de usuário** (mais requests/threads por
 > dia) — o devid é outra coisa: identifica o app e é liberado pelo fórum.
 
+## Import da Steam (biblioteca do usuário — não é catálogo)
+
+Diferente dos outros (que populam o CATÁLOGO), o Steam import traz a
+**biblioteca de um usuário** pros tracks dele:
+
+- Onde: **Configurações → Importar da Steam** (dentro do site, logado).
+- O que traz: jogos + horas jogadas; cria cópias digitais (loja "Steam") e
+  tracks `source='steam'`; **nunca sobrescreve** status marcado à mão.
+- Requisitos (uma vez): perfil Steam com "detalhes do jogo" públicos, e:
+  ```
+  supabase secrets set STEAM_API_KEY=xxx   # grátis: steamcommunity.com/dev/apikey
+  supabase functions deploy steam-import --no-verify-jwt
+  ```
+- Aceita SteamID64 (76561198...) ou vanity URL (o apelido da URL do perfil).
+- Melhorias futuras (roadmap): login OpenID direto com a conta Steam (em vez
+  de digitar o ID) e importação de conquistas por jogo.
+
 ## E o libretro × screenscraper?
 
 Sim, se complementam: **libretro** = rápido, grátis, sem burocracia, só a

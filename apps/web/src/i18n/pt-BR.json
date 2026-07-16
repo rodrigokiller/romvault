@@ -419,7 +419,11 @@
     "syncRun": "Sincronizar",
     "syncDone": "Sync concluído: {{imported}} importados, {{enriched}} capas preenchidas, {{skipped}} pulados.",
     "syncNote": "Requer: supabase functions deploy igdb-sync --no-verify-jwt (e os secrets do TWITCH).",
-    "syncNotDeployed": "Não consegui alcançar a função. Faça o deploy: supabase functions deploy igdb-sync --no-verify-jwt"
+    "syncNotDeployed": "Não consegui alcançar a função. Faça o deploy: supabase functions deploy igdb-sync --no-verify-jwt",
+    "artTotal": "{{count}} jogos",
+    "artNoCover": "{{count}} sem capa",
+    "artNoBoxart": "{{count}} sem boxart",
+    "artBox3d": "{{count}} com box 3D"
   },
   "community": {
     "reviewsTitle": "Avaliações",

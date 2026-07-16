@@ -26,6 +26,38 @@ const IGDB_PLATFORMS = [
   'pc', 'arcade', 'tg16', 'neogeo',
 ];
 
+/** Cobertura de arte do catálogo: sem capa / sem boxart / com box3D. */
+function ArtCoverage() {
+  const { t } = useTranslation();
+  const { data } = useQuery({
+    queryKey: ['artCoverage'],
+    enabled: env.configured,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const head = { count: 'exact' as const, head: true };
+      const [a, b, cQ, d] = await Promise.all([
+        db().from('games').select('*', head),
+        db().from('games').select('*', head).is('cover_url', null),
+        db().from('games').select('*', head).is('metadata->boxart', null),
+        db().from('games').select('*', head).not('metadata->box3d', 'is', null),
+      ]);
+      return {
+        total: a.count ?? 0, noCover: b.count ?? 0,
+        noBoxart: cQ.count ?? 0, withBox3d: d.count ?? 0,
+      };
+    },
+  });
+  if (!data) return null;
+  return (
+    <div className="art-coverage mono">
+      <span>{t('admin:artTotal', { count: data.total })}</span>
+      <span className={data.noCover > 0 ? 'art-warn' : 'art-ok'}>{t('admin:artNoCover', { count: data.noCover })}</span>
+      <span className={data.noBoxart > 0 ? 'art-warn' : 'art-ok'}>{t('admin:artNoBoxart', { count: data.noBoxart })}</span>
+      <span className="art-ok">{t('admin:artBox3d', { count: data.withBox3d })}</span>
+    </div>
+  );
+}
+
 /** Dispara a Edge Function `igdb-sync` (só admin; requer deploy + secrets). */
 function IgdbSyncPanel() {
   const { t } = useTranslation();
@@ -144,6 +176,8 @@ export function Admin() {
         <h1>{t('admin:title')}</h1>
         <p className="page-sub">{t('admin:subtitle')}</p>
       </header>
+
+      <ArtCoverage />
 
       <IgdbSyncPanel />
 

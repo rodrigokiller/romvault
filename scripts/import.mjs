@@ -462,6 +462,63 @@ async function importIgdb(sb) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * MODO PURGE-MODS — remove do catalogo os jogos importados ANTES do filtro de
+ * game_type que na verdade sao mods/DLCs/bundles no IGDB (hacks como jogos).
+ * So apaga quem NAO tem nada pendurado (hacks/trads/tracks/copias); os demais
+ * ficam e sao listados. SEMPRE rode --dry primeiro.
+ *   npm run import -- --source=purge-mods --dry
+ * ═══════════════════════════════════════════════════════════════════════════ */
+const BAD_GAME_TYPES = new Set([1, 3, 5, 6, 7, 13, 14]); // dlc/bundle/MOD/episode/season/pack/update
+
+async function importPurgeMods(sb) {
+  step('Purge de mods/DLCs (jogos que nao sao jogos)');
+  const auth = await igdbToken();
+  const games = await fetchAll(() =>
+    sb.from('games').select('id, title, slug, igdb_id').not('igdb_id', 'is', null));
+  log(`  ${games.length} jogos com igdb_id para checar`);
+
+  // pergunta o game_type ao IGDB em lotes de 400 ids
+  const badIgdb = new Set();
+  for (let i = 0; i < games.length; i += 400) {
+    const ids = games.slice(i, i + 400).map((g) => g.igdb_id);
+    const res = await igdbQuery(auth, 'games', `fields id,game_type; where id = (${ids.join(',')}); limit 500;`);
+    for (const r of res ?? []) {
+      const gt = typeof r.game_type === 'object' ? r.game_type?.id : r.game_type;
+      if (BAD_GAME_TYPES.has(Number(gt))) badIgdb.add(r.id);
+    }
+    itemLog(i + 400, c.dim(`  … checados ${Math.min(i + 400, games.length)}`));
+    await sleep(300);
+  }
+  const bad = games.filter((g) => badIgdb.has(Number(g.igdb_id)));
+  log(`  ${bad.length} identificados como mod/DLC/bundle no IGDB`);
+
+  const stats = { apagados: 0, mantidos_com_filhos: 0, erros: 0 };
+  for (const g of bad) {
+    // tem filhos? entao alguem referenciou — nao apaga, so avisa
+    const [h, tr, gt, gc] = await Promise.all([
+      sb.from('romhacks').select('*', { count: 'exact', head: true }).eq('game_id', g.id),
+      sb.from('translations').select('*', { count: 'exact', head: true }).eq('game_id', g.id),
+      sb.from('game_tracks').select('*', { count: 'exact', head: true }).eq('game_id', g.id),
+      sb.from('game_copies').select('*', { count: 'exact', head: true }).eq('game_id', g.id),
+    ]);
+    const children = (h.count ?? 0) + (tr.count ?? 0) + (gt.count ?? 0) + (gc.count ?? 0);
+    if (children > 0) {
+      stats.mantidos_com_filhos++;
+      log(c.amber(`  ≠ mantido (tem ${children} vinculos): ${g.title}`));
+      continue;
+    }
+    if (DRY) { stats.apagados++; itemLog(stats.apagados, `  ${c.dim('[dry]')} apagar: ${g.title} (${g.slug})`); continue; }
+    await sb.from('id_map').delete().eq('romvault_id', g.id);
+    const { error } = await sb.from('games').delete().eq('id', g.id);
+    if (error) { stats.erros++; continue; }
+    stats.apagados++;
+    itemLog(stats.apagados, `  ${c.red('-')} ${g.title}`);
+  }
+  if (DRY) log(c.amber('\n(dry-run — rode sem --dry para apagar de verdade)'));
+  return stats;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * MODO COVERS — preenche capa/screenshots de jogos SEM imagem buscando no IGDB
  * por título (+ checagem de plataforma). Útil pros jogos criados pelo RHDN/
  * PO.B.R.E, que entram sem arte.
@@ -679,6 +736,8 @@ async function main() {
     stats = await importPobre({ sb, flag, DRY, log, c, step, slugifyText, itemLog, fetchAll });
   } else if (SOURCE === 'covers') {
     stats = await importCovers(sb);
+  } else if (SOURCE === 'purge-mods') {
+    stats = await importPurgeMods(sb);
   } else if (SOURCE === 'covers-libretro' || SOURCE === 'libretro') {
     const { importCoversLibretro } = await import('./lib/libretro.mjs');
     stats = await importCoversLibretro({ sb, flag, DRY, log, c, step, itemLog, fetchAll });

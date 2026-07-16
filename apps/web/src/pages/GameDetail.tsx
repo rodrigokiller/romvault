@@ -13,7 +13,7 @@ import { TrackButton } from '@/components/entities/TrackButton';
 import { CopiesWidget } from '@/components/entities/CopiesWidget';
 import { PlaythroughsWidget } from '@/components/entities/PlaythroughsWidget';
 import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
-import { langBadge } from '@/hooks/useTranslationLangs';
+import { langCode, uiLangCode } from '@/hooks/useTranslationLangs';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
@@ -26,7 +26,7 @@ function humanize(slug: string): string {
 type Row = Record<string, unknown>;
 
 export function GameDetail() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { slug } = useParams<{ slug: string }>();
   const { data: game, isLoading } = useGame(slug);
   const [tab, setTab] = useState('overview');
@@ -92,12 +92,16 @@ export function GameDetail() {
                 <Badge key={p} tone="accent">{p}</Badge>
               ))}
               {(() => {
-                const badges = [...new Set((translations.data ?? [])
-                  .map((tr) => tr.language && langBadge(tr.language))
-                  .filter(Boolean) as string[])];
-                return badges.length > 0 ? (
-                  <span className="chip" title={t('games:hasTranslations')}>{badges.join(' ')}</span>
-                ) : null;
+                const ui = uiLangCode(i18n.language || 'pt-BR');
+                const codes = [...new Set((translations.data ?? [])
+                  .map((tr) => tr.language && langCode(tr.language))
+                  .filter(Boolean) as string[])]
+                  .sort((a, b) => (a === ui ? -1 : b === ui ? 1 : a.localeCompare(b)));
+                return codes.map((code) => (
+                  <span key={code} className={`lang-chip ${code === ui ? 'is-ui' : ''}`} title={t('games:hasTranslations')}>
+                    {code}
+                  </span>
+                ));
               })()}
             </div>
           )}

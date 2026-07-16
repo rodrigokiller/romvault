@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
-import { Gamepad2, CalendarClock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Gamepad2, CalendarClock, Languages } from 'lucide-react';
 import type { Game } from '@romvault/core';
 import { Card } from '@/components/ui/Card';
+import { FadeImg } from '@/components/ui/FadeImg';
 import { Badge } from '@/components/ui/Badge';
+import { uiLangCode } from '@/hooks/useTranslationLangs';
 import { QuickActions } from './QuickActions';
 
 /**
@@ -12,20 +15,24 @@ import { QuickActions } from './QuickActions';
  * vindas em lote da página (useTranslationLangs) — não por card.
  */
 export function GameCard({ game, translationBadges }: { game: Game; translationBadges?: string[] }) {
+  const { t, i18n } = useTranslation();
+  // selinho SO quando ha traducao no idioma DA INTERFACE (pt-BR -> BR)
+  const uiCode = uiLangCode(i18n.language || 'pt-BR');
+  const hasUiLang = translationBadges?.includes(uiCode) ?? false;
   return (
     <Link to={`/games/${game.slug}`} style={{ display: 'block' }}>
       <Card interactive padSm>
         <div className="tile">
           <div className="tile-thumb tile-cover">
             {game.cover_url || game.thumbnail ? (
-              <img src={game.cover_url ?? game.thumbnail ?? ''} alt={game.title} loading="lazy" />
+              <FadeImg src={game.cover_url ?? game.thumbnail ?? ''} alt={game.title} />
             ) : (
               <Gamepad2 aria-hidden />
             )}
             <QuickActions game={game} translationBadges={translationBadges} />
-            {translationBadges && translationBadges.length > 0 && (
-              <span className="tile-langs" title={translationBadges.join(' ')}>
-                {translationBadges.slice(0, 3).join('')}
+            {hasUiLang && (
+              <span className="tile-langs" title={t('games:hasTranslations')}>
+                <Languages aria-hidden /> {uiCode}
               </span>
             )}
           </div>

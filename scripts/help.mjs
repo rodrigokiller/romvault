@@ -34,6 +34,7 @@ row('npm run import -- --source=covers-libretro', 'BOX ART real (libretro → no
 row('npm run import -- --source=covers-libretro --backfill', 'boxart tb p/ quem JÁ tem capa de loja');
 row('npm run import -- --source=screenscraper --inspect', 'box 3D/verso (requer conta dev SS_*)');
 row('npm run import -- --source=all', 'pipeline: dataset→dedupe→covers→libretro');
+row('npm run import -- --source=purge-mods --dry', 'remove hacks/DLCs importados como jogos');
 
 head('Manutenção');
 row('npm run import -- --source=dedupe --dry', 'lista jogos duplicados (SEMPRE --dry antes)');

@@ -165,11 +165,11 @@ export function QuickActions({ game, translationBadges }: { game: Game; translat
                   {(game.platforms ?? []).slice(0, 4).map((p) => (
                     <Badge key={p} tone="accent">{p}</Badge>
                   ))}
-                  {translationBadges && translationBadges.length > 0 && (
-                    <span className="chip" title={t('games:hasTranslations')}>
-                      {translationBadges.slice(0, 4).join(' ')}
+                  {(translationBadges ?? []).map((code) => (
+                    <span key={code} className="lang-chip" title={t('games:hasTranslations')}>
+                      {code}
                     </span>
-                  )}
+                  ))}
                 </div>
                 <div className="tile-meta" style={{ marginTop: 'var(--s2)' }}>
                   {game.release_date && <span>{game.release_date.slice(0, 4)}</span>}

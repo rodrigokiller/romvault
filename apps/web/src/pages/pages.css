@@ -1685,17 +1685,66 @@
 }
 .collection-hero-body { max-width: 70ch; }
 
-/* selinho de idiomas de tradução no card (🇧🇷 …) */
+/* selinho "tem tradução no MEU idioma" no card — legível: accent + texto escuro */
 .tile-langs {
   position: absolute;
   bottom: 6px;
   left: 6px;
-  padding: 1px 5px;
-  background: rgba(11, 14, 16, 0.85);
-  border: 1px solid var(--line-bright);
-  font-size: 0.78rem;
-  line-height: 1.4;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  background: var(--accent);
+  color: #06110c;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
+.tile-langs svg { width: 11px; height: 11px; }
+
+/* chips de código de idioma (BR EN PL…) no quick-view e na página do jogo */
+.lang-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid var(--line-bright);
+  background: var(--panel-2);
+  color: var(--ink-bright);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+.lang-chip.is-ui { border-color: var(--accent); color: var(--accent); }
+
+/* blur-up: imagens revelam suave ao carregar */
+.fade-img {
+  opacity: 0;
+  filter: blur(8px);
+  transition: opacity 320ms var(--ease), filter 380ms var(--ease);
+}
+.fade-img.is-loaded {
+  opacity: 1;
+  filter: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-img { opacity: 1; filter: none; transition: none; }
+}
+
+/* cobertura de arte (admin) */
+.art-coverage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 0.78rem;
+  margin-bottom: var(--s5);
+}
+.art-warn { color: var(--amber); }
+.art-ok { color: var(--accent); }
 
 /* ── Comunidade (/users) ──────────────────────────────────────────────────── */
 .users-grid {

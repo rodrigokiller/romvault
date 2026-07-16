@@ -5,29 +5,41 @@ import { env } from '@/lib/env';
 
 const db = () => getSupabase() as unknown as SupabaseClient;
 
-/** Idioma -> bandeira/código curto pro selinho dos cards. */
-export function langBadge(language: string): string {
+/**
+ * Idioma -> CÓDIGO curto (sem emoji — proibido no projeto).
+ * Ex.: "Portuguese (Brazil)" -> BR · "English" -> EN · "Polish" -> PL
+ */
+export function langCode(language: string): string {
   const l = language.toLowerCase();
-  if (l.includes('portug') || l.includes('brazil')) return '🇧🇷';
-  if (l.includes('spanish') || l.includes('espa')) return '🇪🇸';
-  if (l.includes('english') || l.includes('ingl')) return '🇺🇸';
-  if (l.includes('french') || l.includes('franc')) return '🇫🇷';
-  if (l.includes('german') || l.includes('alem')) return '🇩🇪';
-  if (l.includes('italian') || l.includes('ital')) return '🇮🇹';
-  if (l.includes('polish')) return '🇵🇱';
-  if (l.includes('russian')) return '🇷🇺';
-  if (l.includes('chinese')) return '🇨🇳';
-  if (l.includes('korean')) return '🇰🇷';
-  if (l.includes('japanese') || l.includes('japon')) return '🇯🇵';
-  if (l.includes('dutch')) return '🇳🇱';
-  if (l.includes('swedish')) return '🇸🇪';
-  if (l.includes('catalan')) return '🏳️';
-  return '🌐';
+  if (l.includes('brazil') || l.includes('brasil') || (l.includes('portug') && l.includes('br'))) return 'BR';
+  if (l.includes('portug')) return 'PT';
+  if (l.includes('english') || l.includes('ingl')) return 'EN';
+  if (l.includes('spanish') || l.includes('espa')) return 'ES';
+  if (l.includes('french') || l.includes('franc')) return 'FR';
+  if (l.includes('german') || l.includes('alem')) return 'DE';
+  if (l.includes('italian') || l.includes('ital')) return 'IT';
+  if (l.includes('polish') || l.includes('polon')) return 'PL';
+  if (l.includes('russian') || l.includes('russo')) return 'RU';
+  if (l.includes('chinese') || l.includes('chin')) return 'ZH';
+  if (l.includes('korean') || l.includes('corea')) return 'KO';
+  if (l.includes('japanese') || l.includes('japon')) return 'JA';
+  if (l.includes('dutch') || l.includes('holand')) return 'NL';
+  if (l.includes('swedish') || l.includes('sueco')) return 'SE';
+  if (l.includes('catalan') || l.includes('catal')) return 'CA';
+  if (l.includes('arabic') || l.includes('arab')) return 'AR';
+  if (l.includes('greek') || l.includes('grego')) return 'EL';
+  if (l.includes('turkish') || l.includes('turco')) return 'TR';
+  return language.slice(0, 2).toUpperCase();
+}
+
+/** Código do idioma DA INTERFACE (o card só mostra selinho se casar com ele). */
+export function uiLangCode(i18nLanguage: string): string {
+  return i18nLanguage.toLowerCase().startsWith('pt') ? 'BR' : 'EN';
 }
 
 /**
- * Idiomas de tradução disponíveis para um LOTE de jogos (uma query pela página,
- * não uma por card). Retorna Map<game_id, bandeiras únicas ordenadas (BR 1º)>.
+ * Códigos de idioma de tradução disponíveis para um LOTE de jogos (uma query
+ * por página, não por card). Map<game_id, códigos únicos>.
  */
 export function useTranslationLangs(gameIds: string[]) {
   const key = [...gameIds].sort().join(',');
@@ -45,13 +57,12 @@ export function useTranslationLangs(gameIds: string[]) {
       if (error) throw error;
       const map = new Map<string, Set<string>>();
       for (const r of data ?? []) {
-        const badge = langBadge(String(r.language));
-        map.set(r.game_id as string, (map.get(r.game_id as string) ?? new Set()).add(badge));
+        const code = langCode(String(r.language));
+        map.set(r.game_id as string, (map.get(r.game_id as string) ?? new Set()).add(code));
       }
       const out = new Map<string, string[]>();
       for (const [id, set] of map) {
-        // 🇧🇷 sempre primeiro (público-alvo), resto em ordem estável
-        out.set(id, [...set].sort((a, b) => (a === '🇧🇷' ? -1 : b === '🇧🇷' ? 1 : 0)));
+        out.set(id, [...set].sort((a, b) => (a === 'BR' ? -1 : b === 'BR' ? 1 : a.localeCompare(b))));
       }
       return out;
     },
