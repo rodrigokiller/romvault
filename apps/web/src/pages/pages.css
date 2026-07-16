@@ -2454,6 +2454,7 @@
   display: block;
   border: 1px solid var(--line);
   background: var(--panel);
+  perspective: 900px; /* palco do flip frente/verso */
   transition: border-color 0.15s ease-out, transform 0.15s ease-out;
 }
 .vitrine-card:hover {
@@ -2465,6 +2466,57 @@
   width: 100%;
   height: auto; /* proporção natural: a largura manda, a altura acompanha */
 }
+
+/* flip 3D: frente (arte) e verso (scan real do Moby) na mesma caixinha */
+.vitrine-flip {
+  display: block;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.vitrine-card.is-flipped .vitrine-flip { transform: rotateY(180deg); }
+.vitrine-face { display: block; backface-visibility: hidden; }
+.vitrine-face-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  background: var(--panel-2);
+}
+.vitrine-face-back img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* verso preenche a silhueta da frente */
+}
+
+/* botão de virar (embaixo, à direita) */
+.vitrine-flipbtn {
+  top: auto;
+  bottom: 6px;
+  right: 6px;
+}
+.vitrine-flipbtn.is-on { color: var(--accent); border-color: var(--accent); opacity: 1; }
+
+/* modo reordenar: setas grandes (touch-friendly), card não navega */
+.vitrine-move {
+  position: absolute;
+  inset: auto 0 6px 0;
+  display: flex;
+  justify-content: center;
+  gap: var(--s2);
+}
+.vitrine-move button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 30px;
+  background: rgba(11, 14, 16, 0.9);
+  border: 1px solid var(--line-bright);
+  color: var(--ink-bright);
+  cursor: pointer;
+}
+.vitrine-move button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.vitrine-move button:disabled { opacity: 0.35; cursor: default; }
+.vitrine-move svg { width: 16px; height: 16px; }
 .vitrine-card-fallback {
   display: grid;
   place-items: center;
@@ -2594,7 +2646,7 @@
 .spine-digital { border-style: dashed; }
 
 @media (prefers-reduced-motion: reduce) {
-  .vitrine-card, .spine, .vitrine-edit { transition: none; }
+  .vitrine-card, .spine, .vitrine-hover-btn, .vitrine-flip { transition: none; }
   .vitrine-card:hover, .spine:hover { transform: none; }
 }
 
@@ -2639,4 +2691,41 @@
 
 @media (max-width: 560px) {
   .vt-teaser { flex-direction: column; align-items: flex-start; gap: var(--s3); }
+}
+
+/* ── Scans da caixa (frente/verso/mídia do MobyGames etc.) ─────────────────── */
+.scan-strip-wrap { margin-bottom: var(--s5); }
+.scan-strip-title {
+  margin-bottom: var(--s3);
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+.scan-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+.scan-fig { margin: 0; }
+.scan-btn {
+  display: block;
+  padding: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  cursor: zoom-in;
+  transition: border-color 0.15s ease-out;
+}
+.scan-btn:hover { border-color: var(--accent); }
+.scan-btn img {
+  display: block;
+  height: 148px;
+  width: auto;
+  max-width: 260px;
+  object-fit: contain;
+}
+.scan-fig figcaption {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-align: center;
 }

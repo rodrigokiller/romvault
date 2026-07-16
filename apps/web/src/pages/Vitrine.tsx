@@ -3,7 +3,10 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Store, ArrowLeft, Pencil, Upload, Trash2, Rows3, LayoutGrid, Eye, X } from 'lucide-react';
+import {
+  Store, ArrowLeft, Pencil, Upload, Trash2, Rows3, LayoutGrid, Eye, X,
+  Repeat, ChevronLeft, ChevronRight, ArrowLeftRight, Check,
+} from 'lucide-react';
 import type { Game } from '@romvault/core';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
@@ -93,7 +96,29 @@ export function Vitrine() {
   const [view, setView] = useState<string>('all');
   const [artMode, setArtMode] = useState<'box' | 'store'>('box');
   const [spines, setSpines] = useState(false);
+  const [ordering, setOrdering] = useState(false);
   const isMe = Boolean(me && profile && me.id === profile.id);
+
+  /* ── a vitrine lembra como você deixou (modo/arte/view, por vitrine) ── */
+  const prefsKey = profile ? `rv:vitrine:${profile.id}` : null;
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (!prefsKey) return;
+    try {
+      const p = JSON.parse(localStorage.getItem(prefsKey) ?? 'null') as
+        { view?: string; artMode?: 'box' | 'store'; spines?: boolean } | null;
+      if (p) {
+        if (p.view) setView(p.view);
+        if (p.artMode) setArtMode(p.artMode);
+        setSpines(Boolean(p.spines));
+      }
+    } catch { /* prefs corrompidas: ignora */ }
+    hydrated.current = true;
+  }, [prefsKey]);
+  useEffect(() => {
+    if (!prefsKey || !hydrated.current) return;
+    localStorage.setItem(prefsKey, JSON.stringify({ view, artMode, spines }));
+  }, [prefsKey, view, artMode, spines]);
 
   const { data: savedOrder } = useShelfOrder(profile?.id, view);
   const saveOrder = useSaveShelfOrder(view);
@@ -109,6 +134,11 @@ export function Vitrine() {
     return applyOrder(inView, savedOrder);
   }, [owned, view, savedOrder]);
   const accent = view !== 'all' ? THEMES[view] : undefined;
+
+  // view lembrada pode apontar pra uma plataforma que não existe mais
+  useEffect(() => {
+    if (owned.length > 0 && view !== 'all' && !platforms.includes(view)) setView('all');
+  }, [owned.length, view, platforms]);
 
   /* ── drag-and-drop (só o dono): solta ANTES do item alvo e persiste ── */
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -134,6 +164,16 @@ export function Vitrine() {
       onDrop: (e: React.DragEvent) => { e.preventDefault(); drop(i); },
       onDragEnd: () => { setDragIdx(null); setOverIdx(null); },
     };
+  }
+
+  /** Move um item N posições (botões do modo reordenar — funciona no touch). */
+  function moveBy(i: number, delta: number) {
+    const target = i + delta;
+    if (target < 0 || target >= shown.length) return;
+    const ids = shown.map((o) => o.game.id);
+    const [moved] = ids.splice(i, 1);
+    ids.splice(target, 0, moved);
+    saveOrder.mutate(ids, { onError: () => toast.error(t('forms:submitError')) });
   }
   const dragClass = (i: number) =>
     `${dragIdx === i ? 'is-dragging' : ''} ${overIdx === i && dragIdx !== null && dragIdx !== i ? 'is-drop-target' : ''}`;
@@ -182,6 +222,17 @@ export function Vitrine() {
                 onClick={() => setArtMode((m) => (m === 'box' ? 'store' : 'box'))}
               >
                 {artMode === 'box' ? t('library:artBox') : t('library:artStore')}
+              </button>
+            )}
+            {isMe && !spines && (
+              <button
+                type="button"
+                className={`lib-stat lib-showcase ${ordering ? 'is-active' : ''}`}
+                onClick={() => setOrdering((o) => !o)}
+              >
+                {ordering
+                  ? <><Check aria-hidden /> {t('vitrine:orderDone')}</>
+                  : <><ArrowLeftRight aria-hidden /> {t('vitrine:order')}</>}
               </button>
             )}
           </div>
@@ -240,6 +291,10 @@ export function Vitrine() {
                 canEdit={isMe}
                 className={dragClass(i)}
                 dragProps={dragProps(i)}
+                ordering={ordering}
+                onMove={(delta) => moveBy(i, delta)}
+                atStart={i === 0}
+                atEnd={i === shown.length - 1}
               />
             ))}
           </div>
@@ -249,21 +304,26 @@ export function Vitrine() {
   );
 }
 
-/** Card da grade de capas: quick view + editor de arte custom (só o dono). */
+/** Card da grade de capas: quick view, flip do verso, reordenar e arte custom. */
 function VitrineCard({
-  owned: o, artMode, canEdit, className, dragProps,
+  owned: o, artMode, canEdit, className, dragProps, ordering, onMove, atStart, atEnd,
 }: {
   owned: OwnedGame;
   artMode: 'box' | 'store';
   canEdit: boolean;
   className?: string;
   dragProps?: Record<string, unknown>;
+  ordering?: boolean;
+  onMove?: (delta: number) => void;
+  atStart?: boolean;
+  atEnd?: boolean;
 }) {
   const { t } = useTranslation();
   const toast = useToast();
   const setArt = useSetCustomArt();
   const [editing, setEditing] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
+  const [flipped, setFlipped] = useState(false);
   const [url, setUrl] = useState('');
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -277,11 +337,14 @@ function VitrineCard({
     return () => document.removeEventListener('mousedown', onDown);
   }, [editing]);
 
-  const meta = (o.game.metadata as unknown as { box3d?: string; boxart?: string } | null) ?? null;
+  const meta = (o.game.metadata as unknown as {
+    box3d?: string; boxart?: string; moby?: { front?: string; back?: string };
+  } | null) ?? null;
   // prioridade: arte CUSTOM do usuário > (caixa: box3d > boxart > loja) > loja
   const art = o.customArt
     ?? (artMode === 'box' ? (meta?.box3d ?? meta?.boxart ?? o.game.cover_url) : o.game.cover_url)
     ?? o.game.thumbnail;
+  const back = meta?.moby?.back ?? null; // verso real da caixa (scan do Moby)
 
   async function save(value: string | null) {
     try {
@@ -296,30 +359,75 @@ function VitrineCard({
 
   return (
     <div className={`vitrine-card-wrap ${className ?? ''}`} ref={wrapRef} {...dragProps}>
-      <Link to={`/games/${o.game.slug}`} className="vitrine-card" title={o.game.title}>
-        {art ? (
-          <FadeImg src={art} alt={o.game.title} />
-        ) : (
-          <span className="vitrine-card-fallback">{o.game.title}</span>
-        )}
-      </Link>
-      <button
-        type="button"
-        className="vitrine-hover-btn vitrine-eye"
-        title={t('games:quickView')}
-        onClick={() => setViewOpen(true)}
+      <Link
+        to={`/games/${o.game.slug}`}
+        className={`vitrine-card ${flipped ? 'is-flipped' : ''}`}
+        title={o.game.title}
+        onClick={(e) => { if (ordering) e.preventDefault(); }}
       >
-        <Eye aria-hidden />
-      </button>
-      {canEdit && (
-        <button
-          type="button"
-          className="vitrine-hover-btn vitrine-edit"
-          title={t('vitrine:editArt')}
-          onClick={() => { setUrl(o.customArt ?? ''); setEditing((e) => !e); }}
-        >
-          <Pencil aria-hidden />
-        </button>
+        <span className="vitrine-flip">
+          <span className="vitrine-face vitrine-face-front">
+            {art ? (
+              <FadeImg src={art} alt={o.game.title} />
+            ) : (
+              <span className="vitrine-card-fallback">{o.game.title}</span>
+            )}
+          </span>
+          {back && (
+            <span className="vitrine-face vitrine-face-back" aria-hidden={!flipped}>
+              <img src={back} alt="" loading="lazy" />
+            </span>
+          )}
+        </span>
+      </Link>
+      {ordering ? (
+        <span className="vitrine-move">
+          <button
+            type="button" disabled={atStart}
+            title={t('vitrine:moveBack')} aria-label={t('vitrine:moveBack')}
+            onClick={() => onMove?.(-1)}
+          >
+            <ChevronLeft aria-hidden />
+          </button>
+          <button
+            type="button" disabled={atEnd}
+            title={t('vitrine:moveFwd')} aria-label={t('vitrine:moveFwd')}
+            onClick={() => onMove?.(1)}
+          >
+            <ChevronRight aria-hidden />
+          </button>
+        </span>
+      ) : (
+        <>
+          <button
+            type="button"
+            className="vitrine-hover-btn vitrine-eye"
+            title={t('games:quickView')}
+            onClick={() => setViewOpen(true)}
+          >
+            <Eye aria-hidden />
+          </button>
+          {back && (
+            <button
+              type="button"
+              className={`vitrine-hover-btn vitrine-flipbtn ${flipped ? 'is-on' : ''}`}
+              title={t('vitrine:flip')}
+              onClick={() => setFlipped((f) => !f)}
+            >
+              <Repeat aria-hidden />
+            </button>
+          )}
+          {canEdit && (
+            <button
+              type="button"
+              className="vitrine-hover-btn vitrine-edit"
+              title={t('vitrine:editArt')}
+              onClick={() => { setUrl(o.customArt ?? ''); setEditing((e) => !e); }}
+            >
+              <Pencil aria-hidden />
+            </button>
+          )}
+        </>
       )}
       {editing && (
         <div
