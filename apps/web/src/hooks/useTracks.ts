@@ -21,6 +21,8 @@ export interface Track {
   notes: string | null;
   source: string;
   updated_at: string;
+  /** jogo escondido da biblioteca/vitrine públicas (só o dono vê) */
+  is_private?: boolean;
 }
 
 export interface TrackWithGame extends Track {
@@ -150,6 +152,36 @@ export function useAddCopy(gameId: string | undefined) {
       void qc.invalidateQueries({ queryKey: ['track', gameId] });
       void qc.invalidateQueries({ queryKey: ['trackMap'] });
       void qc.invalidateQueries({ queryKey: ['library'] });
+    },
+  });
+}
+
+/**
+ * Privacidade POR JOGO (estilo Steam): marca track E cópias como privados —
+ * a RLS garante que linha privada só sai pro dono; aqui é só o interruptor.
+ */
+export function useSetGamePrivacy() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ gameId, isPrivate }: { gameId: string; isPrivate: boolean }) => {
+      const uid = user?.id;
+      if (!uid) throw new Error('Não autenticado.');
+      const { error: e1 } = await db().from('game_tracks')
+        .update({ is_private: isPrivate })
+        .eq('user_id', uid).eq('game_id', gameId);
+      if (e1) throw e1;
+      const { error: e2 } = await db().from('game_copies')
+        .update({ is_private: isPrivate })
+        .eq('user_id', uid).eq('game_id', gameId);
+      if (e2) throw e2;
+    },
+    onSuccess: (_d, v) => {
+      void qc.invalidateQueries({ queryKey: ['track', v.gameId] });
+      void qc.invalidateQueries({ queryKey: ['copies', v.gameId] });
+      void qc.invalidateQueries({ queryKey: ['library'] });
+      void qc.invalidateQueries({ queryKey: ['libraryCopies'] });
+      void qc.invalidateQueries({ queryKey: ['ownedGames'] });
     },
   });
 }

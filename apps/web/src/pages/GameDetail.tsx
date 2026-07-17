@@ -17,6 +17,7 @@ import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { BoxScans } from '@/components/entities/BoxScans';
 import { AdminItemTools } from '@/components/entities/AdminItemTools';
 import { ReportButton } from '@/components/entities/ReportButton';
+import { PrivacyToggle } from '@/components/entities/PrivacyToggle';
 import { SyncDataPanel } from '@/components/entities/SyncDataPanel';
 import { langCode, uiLangCode } from '@/hooks/useTranslationLangs';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
@@ -151,6 +152,7 @@ export function GameDetail() {
             <div className="detail-actions">
               <PlayInMyLang translations={(translations.data ?? []) as Row[]} />
               <TrackButton gameId={game.id} />
+              <PrivacyToggle gameId={game.id} />
               <FavoriteButton subjectType="game" subjectId={game.id} />
               <ShareButton title={title} />
               <ReportButton subjectType="game" subjectId={game.id} subjectLabel={title} />
@@ -162,6 +164,7 @@ export function GameDetail() {
           {game && (
             <AdminItemTools
               gameId={game.id}
+              gameTitle={game.title}
               dataSource={game.data_source}
               updatedAt={(game as unknown as { updated_at?: string }).updated_at ?? null}
               igdbId={game.igdb_id}

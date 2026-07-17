@@ -345,6 +345,8 @@ function igdbToGame(g, primaryShort) {
     screenshots: (g.screenshots ?? []).map((s) => igdbImage(s.url, 'screenshot_med')).filter(Boolean),
     game_modes: (g.game_modes ?? []).map((x) => x.name).filter(Boolean),
     themes: (g.themes ?? []).map((x) => x.name).filter(Boolean),
+    // +18 (tema Erotic do IGDB): escondido do catálogo por padrão
+    is_adult: (g.themes ?? []).some((x) => x.name === 'Erotic'),
     external_ids: { igdb: g.id },
     data_source: 'igdb',
   };

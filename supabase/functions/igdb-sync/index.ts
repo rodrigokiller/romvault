@@ -98,6 +98,9 @@ function igdbToGame(g: any, primaryShort: string) {
     game_modes: (g.game_modes ?? []).map((x: any) => x.name).filter(Boolean),
     // deno-lint-ignore no-explicit-any
     themes: (g.themes ?? []).map((x: any) => x.name).filter(Boolean),
+    // conteúdo adulto (tema Erotic do IGDB): escondido por padrão no catálogo
+    // deno-lint-ignore no-explicit-any
+    is_adult: (g.themes ?? []).some((x: any) => x.name === 'Erotic'),
     external_ids: { igdb: g.id },
     data_source: 'igdb',
   };
@@ -158,7 +161,11 @@ Deno.serve(async (req: Request) => {
       'platforms.id,platforms.name,game_modes.name,themes.name,franchises.name,collection.name,' +
       'involved_companies.developer,involved_companies.publisher,involved_companies.company.name;';
 
-    let imported = 0, enriched = 0, skipped = 0, mapped = 0;
+    // Auditoria: o loop antigo fazia 2 roundtrips SERIAIS por jogo (até 20k
+    // chamadas = estoura os 400s) e contava erro real como "skipped". Agora:
+    // insert em LOTE por página, cursor persistido POR PÁGINA (timeout não
+    // perde progresso) e contadores separados (dupe ≠ falha).
+    let imported = 0, enriched = 0, skipped_dupe = 0, failed = 0, mapped = 0;
     for (let page = 0; page < pages; page++) {
       // SO JOGOS PUROS: 0=main, 8=remake, 9=remaster, 10=expanded, 11=port.
       // Mods/romhacks (5) vem de fontes proprias (RHDN, SMWC) como romhacks.
@@ -172,6 +179,7 @@ Deno.serve(async (req: Request) => {
       const games = await res.json();
       if (!Array.isArray(games) || games.length === 0) break;
 
+      const toInsert: ReturnType<typeof igdbToGame>[] = [];
       for (const g of games) {
         cursor = Math.max(cursor, g.id);
         const row = igdbToGame(g, primaryShort);
@@ -180,34 +188,57 @@ Deno.serve(async (req: Request) => {
         const ex = byIgdb.get(g.id);
         if (ex) {
           if (!ex.cover_url && row.cover_url) {
-            await admin.from('games').update({ cover_url: row.cover_url, thumbnail: row.thumbnail, screenshots: row.screenshots }).eq('id', ex.id);
-            ex.cover_url = row.cover_url;
-            enriched++;
-          } else skipped++;
+            const { error: upErr } = await admin.from('games')
+              .update({ cover_url: row.cover_url, thumbnail: row.thumbnail, screenshots: row.screenshots })
+              .eq('id', ex.id);
+            if (upErr) { failed++; console.error('igdb-sync enrich:', upErr.message); }
+            else { ex.cover_url = row.cover_url; enriched++; }
+          } else skipped_dupe++;
           continue;
         }
-        if (bySlug.has(row.slug)) { skipped++; continue; }
-
-        const { data: ins, error } = await admin.from('games').upsert(row, { onConflict: 'slug' }).select('id').single();
-        if (error || !ins) { skipped++; continue; }
-        byIgdb.set(g.id, { id: ins.id, cover_url: row.cover_url });
-        bySlug.set(row.slug, ins.id);
-        imported++;
-        const { error: mErr } = await admin.from('id_map').upsert(
-          { romvault_id: ins.id, source, entity, external_id: String(g.id), confidence: 1, match_type: 'igdb_id' },
-          { onConflict: 'source,entity,external_id' },
-        );
-        if (!mErr) mapped++;
+        if (bySlug.has(row.slug)) { skipped_dupe++; continue; }
+        bySlug.set(row.slug, 'pending'); // trava dupe dentro do mesmo lote
+        toInsert.push(row);
       }
+
+      for (let i = 0; i < toInsert.length; i += 200) {
+        const chunk = toInsert.slice(i, i + 200);
+        const { data: ins, error: insErr } = await admin.from('games')
+          .upsert(chunk, { onConflict: 'slug', ignoreDuplicates: true })
+          .select('id, slug, igdb_id');
+        if (insErr) {
+          failed += chunk.length;
+          console.error('igdb-sync games upsert:', insErr.message);
+          continue;
+        }
+        const rows = ins ?? [];
+        imported += rows.length;
+        skipped_dupe += chunk.length - rows.length; // colisao com o banco
+        for (const r of rows) {
+          byIgdb.set(Number(r.igdb_id), { id: r.id, cover_url: true });
+          bySlug.set(r.slug as string, r.id);
+        }
+        if (rows.length > 0) {
+          const idMapRows = rows.map((r) => ({
+            romvault_id: r.id, source, entity, external_id: String(r.igdb_id),
+            confidence: 1, match_type: 'igdb_id',
+          }));
+          const { error: mErr } = await admin.from('id_map')
+            .upsert(idMapRows, { onConflict: 'source,entity,external_id' });
+          if (mErr) console.error('igdb-sync id_map:', mErr.message);
+          else mapped += idMapRows.length;
+        }
+      }
+
+      // cursor por PAGINA: se estourar o tempo, a proxima rodada continua daqui
+      await admin.from('sync_state').upsert(
+        { source, entity, cursor: String(cursor), status: 'idle', last_sync_at: new Date().toISOString(), items_processed: imported },
+        { onConflict: 'source,entity' },
+      );
       if (games.length < limit) break;
     }
 
-    await admin.from('sync_state').upsert(
-      { source, entity, cursor: String(cursor), status: 'idle', last_sync_at: new Date().toISOString(), items_processed: imported },
-      { onConflict: 'source,entity' },
-    );
-
-    return json({ ok: true, platform: platformKey, imported, enriched, skipped, mapped, cursor });
+    return json({ ok: true, platform: platformKey, imported, enriched, skipped: skipped_dupe, skipped_dupe, failed, mapped, cursor });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }

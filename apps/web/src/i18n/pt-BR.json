@@ -349,7 +349,10 @@
     "steamRun": "Importar",
     "steamDone": "Steam: {{games}} jogos lidos, {{tracks}} adicionados à biblioteca ({{created}} jogos novos no catálogo).",
     "steamNote": "Requer a Edge Function steam-import deployada (supabase functions deploy steam-import --no-verify-jwt) e o secret STEAM_API_KEY.",
-    "steamNotDeployed": "Não consegui alcançar a função. Deploy: supabase functions deploy steam-import --no-verify-jwt"
+    "steamNotDeployed": "Não consegui alcançar a função. Deploy: supabase functions deploy steam-import --no-verify-jwt",
+    "adultLabel": "conteúdo adulto (+18)",
+    "adultHide": "Esconder do catálogo (padrão)",
+    "adultShow": "Mostrar"
   },
   "library": {
     "kicker": "// estante de jogos",
@@ -456,7 +459,15 @@
     "order_activity": "Atividade",
     "artModeHint": "Alterna a arte das caixinhas",
     "artBox": "Arte: Caixa",
-    "artStore": "Arte: Loja"
+    "artStore": "Arte: Loja",
+    "privacyBtn": "Privado",
+    "privateBadge": "Privado",
+    "privacyOn": "Jogo marcado como privado: só você vê na biblioteca e na vitrine.",
+    "privacyOff": "Jogo público de novo na sua biblioteca.",
+    "privacyHintOn": "Este jogo está privado (só você vê). Clique pra torná-lo público.",
+    "privacyHintOff": "Esconder este jogo da sua biblioteca e vitrine públicas",
+    "privateChip": "Privados ({{count}})",
+    "privateChipHint": "Mostrar/esconder os jogos que você marcou como privados"
   },
   "ustats": {
     "kicker": "painel do jogador",
@@ -472,7 +483,7 @@
     "vsTitle": "você vs quem você segue ({{count}})",
     "vsYou": "você",
     "vsThem": "média deles",
-    "heatTitle": "Atividade no último ano",
+    "heatTitle": "Atividade em {{year}}",
     "heatDay_one": "{{count}} atividade",
     "heatDay_other": "{{count}} atividades",
     "heatNone": "sem atividade",
@@ -481,7 +492,8 @@
     "platTitle": "Plataformas do período",
     "gamesTitle": "Jogados no período",
     "emptyTitle": "Período sem registros",
-    "emptyText": "Zeradas, syncs e cópias novas aparecem aqui. Vincule contas nas configurações pro painel se preencher sozinho."
+    "emptyText": "Zeradas, syncs e cópias novas aparecem aqui. Vincule contas nas configurações pro painel se preencher sozinho.",
+    "heatYears": "Ano do heatmap"
   },
   "gate": {
     "kicker": "beta fechado",
@@ -531,8 +543,7 @@
     "sourcesTitle": "Fontes e créditos",
     "sourcesText": "O catálogo agrega dados públicos e o trabalho de décadas da cena. Todo material aponta pra fonte original. O mérito é de quem fez:",
     "rulesTitle": "Regras da casa",
-    "rulesText": "Sem ROMs, sem ISOs: o ROMVault cataloga PATCHES e conhecimento. Downloads levam ao arquivo do autor ou ao espelho público de preservação. Conteúdo enviado passa por moderação.",
-    "sobre": "Sobre"
+    "rulesText": "Sem ROMs, sem ISOs: o ROMVault cataloga PATCHES e conhecimento. Downloads levam ao arquivo do autor ou ao espelho público de preservação. Conteúdo enviado passa por moderação."
   },
   "notif": {
     "title": "Notificações",
@@ -595,7 +606,8 @@
     "topMonth": "mês mais ativo",
     "emptyTitle": "Nenhuma zerada neste ano",
     "emptyText": "Nada registrado em {{year}}. Bora zerar algo?",
-    "shareTitle": "{{user}} zerou {{count}} jogos em {{year}} no ROMVault!"
+    "shareTitle": "{{user}} zerou {{count}} jogos em {{year}} no ROMVault!",
+    "playedTitle": "Jogados no ano ({{count}})"
   },
   "collections": {
     "kicker": "// curadoria",
@@ -732,7 +744,14 @@
     "artTotal": "{{count}} jogos",
     "artNoCover": "{{count}} sem capa",
     "artNoBoxart": "{{count}} sem boxart",
-    "artBox3d": "{{count}} com box 3D"
+    "artBox3d": "{{count}} com box 3D",
+    "linkBtn": "Vincular IGDB",
+    "linkTitle": "Vincular com o IGDB",
+    "linkText": "Busque por nome ou cole o id do IGDB, confira os detalhes do candidato e vincule: capa, plataformas e metadados vêm do registro escolhido.",
+    "linkIdPh": "id do IGDB…",
+    "linkPick": "Vincular",
+    "linkNone": "O IGDB não retornou candidatos: ajuste o termo.",
+    "linkDone": "Vinculado a \"{{title}}\"!"
   },
   "community": {
     "reviewsTitle": "Avaliações",

@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   Store, ArrowLeft, Pencil, Upload, Trash2, Rows3, LayoutGrid, Eye, X,
-  Repeat, ChevronLeft, ChevronRight, ArrowLeftRight, Check,
+  Repeat, ChevronLeft, ChevronRight, ArrowLeftRight, Check, Lock,
 } from 'lucide-react';
 import type { Game } from '@romvault/core';
 import { getSupabase } from '@/lib/supabase';
@@ -28,6 +28,7 @@ interface OwnedGame {
   platforms: string[]; // plataformas das CÓPIAS deste usuário
   acquired: string;    // 1ª cópia (ordem padrão: chegada na coleção)
   customArt: string | null;
+  isPrivate?: boolean;
 }
 
 /** Jogos que o usuário TEM (cópias), com jogo embutido + arte custom do track. */
@@ -39,7 +40,7 @@ function useOwnedGames(userId: string | undefined) {
     queryFn: async (): Promise<OwnedGame[]> => {
       const [{ data: copies }, { data: arts }] = await Promise.all([
         db().from('game_copies')
-          .select('game_id, platform, created_at, game:games(*)')
+          .select('game_id, platform, created_at, is_private, game:games(*)')
           .eq('user_id', userId as string)
           .order('created_at', { ascending: true })
           .range(0, 4999),
@@ -51,7 +52,7 @@ function useOwnedGames(userId: string | undefined) {
       ]);
       const artOf = new Map((arts ?? []).map((r) => [r.game_id as string, r.custom_art as string]));
       const map = new Map<string, OwnedGame>();
-      for (const c of (copies ?? []) as unknown as { game_id: string; platform: string; created_at: string; game: Game | null }[]) {
+      for (const c of (copies ?? []) as unknown as { game_id: string; platform: string; created_at: string; is_private?: boolean; game: Game | null }[]) {
         if (!c.game) continue;
         const prev = map.get(c.game_id);
         if (prev) {
@@ -62,6 +63,7 @@ function useOwnedGames(userId: string | undefined) {
             platforms: [c.platform],
             acquired: c.created_at,
             customArt: artOf.get(c.game_id) ?? null,
+            isPrivate: Boolean(c.is_private),
           });
         }
       }
@@ -98,6 +100,7 @@ export function Vitrine() {
   const [artMode, setArtMode] = useState<'box' | 'store'>('box');
   const [spines, setSpines] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  const [showPrivate, setShowPrivate] = useState(false); // privados fora da vitrine por padrão
   const isMe = Boolean(me && profile && me.id === profile.id);
 
   /* ── a vitrine lembra como você deixou (modo/arte/view, por vitrine) ── */
@@ -131,9 +134,10 @@ export function Vitrine() {
     [owned],
   );
   const shown = useMemo(() => {
-    const inView = view === 'all' ? owned : owned.filter((o) => o.platforms.includes(view));
+    let inView = view === 'all' ? owned : owned.filter((o) => o.platforms.includes(view));
+    if (!showPrivate) inView = inView.filter((o) => !o.isPrivate);
     return applyOrder(inView, savedOrder);
-  }, [owned, view, savedOrder]);
+  }, [owned, view, savedOrder, showPrivate]);
   const accent = view !== 'all' ? THEMES[view] : undefined;
 
   // view lembrada pode apontar pra uma plataforma que não existe mais
@@ -223,6 +227,15 @@ export function Vitrine() {
                 onClick={() => setArtMode((m) => (m === 'box' ? 'store' : 'box'))}
               >
                 {artMode === 'box' ? t('library:artBox') : t('library:artStore')}
+              </button>
+            )}
+            {isMe && owned.some((o) => o.isPrivate) && (
+              <button
+                type="button"
+                className={`lib-stat lib-showcase ${showPrivate ? 'is-active' : ''}`}
+                onClick={() => setShowPrivate((v) => !v)}
+              >
+                <Lock aria-hidden /> {t('library:privateChip', { count: owned.filter((o) => o.isPrivate).length })}
               </button>
             )}
             {isMe && !spines && (

@@ -521,6 +521,16 @@ function PrivacySection() {
   const update = useUpdateProfile();
   const isPublic = (me as unknown as { library_public?: boolean } | null)?.library_public ?? true;
   const emailDigest = (me as unknown as { email_digest?: boolean } | null)?.email_digest ?? false;
+  const showAdult = (me as unknown as { show_adult?: boolean } | null)?.show_adult ?? false;
+
+  async function setAdult(value: boolean) {
+    try {
+      await update.mutateAsync({ show_adult: value });
+      toast.success(t('settings:privacySaved'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    }
+  }
 
   async function setPublic(value: boolean) {
     try {
@@ -559,6 +569,22 @@ function PrivacySection() {
           >
             <option value="public">{t('settings:privacyPublic')}</option>
             <option value="private">{t('settings:privacyPrivate')}</option>
+          </Select>
+        </div>
+      </div>
+      <div className="setting-row">
+        <span className="mono" style={{ color: 'var(--muted)' }}>
+          {t('settings:adultLabel')}
+        </span>
+        <div style={{ minWidth: 200 }}>
+          <Select
+            value={showAdult ? 'show' : 'hide'}
+            onChange={(e) => void setAdult(e.target.value === 'show')}
+            disabled={update.isPending}
+            aria-label={t('settings:adultLabel')}
+          >
+            <option value="hide">{t('settings:adultHide')}</option>
+            <option value="show">{t('settings:adultShow')}</option>
           </Select>
         </div>
       </div>

@@ -349,7 +349,10 @@
     "steamRun": "Import",
     "steamDone": "Steam: {{games}} games read, {{tracks}} added to your library ({{created}} new catalog games).",
     "steamNote": "Requires the steam-import Edge Function deployed (supabase functions deploy steam-import --no-verify-jwt) and the STEAM_API_KEY secret.",
-    "steamNotDeployed": "Couldn't reach the function. Deploy: supabase functions deploy steam-import --no-verify-jwt"
+    "steamNotDeployed": "Couldn't reach the function. Deploy: supabase functions deploy steam-import --no-verify-jwt",
+    "adultLabel": "adult content (+18)",
+    "adultHide": "Hide from catalog (default)",
+    "adultShow": "Show"
   },
   "library": {
     "kicker": "// game shelf",
@@ -456,7 +459,15 @@
     "order_activity": "Activity",
     "artModeHint": "Toggles the box art style",
     "artBox": "Art: Box",
-    "artStore": "Art: Store"
+    "artStore": "Art: Store",
+    "privacyBtn": "Private",
+    "privateBadge": "Private",
+    "privacyOn": "Game marked private: only you see it in your library and showcase.",
+    "privacyOff": "Game is public again in your library.",
+    "privacyHintOn": "This game is private (only you see it). Click to make it public.",
+    "privacyHintOff": "Hide this game from your public library and showcase",
+    "privateChip": "Private ({{count}})",
+    "privateChipHint": "Show/hide the games you marked as private"
   },
   "ustats": {
     "kicker": "player dashboard",
@@ -472,7 +483,7 @@
     "vsTitle": "you vs who you follow ({{count}})",
     "vsYou": "you",
     "vsThem": "their average",
-    "heatTitle": "Activity in the last year",
+    "heatTitle": "Activity in {{year}}",
     "heatDay_one": "{{count}} activity",
     "heatDay_other": "{{count}} activities",
     "heatNone": "no activity",
@@ -481,7 +492,8 @@
     "platTitle": "Platforms this period",
     "gamesTitle": "Played this period",
     "emptyTitle": "Nothing in this period",
-    "emptyText": "Completions, syncs and new copies show up here. Link accounts in settings and the dashboard fills itself."
+    "emptyText": "Completions, syncs and new copies show up here. Link accounts in settings and the dashboard fills itself.",
+    "heatYears": "Heatmap year"
   },
   "gate": {
     "kicker": "closed beta",
@@ -594,7 +606,8 @@
     "topMonth": "most active month",
     "emptyTitle": "No completions this year",
     "emptyText": "Nothing logged in {{year}}, go finish something!",
-    "shareTitle": "{{user}} finished {{count}} games in {{year}} on ROMVault!"
+    "shareTitle": "{{user}} finished {{count}} games in {{year}} on ROMVault!",
+    "playedTitle": "Played this year ({{count}})"
   },
   "collections": {
     "kicker": "// curated",
@@ -731,7 +744,14 @@
     "artTotal": "{{count}} games",
     "artNoCover": "{{count}} missing cover",
     "artNoBoxart": "{{count}} missing boxart",
-    "artBox3d": "{{count}} with 3D box"
+    "artBox3d": "{{count}} with 3D box",
+    "linkBtn": "Link IGDB",
+    "linkTitle": "Link with IGDB",
+    "linkText": "Search by name or paste the IGDB id, check the candidate details and link: cover, platforms and metadata come from the chosen record.",
+    "linkIdPh": "IGDB id…",
+    "linkPick": "Link",
+    "linkNone": "IGDB returned no candidates: adjust the term.",
+    "linkDone": "Linked to \"{{title}}\"!"
   },
   "community": {
     "reviewsTitle": "Reviews",

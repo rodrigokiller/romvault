@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Game } from '@romvault/core';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
+import { useShowAdult } from '@/hooks/useProfile';
 import { PAGE_SIZE } from './useMaterials';
 
 /** Shim sem tipagem de tabela: usado pela busca por letra (operador regex). */
@@ -37,41 +38,45 @@ export const gamesKeys = {
  * uma lista vazia e a página mostra o estado vazio elegante.
  */
 export function useGames(filters: GamesFilter = {}) {
+  const showAdult = useShowAdult();
   return useQuery({
-    queryKey: gamesKeys.list(filters),
+    queryKey: [...gamesKeys.list(filters), showAdult],
     enabled: env.configured,
     queryFn: async (): Promise<Game[]> => {
       // Filtros ANTES de order/limit (métodos de filtro só existem no
       // FilterBuilder; order/limit devolvem um TransformBuilder).
-      let query = getSupabase().from('games').select('*');
+      let query = db().from('games').select('*');
       if (filters.platform) query = query.contains('platforms', [filters.platform]);
       if (filters.genre) query = query.contains('genres', [filters.genre]);
       if (filters.search) query = query.ilike('title', `%${filters.search}%`);
+      if (!showAdult) query = query.eq('is_adult', false); // +18 escondido por padrão
 
       const { data, error } = await query.order('title', { ascending: true }).limit(60);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as Game[];
     },
   });
 }
 
 /** Lista de jogos paginada (server-side, com filtros) para a página /games. */
 export function useInfiniteGames(filters: GamesFilter = {}) {
+  const showAdult = useShowAdult();
   return useInfiniteQuery({
-    queryKey: ['games', 'infinite', filters],
+    queryKey: ['games', 'infinite', filters, showAdult],
     enabled: env.configured,
     initialPageParam: 0,
     queryFn: async ({ pageParam }): Promise<Game[]> => {
-      let query = getSupabase().from('games').select('*');
+      let query = db().from('games').select('*');
       if (filters.platform) query = query.contains('platforms', [filters.platform]);
       if (filters.genre) query = query.contains('genres', [filters.genre]);
       if (filters.search) query = query.ilike('title', `%${filters.search}%`);
+      if (!showAdult) query = query.eq('is_adult', false);
       const from = (pageParam as number) * PAGE_SIZE;
       const { data, error } = await query
         .order('title', { ascending: true })
         .range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as Game[];
     },
     getNextPageParam: (lastPage, pages) => (lastPage.length === PAGE_SIZE ? pages.length : undefined),
   });
@@ -82,12 +87,14 @@ export function useInfiniteGames(filters: GamesFilter = {}) {
  * letra inicial. keepPreviousData mantém a página anterior visível na troca.
  */
 export function useGamesPage(filters: GamesFilter, page: number, pageSize = PAGE_SIZE) {
+  const showAdult = useShowAdult();
   return useQuery({
-    queryKey: ['games', 'page', filters, page, pageSize],
+    queryKey: ['games', 'page', filters, page, pageSize, showAdult],
     enabled: env.configured,
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<{ games: Game[]; total: number }> => {
       let q = db().from('games').select('*', { count: 'exact' });
+      if (!showAdult) q = q.eq('is_adult', false);
       if (filters.platform) q = q.contains('platforms', [filters.platform]);
       if (filters.genre) q = q.contains('genres', [filters.genre]);
       if (filters.search) q = q.ilike('title', `%${filters.search}%`);

@@ -79,11 +79,14 @@ Deno.serve(async (req: Request) => {
       });
 
       if (action === 'igdb-search') {
+        // busca por termo OU por id direto — o modal estilo Plex usa os dois
+        const igdbId = Number(body.igdb_id ?? 0);
         const query = String(body.query ?? '').replace(/"/g, '').slice(0, 100);
-        if (!query) return json({ error: 'Informe a busca.' }, 400);
-        const res = await igdb(
-          `fields name, platforms, first_release_date, cover.image_id, game_type; search "${query}"; limit 10;`,
-        );
+        if (!query && !igdbId) return json({ error: 'Informe a busca ou o id do IGDB.' }, 400);
+        const F = 'fields name, platforms, first_release_date, cover.image_id, summary, game_type;';
+        const res = await igdb(igdbId
+          ? `${F} where id = ${igdbId};`
+          : `${F} search "${query}"; limit 10;`);
         if (!res.ok) return json({ error: `IGDB: HTTP ${res.status}` }, 502);
         // deno-lint-ignore no-explicit-any
         const hits = (await res.json()) as any[];
@@ -95,6 +98,7 @@ Deno.serve(async (req: Request) => {
             year: h.first_release_date ? new Date(h.first_release_date * 1000).getFullYear() : null,
             platforms: (h.platforms ?? []).map((p: number) => PLATFORM_SHORT[p]).filter(Boolean),
             thumb: h.cover?.image_id ? img(h.cover.image_id, 'cover_small') : null,
+            summary: h.summary ? String(h.summary).slice(0, 220) : null,
           })),
         });
       }
@@ -182,16 +186,19 @@ Deno.serve(async (req: Request) => {
     const token = (await tokRes.json())?.access_token;
     if (!token) return json({ error: 'OAuth Twitch falhou.' }, 502);
 
-    // termo customizado (estilo "fix match" do Plex): admin pode corrigir a busca
+    // termo customizado OU vínculo explícito por id (modal estilo Plex)
     const customQuery = String(body.query ?? '').replace(/"/g, '').slice(0, 100).trim();
+    const forceId = Number(body.igdb_id ?? 0); // "Vincular" do modal manda o id escolhido
     const searchTerm = customQuery || String(game.title).replace(/"/g, '');
 
     const fields =
       'fields name, cover.image_id, screenshots.image_id, summary, first_release_date, ' +
-      'platforms, genres.name, franchises.name, involved_companies.company.name, involved_companies.developer;';
-    const query = game.igdb_id && !customQuery
-      ? `${fields} where id = ${game.igdb_id};`
-      : `${fields} search "${searchTerm}"; limit 10;`;
+      'platforms, themes.name, genres.name, franchises.name, involved_companies.company.name, involved_companies.developer;';
+    const query = forceId
+      ? `${fields} where id = ${forceId};`
+      : (game.igdb_id && !customQuery
+        ? `${fields} where id = ${game.igdb_id};`
+        : `${fields} search "${searchTerm}"; limit 10;`);
     const igdbRes = await fetch('https://api.igdb.com/v4/games', {
       method: 'POST',
       headers: { 'Client-ID': twitchId, Authorization: `Bearer ${token}` },
@@ -210,11 +217,13 @@ Deno.serve(async (req: Request) => {
     // deno-lint-ignore no-explicit-any
     const sharesPlat = (h: any) =>
       (h.platforms ?? []).some((pid: number) => ourPlats.has(PLATFORM_SHORT[pid]));
-    const hit = (game.igdb_id && !customQuery)
-      ? hits[0]
-      : (hits.find((h) => norm(h.name) === norm(searchTerm))
-        ?? hits.find(sharesPlat)
-        ?? (customQuery ? hits[0] : undefined));
+    const hit = forceId
+      ? hits[0] // o admin escolheu explicitamente: obedece
+      : ((game.igdb_id && !customQuery)
+        ? hits[0]
+        : (hits.find((h) => norm(h.name) === norm(searchTerm))
+          ?? hits.find(sharesPlat)
+          ?? (customQuery ? hits[0] : undefined)));
     if (!hit) {
       return json({ error: `IGDB não achou nada confiável pra "${searchTerm}" — tente ajustar o termo de busca.` }, 404);
     }
@@ -227,6 +236,14 @@ Deno.serve(async (req: Request) => {
       updated.push('cover');
     }
     if (!game.igdb_id && hit.id) { patch.igdb_id = hit.id; updated.push('igdb_id'); }
+    // vínculo explícito re-aponta o igdb_id (corrigir match errado)
+    if (forceId && hit.id && game.igdb_id !== hit.id) { patch.igdb_id = hit.id; updated.push('igdb_id'); }
+    // +18 (tema Erotic) marca sempre que detectado
+    // deno-lint-ignore no-explicit-any
+    if ((hit.themes ?? []).some((t: any) => t.name === 'Erotic') && !game.is_adult) {
+      patch.is_adult = true;
+      updated.push('is_adult');
+    }
     if ((!game.screenshots || game.screenshots.length === 0) && hit.screenshots?.length) {
       // deno-lint-ignore no-explicit-any
       patch.screenshots = hit.screenshots.slice(0, 6).map((s: any) => img(s.image_id, '720p'));

@@ -39,6 +39,12 @@ export function useIsAdmin(): boolean {
   return Boolean(data?.is_admin);
 }
 
+/** O usuário optou por VER conteúdo adulto? (padrão: escondido) */
+export function useShowAdult(): boolean {
+  const { data } = useMyProfile();
+  return Boolean((data as unknown as { show_adult?: boolean } | null)?.show_adult);
+}
+
 export function useProfileByUsername(username: string | undefined) {
   return useQuery({
     queryKey: profileKeys.byUsername(username ?? ''),
@@ -91,7 +97,7 @@ export function useUpdateProfile() {
   const { user } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (patch: Partial<Pick<Profile, 'username' | 'bio' | 'avatar_url'>> & { yearly_goal?: number | null; library_public?: boolean; email_digest?: boolean }) => {
+    mutationFn: async (patch: Partial<Pick<Profile, 'username' | 'bio' | 'avatar_url'>> & { yearly_goal?: number | null; library_public?: boolean; email_digest?: boolean; show_adult?: boolean }) => {
       const uid = user?.id;
       if (!uid) throw new Error('Não autenticado.');
       const { data, error } = await db()

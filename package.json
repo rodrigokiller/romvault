@@ -18,6 +18,7 @@
     "smoke": "node scripts/smoke.mjs",
     "fix-matches": "node scripts/fix-matches.mjs",
     "changelog:draft": "node scripts/changelog-draft.mjs",
+    "check-i18n": "node scripts/check-i18n.mjs",
     "check-images": "node scripts/check-images.mjs",
     "import": "node scripts/import.mjs",
     "import:igdb": "node scripts/import.mjs --source=igdb",

@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useFlip } from '@/hooks/useFlip';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages, RefreshCw } from 'lucide-react';
+import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages, RefreshCw, Lock } from 'lucide-react';
 import { GameQuickView } from '@/components/entities/GameQuickView';
 import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
 import { useProfileByUsername } from '@/hooks/useProfile';
@@ -68,6 +68,7 @@ export function Library() {
   const [platform, setPlatform] = useState<string | null>(null);
   const [onlyDupes, setOnlyDupes] = useState(false);
   const [onlyPlayable, setOnlyPlayable] = useState(false); // tem tradução no idioma da UI
+  const [showPrivate, setShowPrivate] = useState(false); // privados escondidos até do dono, por padrão
   const [order, setOrder] = useState<'recent' | 'az' | 'platform' | 'activity'>('recent');
   // arte da vitrine: capa de loja (retrato) ou box art física
   const [artMode, setArtMode] = useState<'store' | 'box'>('box');
@@ -111,6 +112,8 @@ export function Library() {
           (x.game.platforms ?? []).includes(platform),
       );
     }
+    // privados: fora da lista até ligar o chip (a RLS já esconde dos outros)
+    if (!showPrivate) list = list.filter((x) => !x.is_private);
     // "repetidos": jogos com mais de uma cópia
     if (onlyDupes) list = list.filter((x) => (copiesByGame.get(x.game_id) ?? []).length > 1);
     // "jogável no meu idioma": tem tradução de fã no idioma da interface
@@ -134,10 +137,10 @@ export function Library() {
       });
     }
     return list;
-  }, [tracks, status, platform, copiesByGame, onlyDupes, onlyPlayable, langsByGame, uiCode, order, lastPlayed]);
+  }, [tracks, status, platform, copiesByGame, onlyDupes, onlyPlayable, showPrivate, langsByGame, uiCode, order, lastPlayed]);
 
   // anima a reorganização da estante (filtros/ordenação)
-  useFlip(shelfRef, `${status}|${platform}|${onlyDupes}|${onlyPlayable}|${order}|${shown.length}`);
+  useFlip(shelfRef, `${status}|${platform}|${onlyDupes}|${onlyPlayable}|${showPrivate}|${order}|${shown.length}`);
 
   const totalHours = useMemo(
     () => tracks.reduce((sum, x) => sum + (x.hours_played ?? 0), 0),
@@ -315,6 +318,17 @@ export function Library() {
             >
               <CopyIcon aria-hidden style={{ width: 12, height: 12, verticalAlign: '-2px', marginRight: 4 }} />
               {t('library:dupesChip', { count: dupeCount })}
+            </button>
+          )}
+          {isMe && tracks.some((x) => x.is_private) && (
+            <button
+              type="button"
+              className={`search-chip ${showPrivate ? 'is-active' : ''}`}
+              onClick={() => setShowPrivate((v) => !v)}
+              title={t('library:privateChipHint')}
+            >
+              <Lock aria-hidden style={{ width: 12, height: 12, verticalAlign: '-2px', marginRight: 4 }} />
+              {t('library:privateChip', { count: tracks.filter((x) => x.is_private).length })}
             </button>
           )}
           {playableCount > 0 && (

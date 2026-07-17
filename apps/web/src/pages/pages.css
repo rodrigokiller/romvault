@@ -3364,3 +3364,88 @@
 }
 .ustats-plat-bar > span { display: block; height: 100%; }
 .ustats-plat-n { min-width: 24px; text-align: right; color: var(--muted); font-size: 0.74rem; }
+
+/* heatmap com anos na lateral (a legenda casa com a largura da grade) */
+.heatmap-flex {
+  display: flex;
+  gap: var(--s5);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.heatmap-years {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+/* pular layout/paint fora do viewport nos grids grandes (auditoria: perf) */
+.shelf-item,
+.vitrine-card-wrap,
+.card-grid > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
+}
+
+/* resultados do vinculador IGDB (modal estilo Plex) */
+.link-results {
+  list-style: none;
+  padding: 0;
+  margin-top: var(--s4);
+  display: grid;
+  gap: var(--s2);
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.link-result {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  padding: var(--s3);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+.link-result-thumb {
+  width: 45px;
+  height: 60px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.link-result-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.link-result-body { flex: 1; min-width: 0; }
+.link-result-title { display: block; color: var(--ink-bright); font-weight: 600; }
+.link-result-id { color: var(--muted); font-weight: 400; font-size: 0.72rem; }
+.link-result-plats { display: block; color: var(--muted); font-size: 0.68rem; margin-top: 2px; }
+.link-result-summary {
+  margin-top: var(--s1);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* navegação de anos na retrospectiva */
+.wrapped-year-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s4);
+}
+.wrapped-year-arrow {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.wrapped-year-arrow:hover { color: var(--accent); border-color: var(--accent); }
+.wrapped-year-arrow.is-disabled { opacity: 0.25; pointer-events: none; }
+.wrapped-year-arrow svg { width: 16px; height: 16px; }

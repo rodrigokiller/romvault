@@ -76,32 +76,49 @@ export function UserStats() {
     return { runs: runs.length, active: activeGames.size, newCopies, totalHours };
   }, [playthroughs, syncRows, copies, tracks, sinceMs]);
 
-  /* ── heatmap: atividade por dia no último ano (zeradas + last_played + cópias) ── */
+  /* ── heatmap POR ANO (independente do seletor de período — tem os próprios
+     botões de ano na lateral; zeradas pesam 3, sync/cópias pesam 1) ── */
+  const [heatYear, setHeatYear] = useState(() => new Date().getFullYear());
+  const heatYears = useMemo(() => {
+    const ys = new Set<number>([new Date().getFullYear()]);
+    for (const p of playthroughs) ys.add(new Date(p.finished_on).getFullYear());
+    for (const r of syncRows) if (r.last_played) ys.add(new Date(r.last_played).getFullYear());
+    return [...ys].sort((a, b) => b - a).slice(0, 6);
+  }, [playthroughs, syncRows]);
+
   const heat = useMemo(() => {
     const map = new Map<string, number>();
     const bump = (iso: string | null | undefined, w = 1) => {
       if (!iso) return;
       const k = iso.slice(0, 10);
+      if (k.slice(0, 4) !== String(heatYear)) return;
       map.set(k, (map.get(k) ?? 0) + w);
     };
-    for (const p of playthroughs) bump(p.finished_on, 3); // zerar pesa mais
+    for (const p of playthroughs) bump(p.finished_on, 3);
     for (const r of syncRows) bump(r.last_played, 1);
     for (const c of copies) bump((c as unknown as { acquired_at?: string | null }).acquired_at, 1);
 
-    // 53 colunas x 7 linhas terminando hoje (semana começa no domingo)
+    // o ANO inteiro: do domingo antes de 1º/jan ao sábado depois de 31/dez
     const today = new Date();
-    const end = new Date(today);
+    const start = new Date(heatYear, 0, 1);
+    start.setDate(start.getDate() - start.getDay());
+    const end = new Date(heatYear, 11, 31);
     end.setDate(end.getDate() + (6 - end.getDay()));
-    const cells: { key: string; count: number; future: boolean }[] = [];
-    for (let i = 53 * 7 - 1; i >= 0; i--) {
-      const d = new Date(end);
-      d.setDate(d.getDate() - i);
+    const cells: { key: string; count: number; off: boolean }[] = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const key = dayKey(d);
-      cells.push({ key, count: map.get(key) ?? 0, future: d > today });
+      cells.push({
+        key,
+        count: map.get(key) ?? 0,
+        off: d.getFullYear() !== heatYear || d > today, // fora do ano/futuro: invisível
+      });
     }
     const max = Math.max(1, ...cells.map((c) => c.count));
-    return { cells, max };
-  }, [playthroughs, syncRows, copies]);
+    const weeks = Math.ceil(cells.length / 7);
+    return { cells, max, weeks };
+  }, [playthroughs, syncRows, copies, heatYear]);
+  // largura EXATA da grade (células 10px + gap 4px) — legendas casam com ela
+  const heatWidth = heat.weeks * 14 - 4;
 
   /* ── plataformas e jogos do período ── */
   const periodPlatforms = useMemo(() => {
@@ -212,29 +229,45 @@ export function UserStats() {
         </div>
       )}
 
-      {/* heatmap do último ano */}
+      {/* heatmap por ano (botões de ano na lateral — não segue o seletor de período) */}
       <section className="section">
-        <div className="section-head"><h2>{t('ustats:heatTitle')}</h2></div>
-        <div className="heatmap-wrap">
-          <div className="heatmap-months mono" aria-hidden>
-            {months.map((m) => <span key={m}>{m}</span>)}
+        <div className="section-head"><h2>{t('ustats:heatTitle', { year: heatYear })}</h2></div>
+        <div className="heatmap-flex">
+          <div className="heatmap-wrap">
+            <div className="heatmap-months mono" aria-hidden style={{ width: heatWidth, minWidth: heatWidth }}>
+              {months.map((m) => <span key={m}>{m}</span>)}
+            </div>
+            <div
+              className="heatmap" role="img" aria-label={t('ustats:heatTitle', { year: heatYear })}
+              style={{ width: heatWidth, minWidth: heatWidth }}
+            >
+              {heat.cells.map((c) => {
+                const level = c.off || c.count === 0 ? 0 : Math.min(4, Math.ceil((c.count / heat.max) * 4));
+                return (
+                  <span
+                    key={c.key}
+                    className={`heat-cell heat-${level} ${c.off ? 'heat-future' : ''}`}
+                    title={`${c.key}: ${c.count > 0 ? t('ustats:heatDay', { count: c.count }) : t('ustats:heatNone')}`}
+                  />
+                );
+              })}
+            </div>
+            <div className="heatmap-legend mono" style={{ width: heatWidth, minWidth: heatWidth }}>
+              <span>{t('ustats:heatLess')}</span>
+              {[0, 1, 2, 3, 4].map((l) => <span key={l} className={`heat-cell heat-${l}`} />)}
+              <span>{t('ustats:heatMore')}</span>
+            </div>
           </div>
-          <div className="heatmap" role="img" aria-label={t('ustats:heatTitle')}>
-            {heat.cells.map((c) => {
-              const level = c.future || c.count === 0 ? 0 : Math.min(4, Math.ceil((c.count / heat.max) * 4));
-              return (
-                <span
-                  key={c.key}
-                  className={`heat-cell heat-${level} ${c.future ? 'heat-future' : ''}`}
-                  title={`${c.key}: ${c.count > 0 ? t('ustats:heatDay', { count: c.count }) : t('ustats:heatNone')}`}
-                />
-              );
-            })}
-          </div>
-          <div className="heatmap-legend mono">
-            <span>{t('ustats:heatLess')}</span>
-            {[0, 1, 2, 3, 4].map((l) => <span key={l} className={`heat-cell heat-${l}`} />)}
-            <span>{t('ustats:heatMore')}</span>
+          <div className="heatmap-years" role="tablist" aria-label={t('ustats:heatYears')}>
+            {heatYears.map((y) => (
+              <button
+                key={y} type="button" role="tab" aria-selected={heatYear === y}
+                className={`vitrine-tab ${heatYear === y ? 'is-active' : ''}`}
+                onClick={() => setHeatYear(y)}
+              >
+                {y}
+              </button>
+            ))}
           </div>
         </div>
       </section>

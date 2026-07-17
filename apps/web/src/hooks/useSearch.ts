@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
+import { useShowAdult } from '@/hooks/useProfile';
 
 /** Shim sem tipagem de tabela: a busca varre várias tabelas por nome dinâmico. */
 const db = () => getSupabase() as unknown as SupabaseClient;
@@ -46,13 +47,14 @@ const SOURCES: Source[] = [
   { table: 'articles', kind: 'article', ref: 'slug', route: (r) => `/articles/${r}`, subtitle: 'excerpt' },
 ];
 
-async function searchSource(src: Source, term: string, perSource: number): Promise<SearchResult[]> {
+async function searchSource(src: Source, term: string, perSource: number, hideAdult: boolean): Promise<SearchResult[]> {
   const cols = ['id', 'title', src.ref, src.subtitle, src.platsSelect].filter(Boolean).join(', ');
-  const { data, error } = await db()
+  let q = db()
     .from(src.table)
     .select(cols)
-    .ilike('title', `%${term}%`)
-    .limit(perSource);
+    .ilike('title', `%${term}%`);
+  if (src.table === 'games' && hideAdult) q = q.eq('is_adult', false); // +18 fora da busca por padrão
+  const { data, error } = await q.limit(perSource);
   if (error) throw error;
   return (data ?? []).map((row): SearchResult => {
     const r = row as unknown as Record<string, unknown>;
@@ -74,12 +76,13 @@ async function searchSource(src: Source, term: string, perSource: number): Promi
  */
 export function useSearch(term: string, perSource = 5) {
   const q = term.trim();
+  const showAdult = useShowAdult();
   return useQuery({
-    queryKey: ['search', q, perSource],
+    queryKey: ['search', q, perSource, showAdult],
     enabled: env.configured && q.length >= 2,
     staleTime: 30_000,
     queryFn: async (): Promise<SearchResult[]> => {
-      const groups = await Promise.all(SOURCES.map((s) => searchSource(s, q, perSource)));
+      const groups = await Promise.all(SOURCES.map((s) => searchSource(s, q, perSource, !showAdult)));
       // intercala por relevância aproximada: prefixo exato primeiro
       const flat = groups.flat();
       const lower = q.toLowerCase();

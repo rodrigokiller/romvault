@@ -3,10 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Trophy, Gamepad2, ArrowLeft } from 'lucide-react';
+import { Trophy, Gamepad2, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
 import { useProfileByUsername } from '@/hooks/useProfile';
+import { useUserSyncRows } from '@/hooks/useTracks';
 import { ShareButton } from '@/components/entities/ShareButton';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 
@@ -48,6 +49,27 @@ export function YearReview() {
   const { username, year = '' } = useParams<{ username: string; year: string }>();
   const { data: profile, isLoading: profileLoading } = useProfileByUsername(username);
   const { data: runs = [], isLoading } = useYearRuns(profile?.id, year);
+  const { data: syncRows = [] } = useUserSyncRows(profile?.id);
+  const yearNum = Number(year) || new Date().getFullYear();
+
+  // JOGADOS no ano (dos syncs), não só zerados: ids únicos com last_played no ano
+  const playedIds = useMemo(() => {
+    const seen = new Set<string>();
+    for (const r of syncRows) {
+      if (r.last_played && r.last_played.slice(0, 4) === year) seen.add(r.game_id);
+    }
+    return [...seen].slice(0, 60);
+  }, [syncRows, year]);
+  // resolve título/capa numa query só
+  const { data: playedGames = [] } = useQuery({
+    queryKey: ['yearPlayed', profile?.id, year, playedIds.length],
+    enabled: env.configured && playedIds.length > 0,
+    queryFn: async () => {
+      const { data } = await db()
+        .from('games').select('id, title, slug, cover_url, thumbnail').in('id', playedIds);
+      return (data ?? []) as { id: string; title: string; slug: string; cover_url: string | null; thumbnail: string | null }[];
+    },
+  });
 
   const byMonth = useMemo(() => {
     const arr = Array(12).fill(0) as number[];
@@ -79,7 +101,19 @@ export function YearReview() {
       <div className="wrapped">
         <header className="wrapped-head">
           <span className="kicker">// {t('wrapped:kicker')}</span>
-          <h1 className="wrapped-year">{year}</h1>
+          <div className="wrapped-year-nav">
+            <Link to={`/u/${username}/year/${yearNum - 1}`} className="wrapped-year-arrow" aria-label={String(yearNum - 1)}>
+              <ChevronLeft aria-hidden />
+            </Link>
+            <h1 className="wrapped-year">{year}</h1>
+            {yearNum < new Date().getFullYear() ? (
+              <Link to={`/u/${username}/year/${yearNum + 1}`} className="wrapped-year-arrow" aria-label={String(yearNum + 1)}>
+                <ChevronRight aria-hidden />
+              </Link>
+            ) : (
+              <span className="wrapped-year-arrow is-disabled" aria-hidden><ChevronRight /></span>
+            )}
+          </div>
           <p className="wrapped-sub">{t('wrapped:title', { user: profile.username ?? username })}</p>
         </header>
 
@@ -131,6 +165,22 @@ export function YearReview() {
               <ShareButton title={t('wrapped:shareTitle', { user: profile.username ?? username, year, count: runs.length })} />
             </div>
           </>
+        )}
+
+        {/* jogados no ano (dos syncs) — não só zerados */}
+        {playedGames.length > 0 && (
+          <section className="section">
+            <div className="section-head"><h2>{t('wrapped:playedTitle', { count: playedGames.length })}</h2></div>
+            <div className="my-strip-covers" style={{ flexWrap: 'wrap' }}>
+              {playedGames.map((g) => (
+                <Link key={g.id} to={`/games/${g.slug}`} title={g.title}>
+                  {g.cover_url || g.thumbnail
+                    ? <img src={g.cover_url ?? g.thumbnail ?? ''} alt={g.title} loading="lazy" />
+                    : <span className="my-strip-fallback">{g.title}</span>}
+                </Link>
+              ))}
+            </div>
+          </section>
         )}
       </div>
     </div>
