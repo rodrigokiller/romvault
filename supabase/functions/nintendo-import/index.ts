@@ -217,6 +217,19 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'NINTENDO_SESSION_TOKEN não configurado (npx nxapi nso auth na conta de serviço).' }, 500);
     }
     const admin = createClient(url, serviceKey);
+
+    // AUTH PRIMEIRO: requisição anônima não ganha token externo nem catálogo
+    // (com --no-verify-jwt, isso aqui é a única porta)
+    const viaCron = Boolean(cronSecret) && req.headers.get('x-cron-secret') === cronSecret;
+    let caller: { id: string } | null = null;
+    if (!viaCron) {
+      const asUser = createClient(url, anonKey, {
+        global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+      });
+      const { data: { user } } = await asUser.auth.getUser();
+      if (!user) return json({ error: 'Não autenticado.' }, 401);
+      caller = user;
+    }
     const auth = await zncLogin(sessionToken);
 
     const catalog = await fetchAll(() =>
@@ -236,7 +249,7 @@ Deno.serve(async (req: Request) => {
     const friends = (friendsRes?.friends ?? []) as any[];
 
     // MODO CRON: acumula presença de todo mundo vinculado
-    if (cronSecret && req.headers.get('x-cron-secret') === cronSecret) {
+    if (viaCron) {
       const accounts = await fetchAll(() =>
         admin.from('user_accounts').select('user_id, account_id').eq('provider', 'nintendo'));
       let ok = 0, absent = 0;
@@ -252,12 +265,6 @@ Deno.serve(async (req: Request) => {
     }
 
     // MODO USUÁRIO: friend code -> amizade -> acumular presença
-    const asUser = createClient(url, anonKey, {
-      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-    });
-    const { data: { user } } = await asUser.auth.getUser();
-    if (!user) return json({ error: 'Não autenticado.' }, 401);
-
     const body = await req.json().catch(() => ({}));
     const rawCode = String(body.friend_code ?? '').trim();
     const code = rawCode.replace(/^SW-?/i, '').replace(/[^0-9]/g, '');
@@ -278,7 +285,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const acc = await accumulate(admin, user.id, friend.presence, byKey);
+    const acc = await accumulate(admin, caller!.id, friend.presence, byKey);
     return json({
       ok: true, nsa_id: nsaId,
       accumulated: acc ?? 'nenhum jogo na presença agora — jogue algo e o sync diário acumula',

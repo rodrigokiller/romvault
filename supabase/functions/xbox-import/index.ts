@@ -150,8 +150,20 @@ async function syncUser(admin: any, key: string, userId: string, gamertag: strin
       updated++;
     }
   }
-  for (let i = 0; i < newTracks.length; i += 200) {
-    await admin.from('game_tracks').upsert(newTracks.slice(i, i + 200), { onConflict: 'user_id,game_id' });
+  // dedupe por game_id (PS4+PS5/subsets/duplo-appid caem no MESMO jogo):
+  // linhas duplicadas no mesmo upsert = erro 21000 e o lote inteiro sumia.
+  // 'finished' vence quando ha conflito de status.
+  const trackByGid = new Map<string, Record<string, unknown>>();
+  for (const row of newTracks) {
+    const gid = row.game_id as string;
+    const prev = trackByGid.get(gid);
+    if (!prev || (prev.status !== 'finished' && row.status === 'finished')) trackByGid.set(gid, row);
+  }
+  const trackRows = [...trackByGid.values()];
+  for (let i = 0; i < trackRows.length; i += 200) {
+    const { error: trkErr } = await admin.from('game_tracks')
+      .upsert(trackRows.slice(i, i + 200), { onConflict: 'user_id,game_id' });
+    if (trkErr) throw new Error(`game_tracks: ${trkErr.message}`);
   }
 
   // dado bruto por provedor (dedupe por game_id — fica o maior progresso)
@@ -175,8 +187,9 @@ async function syncUser(admin: any, key: string, userId: string, gamertag: strin
   }
   const syncRows = [...syncByGame.values()].map((x) => x.row);
   for (let i = 0; i < syncRows.length; i += 200) {
-    await admin.from('game_sync_data')
+    const { error: sdErr } = await admin.from('game_sync_data')
       .upsert(syncRows.slice(i, i + 200), { onConflict: 'user_id,game_id,provider' });
+    if (sdErr) throw new Error(`game_sync_data: ${sdErr.message}`);
   }
 
   // cópias (vitrine)
@@ -194,7 +207,8 @@ async function syncUser(admin: any, key: string, userId: string, gamertag: strin
     }
   }
   for (let i = 0; i < newCopies.length; i += 200) {
-    await admin.from('game_copies').insert(newCopies.slice(i, i + 200));
+    const { error: cpErr } = await admin.from('game_copies').insert(newCopies.slice(i, i + 200));
+    if (cpErr) throw new Error(`game_copies: ${cpErr.message}`);
   }
 
   await admin.from('user_accounts')
@@ -204,7 +218,7 @@ async function syncUser(admin: any, key: string, userId: string, gamertag: strin
   return {
     xbox_games: titles.length,
     matched: matched.length,
-    tracks_added: newTracks.length,
+    tracks_added: trackRows.length,
     tracks_updated: updated,
     copies_added: newCopies.length,
     unmatched: misses.length + unmatched,
@@ -223,6 +237,19 @@ Deno.serve(async (req: Request) => {
     if (!key) return json({ error: 'XBLIO_KEY não configurada (key grátis em xbl.io).' }, 500);
     const admin = createClient(url, serviceKey);
 
+    // AUTH PRIMEIRO: requisição anônima não ganha token externo nem catálogo
+    // (com --no-verify-jwt, isso aqui é a única porta)
+    const viaCron = Boolean(cronSecret) && req.headers.get('x-cron-secret') === cronSecret;
+    let caller: { id: string } | null = null;
+    if (!viaCron) {
+      const asUser = createClient(url, anonKey, {
+        global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+      });
+      const { data: { user } } = await asUser.auth.getUser();
+      if (!user) return json({ error: 'Não autenticado.' }, 401);
+      caller = user;
+    }
+
     const catalog = await fetchAll(() => admin.from('games').select('id, title, platforms'));
     const byKey = new Map<string, string>();
     for (const g of catalog) {
@@ -231,7 +258,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (cronSecret && req.headers.get('x-cron-secret') === cronSecret) {
+    if (viaCron) {
       const accounts = await fetchAll(() =>
         admin.from('user_accounts').select('user_id, account_id').eq('provider', 'xbox'));
       let ok = 0, failed = 0;
@@ -246,17 +273,11 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, mode: 'cron', accounts: accounts.length, synced: ok, failed });
     }
 
-    const asUser = createClient(url, anonKey, {
-      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-    });
-    const { data: { user } } = await asUser.auth.getUser();
-    if (!user) return json({ error: 'Não autenticado.' }, 401);
-
     const body = await req.json().catch(() => ({}));
     const target = String(body.gamertag ?? '').trim();
     if (!target) return json({ error: 'Informe o gamertag.' }, 400);
 
-    const result = await syncUser(admin, key, user.id, target, byKey);
+    const result = await syncUser(admin, key, caller!.id, target, byKey);
     return json({ ok: true, ...result });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);

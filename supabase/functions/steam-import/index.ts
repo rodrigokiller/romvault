@@ -113,13 +113,15 @@ Deno.serve(async (req: Request) => {
       // DO NOTHING no conflito de slug: nunca sobrescreve um jogo existente
       // (ex.: um registro do IGDB com o mesmo slug). Depois re-seleciona por
       // slug para mapear ids — inclusive os que já existiam.
-      const { data: ins } = await admin
+      const { data: ins, error: insErr } = await admin
         .from('games').upsert(chunk, { onConflict: 'slug', ignoreDuplicates: true })
         .select('id, external_ids');
+      if (insErr) throw new Error(`games upsert: ${insErr.message}`);
       created += (ins ?? []).length;
-      const { data: all } = await admin
+      const { data: all, error: selErr } = await admin
         .from('games').select('id, external_ids, title')
         .in('slug', chunk.map((c) => c.slug));
+      if (selErr) throw new Error(`games re-select: ${selErr.message}`);
       for (const g of all ?? []) {
         const appid = Number((g.external_ids as Record<string, unknown>)?.steam);
         if (appid) gameIdOf.set(appid, g.id);
@@ -156,8 +158,14 @@ Deno.serve(async (req: Request) => {
         hourUpdates.push({ game_id: gid, hours });
       }
     }
-    for (let i = 0; i < newTracks.length; i += 200) {
-      await admin.from('game_tracks').upsert(newTracks.slice(i, i + 200), { onConflict: 'user_id,game_id' });
+    // dedupe por game_id (dois appids casam no mesmo jogo) + erro visivel
+    const trackByGid = new Map<string, Record<string, unknown>>();
+    for (const row of newTracks) trackByGid.set(row.game_id as string, row);
+    const trackRows = [...trackByGid.values()];
+    for (let i = 0; i < trackRows.length; i += 200) {
+      const { error: trkErr } = await admin.from('game_tracks')
+        .upsert(trackRows.slice(i, i + 200), { onConflict: 'user_id,game_id' });
+      if (trkErr) throw new Error(`game_tracks: ${trkErr.message}`);
     }
     for (const u of hourUpdates) {
       await admin.from('game_tracks').update({ hours_played: u.hours })
@@ -220,8 +228,9 @@ Deno.serve(async (req: Request) => {
     }
     const syncRows = [...syncByGame.values()];
     for (let i = 0; i < syncRows.length; i += 200) {
-      await admin.from('game_sync_data')
+      const { error: sdErr } = await admin.from('game_sync_data')
         .upsert(syncRows.slice(i, i + 200), { onConflict: 'user_id,game_id,provider' });
+      if (sdErr) throw new Error(`game_sync_data: ${sdErr.message}`);
     }
 
     // 7) cópias digitais Steam (só as que ainda não existem)
@@ -235,7 +244,8 @@ Deno.serve(async (req: Request) => {
       }
     }
     for (let i = 0; i < newCopies.length; i += 200) {
-      await admin.from('game_copies').insert(newCopies.slice(i, i + 200));
+      const { error: cpErr } = await admin.from('game_copies').insert(newCopies.slice(i, i + 200));
+      if (cpErr) throw new Error(`game_copies: ${cpErr.message}`);
     }
 
     return json({
@@ -243,7 +253,7 @@ Deno.serve(async (req: Request) => {
       steam_games: owned.length,
       games_created: created,
       games_enriched: enriched,
-      tracks_added: newTracks.length,
+      tracks_added: trackRows.length,
       hours_updated: hourUpdates.length,
       copies_added: newCopies.length,
     });

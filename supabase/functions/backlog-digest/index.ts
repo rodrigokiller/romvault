@@ -118,9 +118,18 @@ Deno.serve(async (req: Request) => {
         const uid = n.user_id as string;
         byUser.set(uid, [...(byUser.get(uid) ?? []), n.payload as never]);
       }
-      const { data: optIns } = await admin.from('profiles')
-        .select('id').eq('email_digest', true).in('id', [...byUser.keys()]);
-      for (const p of optIns ?? []) {
+      // opt-ins em CHUNKS de 100 ids (o .in() gigante estoura URL e o
+      // PostgREST corta em 1000 — regra da casa)
+      const userIds = [...byUser.keys()];
+      const optIns: { id: string }[] = [];
+      for (let i = 0; i < userIds.length; i += 100) {
+        const { data: page, error: optErr } = await admin.from('profiles')
+          .select('id').eq('email_digest', true).in('id', userIds.slice(i, i + 100));
+        if (optErr) throw new Error(`opt-ins: ${optErr.message}`);
+        optIns.push(...(page ?? []));
+      }
+      let emailFailed = 0;
+      for (const p of optIns) {
         const { data: au } = await admin.auth.admin.getUserById(p.id as string);
         const email = au?.user?.email;
         if (!email) continue;
@@ -139,10 +148,13 @@ Deno.serve(async (req: Request) => {
           }),
         });
         if (res.ok) emailed++;
+        else emailFailed++;
+        await new Promise((r) => setTimeout(r, 600)); // Resend: 2 req/s no plano padrao
       }
+      if (emailFailed > 0) console.error(`backlog-digest: ${emailFailed} e-mails falharam (rate limit/erro)`);
     }
 
-    await admin.from('job_runs').insert({ job: 'backlog-digest', mode: viaCron ? 'cron' : 'manual', ok: true, stats: { translations: fresh.length, notified, emailed } }).then(() => {}, () => {});
+    await admin.from('job_runs').insert({ job: 'backlog-digest', mode: viaCron ? 'cron' : 'manual', ok: true, stats: { translations: fresh.length, notified, emailed, email_failed: typeof emailFailed === 'number' ? emailFailed : 0 } }).then(() => {}, () => {});
     return json({ ok: true, translations: fresh.length, candidates: rows.length, notified, emailed });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
