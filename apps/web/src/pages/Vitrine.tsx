@@ -34,6 +34,7 @@ interface OwnedGame {
 function useOwnedGames(userId: string | undefined) {
   return useQuery({
     queryKey: ['ownedGames', userId],
+    staleTime: 5 * 60_000,
     enabled: env.configured && Boolean(userId),
     queryFn: async (): Promise<OwnedGame[]> => {
       const [{ data: copies }, { data: arts }] = await Promise.all([

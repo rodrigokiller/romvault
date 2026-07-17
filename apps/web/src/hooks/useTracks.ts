@@ -202,6 +202,7 @@ export function useRemoveCopy(gameId: string | undefined) {
 export function useLibraryCopies(userId: string | undefined) {
   return useQuery({
     queryKey: ['libraryCopies', userId],
+    staleTime: 5 * 60_000,
     enabled: env.configured && Boolean(userId),
     queryFn: async (): Promise<GameCopy[]> => {
       const { data, error } = await db()
@@ -390,6 +391,7 @@ export function useAddPlaythrough(gameId: string | undefined) {
 export function useUserPlaythroughs(userId: string | undefined) {
   return useQuery({
     queryKey: ['userPlaythroughs', userId],
+    staleTime: 5 * 60_000,
     enabled: env.configured && Boolean(userId),
     queryFn: async (): Promise<{ game_id: string; finished_on: string }[]> => {
       const { data, error } = await db()
@@ -418,6 +420,7 @@ export function useRemovePlaythrough(gameId: string | undefined) {
 export function useLibrary(userId: string | undefined) {
   return useQuery({
     queryKey: ['library', userId],
+    staleTime: 5 * 60_000,
     enabled: env.configured && Boolean(userId),
     queryFn: async (): Promise<TrackWithGame[]> => {
       const { data, error } = await db()

@@ -27,8 +27,8 @@ function useFollowingAvg(myId: string | undefined, sinceISO: string) {
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<{ people: number; avg: number } | null> => {
       const { data: follows } = await db()
-        .from('follows').select('followed').eq('follower', myId as string).limit(200);
-      const ids = (follows ?? []).map((f) => f.followed as string);
+        .from('follows').select('followed_id').eq('follower_id', myId as string).limit(200);
+      const ids = (follows ?? []).map((f) => f.followed_id as string);
       if (ids.length === 0) return null;
       const { data: runs } = await db()
         .from('game_playthroughs')

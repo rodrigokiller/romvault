@@ -48,17 +48,23 @@ export function useTranslationLangs(gameIds: string[]) {
     enabled: env.configured && gameIds.length > 0,
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<Map<string, string[]>> => {
-      const { data, error } = await db()
-        .from('translations')
-        .select('game_id, language')
-        .in('game_id', gameIds)
-        .eq('is_public', true)
-        .not('language', 'is', null);
-      if (error) throw error;
+      // .in() em CHUNKS de 200 ids: uma biblioteca grande estourava o limite
+      // de tamanho da URL e o filtro "jogável no meu idioma" falhava calado.
+      const rows: { game_id: string; language: string }[] = [];
+      for (let i = 0; i < gameIds.length; i += 200) {
+        const { data, error } = await db()
+          .from('translations')
+          .select('game_id, language')
+          .in('game_id', gameIds.slice(i, i + 200))
+          .eq('is_public', true)
+          .not('language', 'is', null);
+        if (error) throw error;
+        rows.push(...((data ?? []) as { game_id: string; language: string }[]));
+      }
       const map = new Map<string, Set<string>>();
-      for (const r of data ?? []) {
+      for (const r of rows) {
         const code = langCode(String(r.language));
-        map.set(r.game_id as string, (map.get(r.game_id as string) ?? new Set()).add(code));
+        map.set(r.game_id, (map.get(r.game_id) ?? new Set()).add(code));
       }
       const out = new Map<string, string[]>();
       for (const [id, set] of map) {
