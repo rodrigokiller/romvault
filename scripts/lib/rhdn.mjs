@@ -506,7 +506,7 @@ export async function importRhdn(ctx) {
         categories: hackCat.get(r.category) ? [String(hackCat.get(r.category))] : [],
         downloads: Number(r.downloads) || 0,
         release_date: toDate(r.patchrelunix) ?? toDate(r.reldate) ?? toDate(r.created),
-        is_public: true, _id: r.hackkey, _game: gameRef,
+        is_public: true, _id: r.hackkey, _game: gameRef, _nofile: Number(r.nofile) === 1,
       }),
       gameOf: (r) => rhdnGame.get(Number(r.gamekey)),
     },
@@ -523,7 +523,7 @@ export async function importRhdn(ctx) {
           translation_type: 'Full',
           downloads: Number(r.downloads) || 0,
           release_date: toDate(r.patchrel_unix) ?? toDate(r.patchrel) ?? toDate(r.created),
-          is_public: true, _id: r.transkey, _game: gameRef,
+          is_public: true, _id: r.transkey, _game: gameRef, _nofile: Number(r.nofile) === 1,
         };
       },
       gameOf: (r) => rhdnGame.get(Number(r.gamekey)),
@@ -537,7 +537,7 @@ export async function importRhdn(ctx) {
         category: utilCat.get(r.categorykey) ? String(utilCat.get(r.categorykey)) : null,
         downloads: Number(r.downloads) || 0,
         release_date: toDate(r.reldate) ?? toDate(r.created),
-        _id: r.utilkey,
+        _id: r.utilkey, _nofile: Number(r.nofile) === 1,
       }),
       gameOf: () => null,
     },
@@ -550,7 +550,7 @@ export async function importRhdn(ctx) {
         version: r.version != null ? String(r.version) : null,
         downloads: Number(r.downloads) || 0,
         release_date: toDate(r.reldate) ?? toDate(r.created),
-        is_public: true, _id: r.dockey, _game: gameRef,
+        is_public: true, _id: r.dockey, _game: gameRef, _nofile: Number(r.nofile) === 1,
       }),
       gameOf: (r) => (r.gamekey ? rhdnGame.get(Number(r.gamekey)) : null),
     },
@@ -571,7 +571,8 @@ export async function importRhdn(ctx) {
       const gameRef = sec.gameOf(r);
       const row = sec.map(r, gameRef);
       const extId = row._id;
-      delete row._id; delete row._game;
+      const noFile = Boolean(row._nofile);
+      delete row._id; delete row._game; delete row._nofile;
       if (extId == null) continue;
       const dedupeKey = `${sec.entity}:${extId}`;
       if (seen.has(dedupeKey)) { stats.skipped++; continue; }
@@ -587,8 +588,9 @@ export async function importRhdn(ctx) {
 
       row.data_source = source;
       row.source_url = `https://www.romhacking.net/${sec.urlPart}/${extId}/`;
-      // endpoint de download do RHDN (site read-only segue servindo os arquivos)
-      row.file_url = `https://www.romhacking.net/download/${sec.urlPart}/${extId}/`;
+      // endpoint de download do RHDN (site read-only segue servindo os arquivos);
+      // nofile=1 = o RHDN nunca hospedou o arquivo -> sem link morto
+      row.file_url = noFile ? null : `https://www.romhacking.net/download/${sec.urlPart}/${extId}/`;
 
       if (DRY) {
         stats.importados++; count++; seen.add(dedupeKey);
