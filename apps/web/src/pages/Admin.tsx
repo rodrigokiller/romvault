@@ -145,9 +145,10 @@ const INTEGRATIONS: { provider: string; label: string; state: 'ok' | 'beta' | 's
   { provider: 'epic', label: 'Epic', state: 'soon' },
 ];
 
-/** Status vivo das integrações: contas vinculadas + último sync por provedor. */
+/** Status vivo das integrações: contas + último sync (alerta quando >48h). */
 function IntegrationsPanel() {
   const { t } = useTranslation();
+  const STALE_MS = 48 * 3_600_000;
   const { data: rows = [] } = useQuery({
     queryKey: ['integrationsStatus'],
     enabled: env.configured,
@@ -158,7 +159,18 @@ function IntegrationsPanel() {
       return (data ?? []) as { provider: string; accounts: number; last_sync: string | null }[];
     },
   });
+  const { data: digestLast } = useQuery({
+    queryKey: ['digestLast'],
+    enabled: env.configured,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data } = await db().rpc('digest_last');
+      return (data as string | null) ?? null;
+    },
+  });
   const of = (p: string) => rows.find((r) => r.provider === p);
+  const isStale = (last: string | null | undefined, hasUsers: boolean) =>
+    hasUsers && (!last || Date.now() - new Date(last).getTime() > STALE_MS);
   return (
     <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
       <div>
@@ -168,10 +180,11 @@ function IntegrationsPanel() {
       <ul className="integ-list">
         {INTEGRATIONS.map((i) => {
           const live = of(i.provider);
+          const stale = i.state === 'ok' && isStale(live?.last_sync, Number(live?.accounts ?? 0) > 0);
           return (
-            <li key={i.provider} className="integ-item mono">
-              <span className={`integ-state integ-${i.state}`}>
-                {t(`admin:integ_${i.state}`)}
+            <li key={i.provider} className={`integ-item mono ${stale ? 'integ-stale' : ''}`}>
+              <span className={`integ-state integ-${stale ? 'stale' : i.state}`}>
+                {stale ? t('admin:integ_stale') : t(`admin:integ_${i.state}`)}
               </span>
               <span className="integ-name">{i.label}</span>
               <span className="integ-meta">
@@ -182,6 +195,79 @@ function IntegrationsPanel() {
             </li>
           );
         })}
+        <li className={`integ-item mono ${digestLast && Date.now() - new Date(digestLast).getTime() > 8 * 86_400_000 ? 'integ-stale' : ''}`}>
+          <span className="integ-state integ-ok">{t('admin:integ_ok')}</span>
+          <span className="integ-name">backlog-digest</span>
+          <span className="integ-meta">
+            {digestLast ? `${t('admin:integDigestLast')} ${new Date(digestLast).toLocaleString()}` : t('admin:integDigestNever')}
+          </span>
+        </li>
+      </ul>
+    </Card>
+  );
+}
+
+interface Report {
+  id: string;
+  subject_type: string;
+  subject_label: string | null;
+  subject_url: string | null;
+  reason: string;
+  note: string | null;
+  created_at: string;
+}
+
+/** Fila de reportes da comunidade (arte/dados/match errados). */
+function ReportsPanel() {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const { data: reports = [] } = useQuery({
+    queryKey: ['reports'],
+    enabled: env.configured,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await db()
+        .from('reports')
+        .select('id, subject_type, subject_label, subject_url, reason, note, created_at')
+        .is('resolved_at', null)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) return [] as Report[];
+      return (data ?? []) as Report[];
+    },
+  });
+
+  async function resolve(id: string) {
+    const { error } = await db().from('reports')
+      .update({ resolved_at: new Date().toISOString() }).eq('id', id);
+    if (error) toast.error(t('forms:submitError'));
+    else void qc.invalidateQueries({ queryKey: ['reports'] });
+  }
+
+  if (reports.length === 0) return null;
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('admin:reportsTitle', { count: reports.length })}</div>
+        <div className="card-sub">{t('admin:reportsHint')}</div>
+      </div>
+      <ul className="integ-list">
+        {reports.map((r) => (
+          <li key={r.id} className="integ-item mono">
+            <span className="integ-state integ-beta">{t(`report:r_${r.reason}`)}</span>
+            <span className="integ-name" style={{ minWidth: 0, flex: 1 }}>
+              {r.subject_url
+                ? <a href={r.subject_url} className="section-link">{r.subject_label ?? r.subject_url}</a>
+                : (r.subject_label ?? r.subject_type)}
+              {r.note && <span className="integ-meta"> — “{r.note}”</span>}
+            </span>
+            <span className="integ-meta">{new Date(r.created_at).toLocaleDateString()}</span>
+            <Button size="sm" variant="ghost" onClick={() => void resolve(r.id)}>
+              {t('admin:reportsResolve')}
+            </Button>
+          </li>
+        ))}
       </ul>
     </Card>
   );
@@ -382,6 +468,7 @@ export function Admin() {
       </header>
 
       <ArtCoverage />
+      <ReportsPanel />
       <AddGamePanel />
       <ArtQueue />
       <IntegrationsPanel />

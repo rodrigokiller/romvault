@@ -453,6 +453,20 @@
     "artBox": "Arte: Caixa",
     "artStore": "Arte: Loja"
   },
+  "report": {
+    "title": "Reportar problema",
+    "btn": "Reportar",
+    "text": "O que está errado em \"{{title}}\"? Vai direto pra fila de curadoria.",
+    "reason": "Motivo",
+    "r_wrong_art": "Arte errada (capa/imagens de outro jogo)",
+    "r_wrong_match": "Jogo/vínculo errado",
+    "r_wrong_data": "Dados errados (ano, plataforma, descrição…)",
+    "r_broken_link": "Download/link quebrado",
+    "r_other": "Outro",
+    "notePh": "Detalhe o problema (opcional)…",
+    "send": "Enviar reporte",
+    "sent": "Reporte enviado — valeu por ajudar a curadoria!"
+  },
   "onboard": {
     "kicker": "bem-vindo ao ROMVault",
     "title": "Comece com a biblioteca cheia",
@@ -647,6 +661,12 @@
     "integ_ok": "no ar",
     "integ_beta": "beta",
     "integ_soon": "em breve",
+    "integ_stale": "PARADO?",
+    "integDigestLast": "última notificação",
+    "integDigestNever": "nunca rodou — agende com setup_digest_cron",
+    "reportsTitle": "Reportes da comunidade ({{count}})",
+    "reportsHint": "Arte/dados/match errados sinalizados pelos usuários — resolver = corrigir na página e dar baixa",
+    "reportsResolve": "Resolver",
     "integAccounts_one": "{{count}} conta",
     "integAccounts_other": "{{count}} contas",
     "addTitle": "Adicionar jogo do IGDB",

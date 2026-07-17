@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { ArrowLeft, Download, Star, Gamepad2, Trophy } from 'lucide-react';
 import { usePatchUsage } from '@/hooks/useAccounts';
+import { ReportButton } from '@/components/entities/ReportButton';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
@@ -280,6 +281,9 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
             )}
             {SUBJECT_OF[kind] && <FavoriteButton subjectType={SUBJECT_OF[kind]} subjectId={String(item.id)} />}
             <ShareButton title={title} />
+            {(kind === 'romhack' || kind === 'translation' || kind === 'doc' || kind === 'tool') && (
+              <ReportButton subjectType={kind} subjectId={String(item.id)} subjectLabel={title} />
+            )}
           </div>
         </div>
       </div>

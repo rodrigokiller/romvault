@@ -29,8 +29,22 @@ interface PaletteItem {
   id: string;
   label: string;
   icon: LucideIcon;
-  hint?: string;   // texto à direita (rota, tipo…)
+  hint?: string;      // texto à direita (rota, tipo…)
+  badges?: string[];  // plataformas (do jogo ou do jogo PAI do material)
   run: () => void;
+}
+
+/** Até 3 plataformas + "+N" — o nome corta o quanto precisar (flex). */
+function PlatBadges({ platforms }: { platforms?: string[] }) {
+  if (!platforms || platforms.length === 0) return null;
+  const shown = platforms.slice(0, 3);
+  const more = platforms.length - shown.length;
+  return (
+    <span className="cmdk-badges" aria-label={platforms.join(', ')}>
+      {shown.map((p) => <span key={p} className="cmdk-badge mono">{p}</span>)}
+      {more > 0 && <span className="cmdk-badge cmdk-badge-more mono" title={platforms.slice(3).join(', ')}>+{more}</span>}
+    </span>
+  );
 }
 interface Section {
   title: string;
@@ -187,6 +201,7 @@ export function CommandPalette() {
         label: r.title,
         icon: meta.icon as unknown as LucideIcon,
         hint: t(meta.kindKey),
+        badges: r.platforms,
         run: () => go(r.to),
       };
     });
@@ -274,6 +289,7 @@ export function CommandPalette() {
                 >
                   <Icon aria-hidden className="cmdk-item-icon" />
                   <span className="cmdk-item-label">{item.label}</span>
+                  <PlatBadges platforms={item.badges} />
                   {item.hint && <span className="cmdk-item-hint mono">{item.hint}</span>}
                 </button>
               );

@@ -14,7 +14,11 @@ export interface SearchResult {
   title: string;
   subtitle: string | null;
   to: string;
+  /** plataformas do jogo (ou do jogo PAI, em hack/tradução/doc). */
+  platforms: string[];
 }
+
+type Row = Record<string, unknown>;
 
 /** Uma tabela pesquisável: como buscar, rotear e rotular cada acerto. */
 interface Source {
@@ -24,19 +28,26 @@ interface Source {
   ref: 'id' | 'slug';
   route: (ref: string) => string;
   subtitle?: string;
+  /** select extra + extração das plataformas (próprias ou do jogo pai). */
+  platsSelect?: string;
+  plats?: (row: Row) => string[];
 }
 
+const ownPlats = (row: Row) => (row.platforms as string[] | null) ?? [];
+const parentPlats = (row: Row) =>
+  ((row.game as { platforms?: string[] } | null)?.platforms) ?? [];
+
 const SOURCES: Source[] = [
-  { table: 'games', kind: 'game', ref: 'slug', route: (r) => `/games/${r}`, subtitle: 'developer' },
-  { table: 'romhacks', kind: 'romhack', ref: 'id', route: (r) => `/romhacks/${r}` },
-  { table: 'translations', kind: 'translation', ref: 'id', route: (r) => `/translations/${r}`, subtitle: 'language' },
-  { table: 'documents', kind: 'document', ref: 'id', route: (r) => `/docs/${r}`, subtitle: 'category' },
+  { table: 'games', kind: 'game', ref: 'slug', route: (r) => `/games/${r}`, subtitle: 'developer', platsSelect: 'platforms', plats: ownPlats },
+  { table: 'romhacks', kind: 'romhack', ref: 'id', route: (r) => `/romhacks/${r}`, platsSelect: 'game:games(platforms)', plats: parentPlats },
+  { table: 'translations', kind: 'translation', ref: 'id', route: (r) => `/translations/${r}`, subtitle: 'language', platsSelect: 'game:games(platforms)', plats: parentPlats },
+  { table: 'documents', kind: 'document', ref: 'id', route: (r) => `/docs/${r}`, subtitle: 'category', platsSelect: 'game:games(platforms)', plats: parentPlats },
   { table: 'tools', kind: 'tool', ref: 'id', route: (r) => `/tools/${r}`, subtitle: 'category' },
   { table: 'articles', kind: 'article', ref: 'slug', route: (r) => `/articles/${r}`, subtitle: 'excerpt' },
 ];
 
 async function searchSource(src: Source, term: string, perSource: number): Promise<SearchResult[]> {
-  const cols = ['id', 'title', src.ref, src.subtitle].filter(Boolean).join(', ');
+  const cols = ['id', 'title', src.ref, src.subtitle, src.platsSelect].filter(Boolean).join(', ');
   const { data, error } = await db()
     .from(src.table)
     .select(cols)
@@ -52,6 +63,7 @@ async function searchSource(src: Source, term: string, perSource: number): Promi
       title: String(r.title),
       subtitle: src.subtitle ? ((r[src.subtitle] as string | null) ?? null) : null,
       to: src.route(ref),
+      platforms: src.plats ? src.plats(r) : [],
     };
   });
 }

@@ -99,6 +99,16 @@ export function SearchBox({ variant = 'header' }: { variant?: 'header' | 'page' 
                     <span className="searchbox-item-title">{r.title}</span>
                     {r.subtitle && <span className="searchbox-item-sub">{r.subtitle}</span>}
                   </span>
+                  {r.platforms.length > 0 && (
+                    <span className="cmdk-badges" aria-label={r.platforms.join(', ')}>
+                      {r.platforms.slice(0, 3).map((p) => <span key={p} className="cmdk-badge mono">{p}</span>)}
+                      {r.platforms.length > 3 && (
+                        <span className="cmdk-badge cmdk-badge-more mono" title={r.platforms.slice(3).join(', ')}>
+                          +{r.platforms.length - 3}
+                        </span>
+                      )}
+                    </span>
+                  )}
                   <span className="searchbox-item-kind">{t(meta.kindKey)}</span>
                 </button>
               );

@@ -453,6 +453,20 @@
     "artBox": "Art: Box",
     "artStore": "Art: Store"
   },
+  "report": {
+    "title": "Report a problem",
+    "btn": "Report",
+    "text": "What's wrong with \"{{title}}\"? It goes straight to the curation queue.",
+    "reason": "Reason",
+    "r_wrong_art": "Wrong art (cover/images from another game)",
+    "r_wrong_match": "Wrong game/link",
+    "r_wrong_data": "Wrong data (year, platform, description…)",
+    "r_broken_link": "Broken download/link",
+    "r_other": "Other",
+    "notePh": "Describe the problem (optional)…",
+    "send": "Send report",
+    "sent": "Report sent — thanks for helping curation!"
+  },
   "onboard": {
     "kicker": "welcome to the vault",
     "title": "Start with a full library",
@@ -646,6 +660,12 @@
     "integ_ok": "live",
     "integ_beta": "beta",
     "integ_soon": "soon",
+    "integ_stale": "STALLED?",
+    "integDigestLast": "last notification",
+    "integDigestNever": "never ran — schedule with setup_digest_cron",
+    "reportsTitle": "Community reports ({{count}})",
+    "reportsHint": "Wrong art/data/match flagged by users — resolving = fix the page and check it off",
+    "reportsResolve": "Resolve",
     "integAccounts_one": "{{count}} account",
     "integAccounts_other": "{{count}} accounts",
     "addTitle": "Add game from IGDB",

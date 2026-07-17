@@ -16,6 +16,7 @@ import { PlaythroughsWidget, type PatchOption } from '@/components/entities/Play
 import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { BoxScans } from '@/components/entities/BoxScans';
 import { AdminItemTools } from '@/components/entities/AdminItemTools';
+import { ReportButton } from '@/components/entities/ReportButton';
 import { SyncDataPanel } from '@/components/entities/SyncDataPanel';
 import { langCode, uiLangCode } from '@/hooks/useTranslationLangs';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
@@ -152,6 +153,7 @@ export function GameDetail() {
               <TrackButton gameId={game.id} />
               <FavoriteButton subjectType="game" subjectId={game.id} />
               <ShareButton title={title} />
+              <ReportButton subjectType="game" subjectId={game.id} subjectLabel={title} />
             </div>
           )}
           {game && <SyncDataPanel gameId={game.id} />}
