@@ -3139,3 +3139,34 @@
 .integ-soon { color: var(--muted); }
 .integ-name { min-width: 150px; color: var(--ink-bright); }
 .integ-meta { color: var(--muted); font-size: 0.7rem; }
+
+/* ajuda dos provedores + thumb do add-game */
+.account-help {
+  display: inline-grid;
+  place-items: center;
+  margin-left: var(--s2);
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  vertical-align: -2px;
+}
+.account-help:hover { color: var(--accent); }
+.account-help svg { width: 14px; height: 14px; }
+.help-steps {
+  margin: 0 0 var(--s3);
+  padding-left: 1.2em;
+  display: grid;
+  gap: var(--s2);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.help-links { display: grid; gap: var(--s2); margin-bottom: var(--s3); }
+.add-thumb {
+  width: 26px;
+  height: 34px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+}

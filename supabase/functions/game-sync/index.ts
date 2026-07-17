@@ -59,8 +59,94 @@ Deno.serve(async (req: Request) => {
     if (!prof?.is_admin) return json({ error: 'Só admins.' }, 403);
 
     const body = await req.json().catch(() => ({}));
-    const gameId = String(body.game_id ?? '');
     const action = String(body.action ?? 'igdb');
+
+    /* ── ações que NÃO precisam de um jogo existente ── */
+    if (action === 'igdb-search' || action === 'igdb-create') {
+      const twitchId = Deno.env.get('TWITCH_CLIENT_ID');
+      const twitchSecret = Deno.env.get('TWITCH_CLIENT_SECRET');
+      if (!twitchId || !twitchSecret) return json({ error: 'TWITCH_CLIENT_ID/SECRET não configuradas.' }, 500);
+      const tokRes = await fetch(
+        `https://id.twitch.tv/oauth2/token?client_id=${twitchId}&client_secret=${twitchSecret}&grant_type=client_credentials`,
+        { method: 'POST' },
+      );
+      const token = (await tokRes.json())?.access_token;
+      if (!token) return json({ error: 'OAuth Twitch falhou.' }, 502);
+      const igdb = (q: string) => fetch('https://api.igdb.com/v4/games', {
+        method: 'POST',
+        headers: { 'Client-ID': twitchId, Authorization: `Bearer ${token}` },
+        body: q,
+      });
+
+      if (action === 'igdb-search') {
+        const query = String(body.query ?? '').replace(/"/g, '').slice(0, 100);
+        if (!query) return json({ error: 'Informe a busca.' }, 400);
+        const res = await igdb(
+          `fields name, platforms, first_release_date, cover.image_id, game_type; search "${query}"; limit 10;`,
+        );
+        if (!res.ok) return json({ error: `IGDB: HTTP ${res.status}` }, 502);
+        // deno-lint-ignore no-explicit-any
+        const hits = (await res.json()) as any[];
+        return json({
+          ok: true,
+          results: hits.map((h) => ({
+            igdb_id: h.id,
+            title: h.name,
+            year: h.first_release_date ? new Date(h.first_release_date * 1000).getFullYear() : null,
+            platforms: (h.platforms ?? []).map((p: number) => PLATFORM_SHORT[p]).filter(Boolean),
+            thumb: h.cover?.image_id ? img(h.cover.image_id, 'cover_small') : null,
+          })),
+        });
+      }
+
+      // igdb-create: importa UM jogo pelo id do IGDB (dedupe por igdb_id)
+      const igdbId = Number(body.igdb_id ?? 0);
+      if (!igdbId) return json({ error: 'Informe igdb_id.' }, 400);
+      const { data: existing } = await admin.from('games').select('id, slug').eq('igdb_id', igdbId).maybeSingle();
+      if (existing) return json({ ok: true, existed: true, slug: existing.slug });
+
+      const res = await igdb(
+        'fields name, cover.image_id, screenshots.image_id, summary, first_release_date, platforms, '
+        + 'genres.name, franchises.name, involved_companies.company.name, involved_companies.developer; '
+        + `where id = ${igdbId};`,
+      );
+      if (!res.ok) return json({ error: `IGDB: HTTP ${res.status}` }, 502);
+      // deno-lint-ignore no-explicit-any
+      const [hit] = (await res.json()) as any[];
+      if (!hit) return json({ error: 'Jogo não achado no IGDB.' }, 404);
+
+      const platforms = (hit.platforms ?? []).map((p: number) => PLATFORM_SHORT[p]).filter(Boolean);
+      const slugBase = norm(hit.name).replace(/\s+/g, '-');
+      const row: Record<string, unknown> = {
+        slug: slugBase,
+        title: hit.name,
+        igdb_id: igdbId,
+        platforms,
+        data_source: 'igdb',
+        description: hit.summary ?? null,
+        release_date: hit.first_release_date
+          ? new Date(hit.first_release_date * 1000).toISOString().slice(0, 10) : null,
+        // deno-lint-ignore no-explicit-any
+        genres: (hit.genres ?? []).map((g: any) => g.name),
+        franchise: hit.franchises?.[0]?.name ?? null,
+        // deno-lint-ignore no-explicit-any
+        developer: hit.involved_companies?.find((c: any) => c.developer)?.company?.name ?? null,
+        cover_url: hit.cover?.image_id ? img(hit.cover.image_id, 'cover_big_2x') : null,
+        thumbnail: hit.cover?.image_id ? img(hit.cover.image_id, 'cover_big') : null,
+        // deno-lint-ignore no-explicit-any
+        screenshots: (hit.screenshots ?? []).slice(0, 6).map((s: any) => img(s.image_id, '720p')),
+      };
+      let { data: created, error: insErr } = await admin.from('games').insert(row).select('id, slug').single();
+      if (insErr && /duplicate|unique/i.test(insErr.message)) {
+        // slug colidiu com outro jogo: sufixa com o id do IGDB
+        row.slug = `${slugBase}-${igdbId}`;
+        ({ data: created, error: insErr } = await admin.from('games').insert(row).select('id, slug').single());
+      }
+      if (insErr) throw insErr;
+      return json({ ok: true, created: true, slug: created?.slug, title: hit.name });
+    }
+
+    const gameId = String(body.game_id ?? '');
     if (!gameId) return json({ error: 'Informe game_id.' }, 400);
 
     const { data: game } = await admin.from('games').select('*').eq('id', gameId).maybeSingle();

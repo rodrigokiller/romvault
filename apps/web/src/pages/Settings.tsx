@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Key, Copy, Trash2, Plus, BookOpen, RefreshCw, Gamepad2, Trophy, Gamepad, type LucideIcon } from 'lucide-react';
-import { getSupabase } from '@/lib/supabase';
+import { Key, Copy, Trash2, Plus, BookOpen, RefreshCw, Gamepad2, Trophy, Gamepad, HelpCircle, LogIn, ExternalLink, type LucideIcon } from 'lucide-react';
+import { invokeFn } from '@/lib/invokeFn';
+import { Dialog } from '@/components/ui/Dialog';
 import { Spinner } from '@/components/ui/feedback';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
@@ -107,10 +108,49 @@ export function Settings() {
  * status de vínculo e sync. Steam e RetroAchievements funcionam; as demais
  * são moldes honestos até termos as APIs (PSN/Xbox/Nintendo = não-oficiais).
  */
+/** Redireciona pro login OpenID da Steam (volta pra /settings com os params). */
+function steamLoginRedirect() {
+  const q = new URLSearchParams({
+    'openid.ns': 'http://specs.openid.net/auth/2.0',
+    'openid.mode': 'checkid_setup',
+    'openid.return_to': `${window.location.origin}/settings`,
+    'openid.realm': window.location.origin,
+    'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
+    'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
+  });
+  window.location.href = `https://steamcommunity.com/openid/login?${q.toString()}`;
+}
+
 function AccountLinksSection() {
   const { t } = useTranslation();
+  const toast = useToast();
+  const link = useLinkAccount();
   const { data: accounts = [] } = useMyAccounts();
   const linked = (p: Provider) => accounts.find((a) => a.provider === p);
+  const [openidBusy, setOpenidBusy] = useState(false);
+
+  // volta do "Entrar com a Steam": verifica a assinatura e sincroniza sozinho
+  useEffect(() => {
+    const search = window.location.search;
+    if (!search.includes('openid.mode=id_res') || openidBusy) return;
+    setOpenidBusy(true);
+    window.history.replaceState({}, '', '/settings'); // limpa a URL feia
+    (async () => {
+      try {
+        const { steamid } = await invokeFn<{ steamid: string }>('steam-openid', { query: search });
+        const d = await invokeFn<{ steam_games?: number; tracks_added?: number; games_created?: number }>(
+          'steam-import', { steamid },
+        );
+        await link.mutateAsync({ provider: 'steam', accountId: steamid, synced: true });
+        toast.success(t('settings:steamDone', {
+          games: d?.steam_games ?? 0, tracks: d?.tracks_added ?? 0, created: d?.games_created ?? 0,
+        }));
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
@@ -125,11 +165,22 @@ function AccountLinksSection() {
         hint={t('settings:steamIdHint')}
         placeholder="76561198... ou vanity"
         linked={linked('steam')}
+        help={{
+          steps: [t('settings:help_steam_1'), t('settings:help_steam_2'), t('settings:help_steam_3')],
+          links: [
+            { label: 'store.steampowered.com/account', url: 'https://store.steampowered.com/account/' },
+            { label: t('settings:help_steam_privacy'), url: 'https://steamcommunity.com/my/edit/settings' },
+          ],
+        }}
+        extra={
+          <Button variant="secondary" size="sm" onClick={steamLoginRedirect}>
+            <LogIn /> {t('settings:steamLogin')}
+          </Button>
+        }
         invoke={async (id) => {
-          const { data, error } = await getSupabase().functions.invoke('steam-import', { body: { steamid: id } });
-          if (error) throw error;
-          const d = data as { error?: string; steam_games?: number; tracks_added?: number; games_created?: number };
-          if (d?.error) throw new Error(d.error);
+          const d = await invokeFn<{ steam_games?: number; tracks_added?: number; games_created?: number }>(
+            'steam-import', { steamid: id },
+          );
           return t('settings:steamDone', {
             games: d?.steam_games ?? 0, tracks: d?.tracks_added ?? 0, created: d?.games_created ?? 0,
           });
@@ -142,11 +193,14 @@ function AccountLinksSection() {
         hint={t('settings:raHint')}
         placeholder={t('settings:raUserPh')}
         linked={linked('retroachievements')}
+        help={{
+          steps: [t('settings:help_ra_1'), t('settings:help_ra_2')],
+          links: [{ label: 'retroachievements.org', url: 'https://retroachievements.org/' }],
+        }}
         invoke={async (id) => {
-          const { data, error } = await getSupabase().functions.invoke('ra-import', { body: { ra_user: id } });
-          if (error) throw error;
-          const d = data as { error?: string; ra_games?: number; matched?: number; tracks_added?: number; tracks_updated?: number };
-          if (d?.error) throw new Error(d.error);
+          const d = await invokeFn<{ ra_games?: number; matched?: number; tracks_added?: number }>(
+            'ra-import', { ra_user: id },
+          );
           return t('settings:raDone', {
             total: d?.ra_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
           });
@@ -159,11 +213,14 @@ function AccountLinksSection() {
         hint={t('settings:psnHint')}
         placeholder={t('settings:psnUserPh')}
         linked={linked('psn')}
+        help={{
+          steps: [t('settings:help_psn_1'), t('settings:help_psn_2')],
+          links: [{ label: t('settings:help_psn_privacy'), url: 'https://www.playstation.com/acct/privacy' }],
+        }}
         invoke={async (id) => {
-          const { data, error } = await getSupabase().functions.invoke('psn-import', { body: { psn_user: id } });
-          if (error) throw error;
-          const d = data as { error?: string; psn_games?: number; matched?: number; tracks_added?: number };
-          if (d?.error) throw new Error(d.error);
+          const d = await invokeFn<{ psn_games?: number; matched?: number; tracks_added?: number }>(
+            'psn-import', { psn_user: id },
+          );
           return t('settings:psnDone', {
             total: d?.psn_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
           });
@@ -176,11 +233,14 @@ function AccountLinksSection() {
         hint={t('settings:xboxHint')}
         placeholder={t('settings:xboxUserPh')}
         linked={linked('xbox')}
+        help={{
+          steps: [t('settings:help_xbox_1'), t('settings:help_xbox_2')],
+          links: [{ label: 'xbox.com', url: 'https://www.xbox.com/' }],
+        }}
         invoke={async (id) => {
-          const { data, error } = await getSupabase().functions.invoke('xbox-import', { body: { gamertag: id } });
-          if (error) throw error;
-          const d = data as { error?: string; xbox_games?: number; matched?: number; tracks_added?: number };
-          if (d?.error) throw new Error(d.error);
+          const d = await invokeFn<{ xbox_games?: number; matched?: number; tracks_added?: number }>(
+            'xbox-import', { gamertag: id },
+          );
           return t('settings:xboxDone', {
             total: d?.xbox_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
           });
@@ -193,11 +253,14 @@ function AccountLinksSection() {
         hint={t('settings:gogHint')}
         placeholder={t('settings:gogUserPh')}
         linked={linked('gog')}
+        help={{
+          steps: [t('settings:help_gog_1'), t('settings:help_gog_2')],
+          links: [{ label: t('settings:help_gog_privacy'), url: 'https://www.gog.com/account/settings/privacy' }],
+        }}
         invoke={async (id) => {
-          const { data, error } = await getSupabase().functions.invoke('gog-import', { body: { gog_user: id } });
-          if (error) throw error;
-          const d = data as { error?: string; gog_games?: number; matched?: number; tracks_added?: number };
-          if (d?.error) throw new Error(d.error);
+          const d = await invokeFn<{ gog_games?: number; matched?: number; tracks_added?: number }>(
+            'gog-import', { gog_user: id },
+          );
           return t('settings:gogDone', {
             total: d?.gog_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
           });
@@ -211,11 +274,14 @@ function AccountLinksSection() {
         hint={t('settings:nintendoHint')}
         placeholder="SW-1234-5678-9012"
         linked={linked('nintendo')}
+        help={{
+          steps: [t('settings:help_nintendo_1'), t('settings:help_nintendo_2'), t('settings:help_nintendo_3')],
+          links: [],
+        }}
         invoke={async (id) => {
-          const { data, error } = await getSupabase().functions.invoke('nintendo-import', { body: { friend_code: id } });
-          if (error) throw error;
-          const d = data as { error?: string; pending?: boolean; message?: string; nsa_id?: string; accumulated?: string; note?: string };
-          if (d?.error) throw new Error(d.error);
+          const d = await invokeFn<{ pending?: boolean; message?: string; nsa_id?: string; accumulated?: string }>(
+            'nintendo-import', { friend_code: id },
+          );
           return {
             message: d?.pending ? (d.message ?? '') : t('settings:nintendoDone', { game: d?.accumulated ?? '?' }),
             accountId: d?.nsa_id,
@@ -237,9 +303,9 @@ function AccountLinksSection() {
   );
 }
 
-/** Linha de provedor FUNCIONAL: input + sync + estado do vínculo. */
+/** Linha de provedor FUNCIONAL: input + sync + ajuda + estado do vínculo. */
 function SyncAccountRow({
-  provider, icon: Icon, title, hint, placeholder, linked, invoke, beta = false,
+  provider, icon: Icon, title, hint, placeholder, linked, invoke, beta = false, help, extra,
 }: {
   provider: Provider;
   icon: LucideIcon;
@@ -250,6 +316,10 @@ function SyncAccountRow({
   /** retorna a mensagem de sucesso; accountId opcional sobrepõe o input no vínculo (ex.: nsaId da Nintendo) */
   invoke: (accountId: string) => Promise<string | { message: string; accountId?: string }>;
   beta?: boolean;
+  /** tutorial inline (modal): passos + links diretos (estilo PlayTracker) */
+  help?: { steps: string[]; links: { label: string; url: string }[] };
+  /** ação extra ao lado do sync (ex.: Entrar com a Steam) */
+  extra?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const toast = useToast();
@@ -258,6 +328,7 @@ function SyncAccountRow({
   const [value, setValue] = useState(linked?.account_id ?? '');
   const [touched, setTouched] = useState(false);
   const [running, setRunning] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // contas chegam async: preenche o input quando o vínculo carregar
   useEffect(() => {
@@ -289,6 +360,14 @@ function SyncAccountRow({
         <span className="account-name">
           <Icon aria-hidden className="account-icon" />{title}
           {beta && <span className="chip" style={{ marginLeft: 'var(--s2)' }}>beta</span>}
+          {help && (
+            <button
+              type="button" className="account-help" title={t('settings:accountsHelp')}
+              onClick={() => setHelpOpen(true)}
+            >
+              <HelpCircle aria-hidden />
+            </button>
+          )}
         </span>
         {linked ? (
           <span className="account-status mono">
@@ -306,12 +385,36 @@ function SyncAccountRow({
         <Button variant="primary" onClick={() => void run()} disabled={running || !value.trim()}>
           {running ? <Spinner /> : <><RefreshCw /> {t('settings:accountsSync')}</>}
         </Button>
+        {extra}
         {linked && (
           <Button variant="ghost" onClick={() => void unlink.mutateAsync(provider).catch(() => toast.error(t('forms:submitError')))}>
             <Trash2 /> {t('settings:accountsUnlink')}
           </Button>
         )}
       </div>
+      {helpOpen && help && (
+        <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} title={`${title} — ${t('settings:accountsHelp')}`}>
+          <ol className="help-steps">
+            {help.steps.map((s, i) => <li key={i}>{s}</li>)}
+          </ol>
+          {help.links.length > 0 && (
+            <div className="help-links">
+              {help.links.map((l) => (
+                <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="section-link">
+                  <ExternalLink aria-hidden style={{ width: 13, height: 13, verticalAlign: '-2px', marginRight: 4 }} />
+                  {l.label}
+                </a>
+              ))}
+            </div>
+          )}
+          {linked && (
+            <p className="field-hint">
+              {t('settings:accountsLinked', { id: linked.account_id })}
+              {linked.last_sync ? ` · ${t('settings:helpLastSync')} ${new Date(linked.last_sync).toLocaleString()}` : ''}
+            </p>
+          )}
+        </Dialog>
+      )}
     </div>
   );
 }

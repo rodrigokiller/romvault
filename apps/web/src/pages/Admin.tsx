@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState, LoadingPage, Spinner } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/Toast';
 import { getSupabase } from '@/lib/supabase';
+import { invokeFn } from '@/lib/invokeFn';
 import { env } from '@/lib/env';
 import { useIsAdmin, useMyProfile } from '@/hooks/useProfile';
 import { useDeleteEntity } from '@/hooks/useMutations';
@@ -186,6 +187,81 @@ function IntegrationsPanel() {
   );
 }
 
+interface IgdbHit {
+  igdb_id: number;
+  title: string;
+  year: number | null;
+  platforms: string[];
+  thumb: string | null;
+}
+
+/** Adicionar UM jogo do IGDB (busca + importa) — o caminho pro Chrono de SNES. */
+function AddGamePanel() {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState<IgdbHit[]>([]);
+  const [busy, setBusy] = useState<number | 'search' | null>(null);
+
+  async function search() {
+    setBusy('search');
+    try {
+      const d = await invokeFn<{ results: IgdbHit[] }>('game-sync', { action: 'igdb-search', query: q.trim() });
+      setResults(d.results ?? []);
+      if ((d.results ?? []).length === 0) toast.error(t('admin:addNone', { q: q.trim() }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function add(hit: IgdbHit) {
+    setBusy(hit.igdb_id);
+    try {
+      const d = await invokeFn<{ existed?: boolean; slug?: string }>('game-sync', { action: 'igdb-create', igdb_id: hit.igdb_id });
+      toast.success(d.existed ? t('admin:addExisted', { slug: d.slug ?? '' }) : t('admin:addCreated', { title: hit.title }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('admin:addTitle')}</div>
+        <div className="card-sub">{t('admin:addHint')}</div>
+      </div>
+      <div className="admin-tools-row">
+        <Input
+          value={q} onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && q.trim()) void search(); }}
+          placeholder={t('admin:addPh')} aria-label={t('admin:addTitle')}
+        />
+        <Button variant="primary" size="sm" disabled={busy !== null || !q.trim()} onClick={() => void search()}>
+          {busy === 'search' ? <Spinner /> : <DownloadCloud />} {t('admin:addSearch')}
+        </Button>
+      </div>
+      {results.length > 0 && (
+        <ul className="art-queue">
+          {results.map((r) => (
+            <li key={r.igdb_id} className="art-queue-item mono">
+              {r.thumb && <img src={r.thumb} alt="" className="add-thumb" loading="lazy" />}
+              <span className="art-queue-title">{r.title}{r.year ? ` (${r.year})` : ''}</span>
+              <span className="art-queue-plat">{r.platforms.slice(0, 5).join(' ')}</span>
+              <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void add(r)}>
+                {busy === r.igdb_id ? <Spinner /> : t('admin:addBtn')}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 /** Dispara a Edge Function `igdb-sync` (só admin; requer deploy + secrets). */
 function IgdbSyncPanel() {
   const { t } = useTranslation();
@@ -306,6 +382,7 @@ export function Admin() {
       </header>
 
       <ArtCoverage />
+      <AddGamePanel />
       <ArtQueue />
       <IntegrationsPanel />
 

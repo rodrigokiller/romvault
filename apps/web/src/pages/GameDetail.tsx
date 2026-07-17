@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Gamepad2 } from 'lucide-react';
+import { Gamepad2, Languages as LanguagesIcon } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import { useGame, useRelatedGames } from '@/hooks/useGames';
 import { useGameRomhacks, useGameTranslations, useGameDocuments } from '@/hooks/useMaterials';
 import { MaterialCard } from '@/components/entities/MaterialCard';
@@ -26,6 +27,27 @@ import type { Kind } from '@/components/entities/kinds';
 function hasScans(metadata: unknown): boolean {
   const m = (metadata ?? {}) as { boxart?: string; box3d?: string; moby?: { front?: string } };
   return Boolean(m.boxart || m.box3d || m.moby?.front);
+}
+
+/**
+ * Deep-link jogador->patch: "Jogar em português" leva direto à MELHOR
+ * tradução no idioma da UI (por ora: mais baixada; quando a base de zeradas
+ * com patch crescer, o ranking da cena assume).
+ */
+function PlayInMyLang({ translations }: { translations: Record<string, unknown>[] }) {
+  const { t, i18n } = useTranslation();
+  const ui = uiLangCode(i18n.language || 'pt-BR');
+  const mine = translations
+    .filter((tr) => tr.language && langCode(String(tr.language)) === ui)
+    .sort((a, b) => (Number(b.downloads) || 0) - (Number(a.downloads) || 0));
+  if (mine.length === 0) return null;
+  return (
+    <Link to={`/translations/${String(mine[0].id)}`}>
+      <Button variant="primary">
+        <LanguagesIcon /> {t('games:playInLang', { lang: ui })}
+      </Button>
+    </Link>
+  );
 }
 
 function humanize(slug: string): string {
@@ -126,6 +148,7 @@ export function GameDetail() {
           />
           {game && (
             <div className="detail-actions">
+              <PlayInMyLang translations={(translations.data ?? []) as Row[]} />
               <TrackButton gameId={game.id} />
               <FavoriteButton subjectType="game" subjectId={game.id} />
               <ShareButton title={title} />

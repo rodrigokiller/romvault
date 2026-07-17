@@ -1,0 +1,26 @@
+# ROMVault
+
+> Hub de romhacking em português (pt-BR) e inglês: catálogo de jogos ligado a
+> romhacks, traduções de fãs, documentos técnicos e ferramentas — mais
+> tracking pessoal de biblioteca/coleção com sync de Steam,
+> RetroAchievements, PlayStation, Xbox, GOG e Nintendo.
+
+O diferencial: trackear a EXPERIÊNCIA PATCHEADA — registrar zeradas e cópias
+informando qual tradução/hack foi usada, ligando a cena de romhacking ao
+tracking pessoal.
+
+## Páginas principais
+
+- [Jogos](https://romvault.app/games): catálogo central; cada jogo agrega traduções, hacks, docs e scans
+- [Traduções](https://romvault.app/translations): traduções de fãs com idioma, autor e downloads
+- [Romhacks](https://romvault.app/romhacks): hacks com dificuldade, categoria e jogo de origem
+- [Ferramentas](https://romvault.app/tools): utilitários de romhacking
+- [Documentos](https://romvault.app/docs): guias, mapas de RAM, formatos de arquivo
+- [Cena](https://romvault.app/scene): ranking das traduções/hacks mais zerados pela comunidade
+- [Estatísticas](https://romvault.app/stats): números do acervo
+- [API](https://romvault.app/api): API pública com chave (x-api-key) + feed RSS público em /feed
+
+## Dados
+
+- Fontes do catálogo: IGDB, romhacking.net (dump), PO.B.R.E, SMW Central, MobyGames, libretro-thumbnails
+- O conteúdo enviado por usuários é moderado; downloads apontam pra fonte original
