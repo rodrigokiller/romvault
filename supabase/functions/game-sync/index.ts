@@ -29,6 +29,18 @@ const norm = (s: string) =>
 const img = (imageId: string, size: string) =>
   `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.jpg`;
 
+/* id de plataforma do IGDB -> nosso nome curto (mesma tabela do importer) */
+const PLATFORM_SHORT: Record<number, string> = {
+  18: 'NES', 19: 'SNES', 4: 'N64', 21: 'GameCube', 5: 'Wii', 41: 'Wii U', 130: 'Switch', 508: 'Switch 2',
+  33: 'Game Boy', 22: 'GBC', 24: 'GBA', 20: 'NDS', 37: '3DS', 87: 'Virtual Boy',
+  29: 'Genesis', 64: 'Master System', 35: 'Game Gear', 32: 'Saturn', 23: 'Dreamcast', 78: 'Sega CD', 30: '32X',
+  7: 'PS1', 8: 'PS2', 9: 'PS3', 48: 'PS4', 167: 'PS5', 38: 'PSP', 46: 'PS Vita',
+  11: 'Xbox', 12: 'Xbox 360', 49: 'Xbox One', 169: 'Xbox Series',
+  6: 'PC', 13: 'DOS', 14: 'Mac', 3: 'Linux',
+  52: 'Arcade', 128: 'TG-16', 80: 'Neo Geo', 59: 'Atari 2600', 62: 'Jaguar',
+  16: 'Amiga', 15: 'C64', 50: '3DO', 68: 'ColecoVision', 67: 'Intellivision', 34: 'Android', 39: 'iOS',
+};
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
@@ -86,7 +98,7 @@ Deno.serve(async (req: Request) => {
 
     const fields =
       'fields name, cover.image_id, screenshots.image_id, summary, first_release_date, ' +
-      'genres.name, franchises.name, involved_companies.company.name, involved_companies.developer;';
+      'platforms, genres.name, franchises.name, involved_companies.company.name, involved_companies.developer;';
     const query = game.igdb_id
       ? `${fields} where id = ${game.igdb_id};`
       : `${fields} search "${String(game.title).replace(/"/g, '')}"; limit 10;`;
@@ -131,6 +143,16 @@ Deno.serve(async (req: Request) => {
       // deno-lint-ignore no-explicit-any
       const dev = hit.involved_companies.find((c: any) => c.developer)?.company?.name;
       if (dev) { patch.developer = dev; updated.push('developer'); }
+    }
+    // MULTI-PLATAFORMA: mescla (união) as plataformas do IGDB nas nossas —
+    // ex.: Chrono Trigger que só tinha PC/PS1/PSP ganha SNES/NDS de volta
+    if (hit.platforms?.length) {
+      const mapped = (hit.platforms as number[]).map((pid) => PLATFORM_SHORT[pid]).filter(Boolean);
+      const merged = [...new Set([...(game.platforms ?? []), ...mapped])];
+      if (merged.length > (game.platforms ?? []).length) {
+        patch.platforms = merged;
+        updated.push('platforms');
+      }
     }
 
     if (updated.length === 0) return json({ ok: true, action, updated, note: 'nada novo no IGDB' });

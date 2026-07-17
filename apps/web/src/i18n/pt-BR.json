@@ -29,7 +29,8 @@
     "admin": "Admin",
     "language": "Idioma",
     "stats": "Estatísticas",
-    "myShelf": "Estante"
+    "myShelf": "Estante",
+    "catalog": "Catálogo"
   },
   "palette": {
     "title": "Paleta de comandos",
@@ -50,7 +51,7 @@
   },
   "home": {
     "heroKicker": "// preservação + criação",
-    "heroTitle": "O cofre do romhacking.",
+    "heroTitle": "ROMVault — o hub do romhacking.",
     "heroSubtitle": "Jogos, romhacks, traduções, documentação e ferramentas — catalogados, versionados e ligados ao jogo de origem. Um romhacking.net moderno, escuro e afiado.",
     "heroBrowse": "Explorar jogos",
     "heroSubmit": "Enviar material",
@@ -286,6 +287,8 @@
     "gogHint": "Biblioteca do GOG pelo perfil público: jogos + horas (deixe o perfil público no GOG)",
     "gogUserPh": "Seu username do GOG",
     "gogDone": "GOG: {{matched}} de {{total}} jogos casados com o catálogo, {{tracks}} novos na biblioteca!",
+    "nintendoHint": "EXPERIMENTAL (API do app NSO): informe seu friend code, aceite a amizade da conta ROMVault no Switch, e os jogos acumulam conforme você joga (sync diário)",
+    "nintendoDone": "Nintendo: acumulado agora — {{game}}",
     "emailDigestLabel": "digest por e-mail",
     "emailDigestOn": "Semanal (backlog + traduções)",
     "emailDigestOff": "Desligado",
@@ -391,6 +394,8 @@
     "syncTitle_one": "Dados sincronizados ({{count}} conta)",
     "syncTitle_other": "Dados sincronizados ({{count}} contas)",
     "syncHint": "O mesmo jogo pode existir em várias plataformas — cada conta vinculada tem seus próprios dados; seu status manual nunca é sobrescrito.",
+    "syncSummaryLabel": "contas conectadas",
+    "syncSummaryHint": "Agregado da conta: jogos sincronizados · horas · conquistas",
     "today": "hoje",
     "daysAgo_one": "há {{count}} dia",
     "daysAgo_other": "há {{count}} dias",
@@ -414,7 +419,7 @@
     "artStore": "Arte: Loja"
   },
   "onboard": {
-    "kicker": "bem-vindo ao cofre",
+    "kicker": "bem-vindo ao ROMVault",
     "title": "Comece com a biblioteca cheia",
     "text": "Vincule suas contas e seus jogos, horas e conquistas entram sozinhos — Steam, RetroAchievements, PlayStation, Xbox e GOG. Ou adicione na mão, do seu jeito.",
     "cta": "Vincular contas",
@@ -615,7 +620,7 @@
   "stats": {
     "kicker": "// numeros do acervo",
     "title": "Estatísticas",
-    "subtitle": "O tamanho do cofre: jogos, hacks e traduções catalogados até agora.",
+    "subtitle": "O tamanho do acervo: jogos, hacks e traduções catalogados até agora.",
     "byPlatform": "Jogos por plataforma",
     "byLanguage": "Traduções por idioma"
   }

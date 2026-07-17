@@ -1,6 +1,10 @@
 import { Link, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings, LogIn, LogOut, User as UserIcon, Shield, Upload, Search } from 'lucide-react';
+import {
+  Settings, LogIn, LogOut, User as UserIcon, Shield, Upload, Search, ChevronDown,
+  Gamepad2, Languages, Sparkles, Wrench, FileText, Layers, Newspaper,
+  Users, Trophy, BarChart3, Library, Store,
+} from 'lucide-react';
 import { Logo } from './Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { openPalette } from './CommandPalette';
@@ -8,6 +12,33 @@ import { NotificationsBell } from './NotificationsBell';
 import { useAuth } from '@/auth/AuthProvider';
 import { useIsAdmin } from '@/hooks/useProfile';
 import './header.css';
+
+/** Item de dropdown da nav (submenu terminal: hover/focus abre pra baixo). */
+interface DropItem {
+  to: string;
+  label: string;
+  icon: typeof Gamepad2;
+}
+
+function NavDrop({ label, items }: { label: string; items: DropItem[] }) {
+  return (
+    <div className="nav-drop">
+      <button type="button" className="header-link nav-drop-btn">
+        {label} <ChevronDown aria-hidden />
+      </button>
+      <div className="nav-drop-menu" role="menu">
+        {items.map((it) => {
+          const Icon = it.icon;
+          return (
+            <NavLink key={it.to} to={it.to} className="nav-drop-item" role="menuitem">
+              <Icon aria-hidden /> {it.label}
+            </NavLink>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /** Cabeçalho reutilizável, presente em todas as páginas. */
 export function Header() {
@@ -27,29 +58,39 @@ export function Header() {
           <Link to="/" className="header-brand">
             <Logo />
           </Link>
+          {/* nav enxuta: 2 links diretos + submenus (o resto vive no Ctrl+K) */}
           <nav className="header-nav" aria-label="Principal">
             <NavLink to="/games" className="header-link">
               {t('nav:games')}
             </NavLink>
-            <NavLink to="/translations" className="header-link">
-              {t('nav:translations')}
-            </NavLink>
-            <NavLink to="/romhacks" className="header-link">
-              {t('nav:romhacks')}
-            </NavLink>
-            <NavLink to="/tools" className="header-link">
-              {t('nav:tools')}
-            </NavLink>
-            <NavLink to="/docs" className="header-link">
-              {t('nav:docs')}
-            </NavLink>
-            <NavLink to="/users" className="header-link">
-              {t('nav:community')}
-            </NavLink>
+            <NavDrop
+              label={t('nav:catalog')}
+              items={[
+                { to: '/translations', label: t('nav:translations'), icon: Languages },
+                { to: '/romhacks', label: t('nav:romhacks'), icon: Sparkles },
+                { to: '/tools', label: t('nav:tools'), icon: Wrench },
+                { to: '/docs', label: t('nav:docs'), icon: FileText },
+                { to: '/collections', label: t('collections:title'), icon: Layers },
+                { to: '/articles', label: t('nav:articles'), icon: Newspaper },
+              ]}
+            />
+            <NavDrop
+              label={t('nav:community')}
+              items={[
+                { to: '/users', label: t('users:title'), icon: Users },
+                { to: '/scene', label: t('scene:title'), icon: Trophy },
+                { to: '/stats', label: t('nav:stats'), icon: BarChart3 },
+              ]}
+            />
             {session && (
-              <NavLink to={`/u/${username}/library`} className="header-link header-link-shelf">
-                {t('nav:myShelf')}
-              </NavLink>
+              <NavDrop
+                label={t('nav:myShelf')}
+                items={[
+                  { to: `/u/${username}/library`, label: t('library:viewLibrary'), icon: Library },
+                  { to: `/u/${username}/vitrine`, label: t('vitrine:viewVitrine'), icon: Store },
+                  { to: `/u/${username}`, label: t('nav:profile'), icon: UserIcon },
+                ]}
+              />
             )}
           </nav>
         </div>

@@ -185,3 +185,18 @@ Todos os importers gravam o dado BRUTO por (usuário, jogo, provedor) em
 game_sync_data — o mesmo jogo em N plataformas nunca conflita; o track
 continua sendo o resumo curado (status manual nunca é sobrescrito).
 A UI mostra as linhas por conta na página do jogo e no quick view.
+
+## nintendo-import (EXPERIMENTAL — API do app NSO via nxapi/imink)
+
+Modelo PlayTracker: conta de serviço no NSO + friend code do usuário +
+presença de amigos (jogo atual/último com tempo total). Jogos ACUMULAM
+conforme a pessoa joga (sync diário). Frágil por natureza: token de sessão
+dura meses, assinatura via api.imink.app, versão do app resolvida na App
+Store em runtime.
+
+```sh
+# na conta de serviço (criar uma conta Nintendo só pro ROMVault):
+npx nxapi nso auth          # imprime o session token no final do fluxo
+supabase secrets set NINTENDO_SESSION_TOKEN=<token>
+supabase functions deploy nintendo-import --no-verify-jwt
+```

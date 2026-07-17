@@ -203,24 +203,41 @@ function AccountLinksSection() {
           });
         }}
       />
-      {(['nintendo', 'epic'] as const).map((p) => (
-        <div key={p} className="account-row account-row-soon">
-          <div className="account-row-head">
-            <span className="account-name">
-              <Gamepad2 aria-hidden className="account-icon" />
-              {{ nintendo: 'Nintendo', epic: 'Epic' }[p]}
-            </span>
-            <span className="chip">{t('settings:accountsSoon')}</span>
-          </div>
+      <SyncAccountRow
+        provider="nintendo"
+        icon={Gamepad2}
+        title="Nintendo"
+        beta
+        hint={t('settings:nintendoHint')}
+        placeholder="SW-1234-5678-9012"
+        linked={linked('nintendo')}
+        invoke={async (id) => {
+          const { data, error } = await getSupabase().functions.invoke('nintendo-import', { body: { friend_code: id } });
+          if (error) throw error;
+          const d = data as { error?: string; pending?: boolean; message?: string; nsa_id?: string; accumulated?: string; note?: string };
+          if (d?.error) throw new Error(d.error);
+          return {
+            message: d?.pending ? (d.message ?? '') : t('settings:nintendoDone', { game: d?.accumulated ?? '?' }),
+            accountId: d?.nsa_id,
+          };
+        }}
+      />
+      <div className="account-row account-row-soon">
+        <div className="account-row-head">
+          <span className="account-name">
+            <Gamepad2 aria-hidden className="account-icon" />
+            Epic
+          </span>
+          <span className="chip">{t('settings:accountsSoon')}</span>
         </div>
-      ))}
+      </div>
     </Card>
   );
 }
 
 /** Linha de provedor FUNCIONAL: input + sync + estado do vínculo. */
 function SyncAccountRow({
-  provider, icon: Icon, title, hint, placeholder, linked, invoke,
+  provider, icon: Icon, title, hint, placeholder, linked, invoke, beta = false,
 }: {
   provider: Provider;
   icon: LucideIcon;
@@ -228,7 +245,9 @@ function SyncAccountRow({
   hint: string;
   placeholder: string;
   linked?: LinkedAccount;
-  invoke: (accountId: string) => Promise<string>;
+  /** retorna a mensagem de sucesso; accountId opcional sobrepõe o input no vínculo (ex.: nsaId da Nintendo) */
+  invoke: (accountId: string) => Promise<string | { message: string; accountId?: string }>;
+  beta?: boolean;
 }) {
   const { t } = useTranslation();
   const toast = useToast();
@@ -248,8 +267,10 @@ function SyncAccountRow({
     if (!id) return;
     setRunning(true);
     try {
-      const msg = await invoke(id);
-      await link.mutateAsync({ provider, accountId: id, synced: true });
+      const result = await invoke(id);
+      const msg = typeof result === 'string' ? result : result.message;
+      const accountId = typeof result === 'string' ? id : (result.accountId ?? id);
+      await link.mutateAsync({ provider, accountId, synced: true });
       toast.success(msg);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -263,7 +284,10 @@ function SyncAccountRow({
   return (
     <div className="account-row">
       <div className="account-row-head">
-        <span className="account-name"><Icon aria-hidden className="account-icon" />{title}</span>
+        <span className="account-name">
+          <Icon aria-hidden className="account-icon" />{title}
+          {beta && <span className="chip" style={{ marginLeft: 'var(--s2)' }}>beta</span>}
+        </span>
         {linked ? (
           <span className="account-status mono">
             {t('settings:accountsLinked', { id: linked.account_id })}

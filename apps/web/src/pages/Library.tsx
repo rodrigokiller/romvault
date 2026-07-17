@@ -2,12 +2,13 @@ import { useMemo, useRef, useState } from 'react';
 import { useFlip } from '@/hooks/useFlip';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages } from 'lucide-react';
+import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages, RefreshCw } from 'lucide-react';
 import { GameQuickView } from '@/components/entities/GameQuickView';
 import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
 import { useProfileByUsername } from '@/hooks/useProfile';
 import {
-  useLibrary, useLibraryCopies, useUserPlaythroughs, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
+  useLibrary, useLibraryCopies, useUserPlaythroughs, useUserSyncSummary,
+  TRACK_STATUSES, type TrackStatus, type TrackWithGame,
 } from '@/hooks/useTracks';
 import { STATUS_ICON } from '@/components/entities/TrackButton';
 import { BatchAdd } from '@/components/entities/BatchAdd';
@@ -60,6 +61,7 @@ export function Library() {
   const { data: tracks = [], isLoading } = useLibrary(profile?.id);
   const { data: copies = [] } = useLibraryCopies(profile?.id);
   const { data: playthroughs = [] } = useUserPlaythroughs(profile?.id);
+  const { data: syncSummary = [] } = useUserSyncSummary(profile?.id);
   const [status, setStatus] = useState<TrackStatus | 'all'>('all');
   const [platform, setPlatform] = useState<string | null>(null);
   const [onlyDupes, setOnlyDupes] = useState(false);
@@ -225,6 +227,21 @@ export function Library() {
             <div className="backlog-progress-bar" role="progressbar" aria-valuenow={Math.min(100, Math.round((runsThisYear / goal) * 100))} aria-valuemin={0} aria-valuemax={100}>
               <div className="backlog-progress-fill" style={{ width: `${Math.min(100, (runsThisYear / goal) * 100)}%` }} />
             </div>
+          </div>
+        )}
+        {/* tracking POR CONTA dentro da própria library (sem página separada) */}
+        {syncSummary.length > 0 && (
+          <div className="sync-summary mono">
+            <span className="sync-summary-label">// {t('library:syncSummaryLabel')}</span>
+            {syncSummary.map((s) => (
+              <span key={s.provider} className="sync-summary-item" title={t('library:syncSummaryHint')}>
+                <RefreshCw aria-hidden />
+                {s.provider === 'retroachievements' ? 'RA' : s.provider}
+                {' '}{t('library:statGames', { count: s.games })}
+                {s.hours > 0 ? ` · ${s.hours}h` : ''}
+                {s.total > 0 ? ` · ${s.earned}/${s.total}` : ''}
+              </span>
+            ))}
           </div>
         )}
       </header>

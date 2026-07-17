@@ -29,7 +29,8 @@
     "admin": "Admin",
     "language": "Language",
     "stats": "Stats",
-    "myShelf": "My shelf"
+    "myShelf": "My shelf",
+    "catalog": "Catalog"
   },
   "palette": {
     "title": "Command palette",
@@ -50,7 +51,7 @@
   },
   "home": {
     "heroKicker": "// preservation + creation",
-    "heroTitle": "The romhacking vault.",
+    "heroTitle": "ROMVault — the romhacking hub.",
     "heroSubtitle": "Games, romhacks, translations, documentation and tools — catalogued, versioned and linked to their source game. A modern romhacking.net, dark and sharp.",
     "heroBrowse": "Browse games",
     "heroSubmit": "Submit material",
@@ -286,6 +287,8 @@
     "gogHint": "GOG library via public profile: games + hours (set your GOG profile to public)",
     "gogUserPh": "Your GOG username",
     "gogDone": "GOG: {{matched}} of {{total}} games matched the catalog, {{tracks}} added to your library!",
+    "nintendoHint": "EXPERIMENTAL (NSO app API): enter your friend code, accept ROMVault's friend request on your Switch, and games accumulate as you play (daily sync)",
+    "nintendoDone": "Nintendo: accumulated now — {{game}}",
     "emailDigestLabel": "email digest",
     "emailDigestOn": "Weekly (backlog + translations)",
     "emailDigestOff": "Off",
@@ -391,6 +394,8 @@
     "syncTitle_one": "Synced data ({{count}} account)",
     "syncTitle_other": "Synced data ({{count}} accounts)",
     "syncHint": "The same game can exist on several platforms — each linked account keeps its own data; your manual status is never overwritten.",
+    "syncSummaryLabel": "connected accounts",
+    "syncSummaryHint": "Account aggregate: synced games · hours · achievements",
     "today": "today",
     "daysAgo_one": "{{count}} day ago",
     "daysAgo_other": "{{count}} days ago",

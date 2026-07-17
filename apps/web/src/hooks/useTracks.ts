@@ -244,6 +244,36 @@ export function useMySyncData(gameId: string | undefined) {
 }
 
 /**
+ * Resumo do sync POR PROVEDOR de um usuário (a "aba tracking" dentro da
+ * Library): jogos, horas somadas e conquistas por conta conectada.
+ */
+export function useUserSyncSummary(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['syncSummary', userId],
+    enabled: env.configured && Boolean(userId),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await db()
+        .from('game_sync_data')
+        .select('provider, hours_played, achievements_earned, achievements_total')
+        .eq('user_id', userId as string)
+        .range(0, 9999);
+      if (error) return [];
+      const agg = new Map<string, { games: number; hours: number; earned: number; total: number }>();
+      for (const r of (data ?? []) as { provider: string; hours_played: number | null; achievements_earned: number | null; achievements_total: number | null }[]) {
+        const a = agg.get(r.provider) ?? { games: 0, hours: 0, earned: 0, total: 0 };
+        a.games += 1;
+        a.hours += r.hours_played ?? 0;
+        a.earned += r.achievements_earned ?? 0;
+        a.total += r.achievements_total ?? 0;
+        agg.set(r.provider, a);
+      }
+      return [...agg.entries()].map(([provider, a]) => ({ provider, ...a, hours: Math.round(a.hours) }));
+    },
+  });
+}
+
+/**
  * Mapa game_id -> status do usuário logado — UMA query compartilhada por todos
  * os cards do grid (não uma por card).
  */

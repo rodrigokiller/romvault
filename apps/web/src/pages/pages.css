@@ -3104,3 +3104,21 @@
   color: var(--muted);
   font-size: 0.72rem;
 }
+
+/* contas conectadas na library (agregado por provedor) */
+.sync-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s4);
+  margin-top: var(--s3);
+  font-size: 0.74rem;
+}
+.sync-summary-label { color: var(--muted); font-size: 0.68rem; letter-spacing: 0.04em; }
+.sync-summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+}
+.sync-summary-item svg { width: 11px; height: 11px; }
