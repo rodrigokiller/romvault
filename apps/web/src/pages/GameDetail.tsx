@@ -14,6 +14,7 @@ import { CopiesWidget } from '@/components/entities/CopiesWidget';
 import { PlaythroughsWidget, type PatchOption } from '@/components/entities/PlaythroughsWidget';
 import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { BoxScans } from '@/components/entities/BoxScans';
+import { AdminItemTools } from '@/components/entities/AdminItemTools';
 import { langCode, uiLangCode } from '@/hooks/useTranslationLangs';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { Badge } from '@/components/ui/Badge';
@@ -131,6 +132,7 @@ export function GameDetail() {
           )}
           {game && <CopiesWidget gameId={game.id} platforms={game.platforms ?? []} patchOptions={patchOptions} />}
           {game && <PlaythroughsWidget gameId={game.id} patchOptions={patchOptions} />}
+          {game && <AdminItemTools gameId={game.id} />}
         </div>
       </div>
 
@@ -236,7 +238,7 @@ function Highlights({
     <section style={{ marginBottom: 'var(--s5)' }}>
       <div className="section-head">
         <div>
-          <span className="kicker">// {t('games:highlightsKicker')}</span>
+          <span className="kicker">{t('games:highlightsKicker')}</span>
           <h2>{t('games:highlightsTitle')}</h2>
         </div>
       </div>

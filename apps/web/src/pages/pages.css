@@ -2933,3 +2933,51 @@
 
 /* meta secundária dos cards da estante (última sessão / fonte) */
 .shelf-meta-sub { color: var(--muted); font-size: 0.66rem; opacity: 0.85; }
+
+/* ── Ferramentas de admin na página do jogo (estilo trakt) ─────────────────── */
+.admin-tools { margin-top: var(--s4); }
+.admin-tools-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px dashed var(--line-bright);
+  color: var(--muted);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.admin-tools-toggle:hover { color: var(--amber); border-color: var(--amber); }
+.admin-tools-toggle svg { width: 12px; height: 12px; }
+.admin-tools-body {
+  display: grid;
+  gap: var(--s3);
+  margin-top: var(--s2);
+  padding: var(--s3);
+  border: 1px dashed var(--line-bright);
+  background: color-mix(in srgb, var(--amber) 4%, transparent);
+}
+.admin-tools-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+.admin-tools-row .input { max-width: 340px; }
+.admin-tools-hint { color: var(--muted); font-size: 0.7rem; }
+
+/* atividade da semana no perfil (estilo gametrack) */
+.activity-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s4);
+  margin-top: var(--s5);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 0.78rem;
+}
+.activity-label { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.04em; }
+.activity-item { color: var(--accent); }
+.activity-item + .activity-item::before { content: '· '; color: var(--muted); }

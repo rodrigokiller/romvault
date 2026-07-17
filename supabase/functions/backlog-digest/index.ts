@@ -97,14 +97,52 @@ Deno.serve(async (req: Request) => {
       }
     }
     let notified = 0;
+    const inserted: Record<string, unknown>[] = [];
     for (let i = 0; i < rows.length; i += 500) {
       const { data } = await admin.from('notifications')
         .upsert(rows.slice(i, i + 500), { onConflict: 'user_id,kind,ref', ignoreDuplicates: true })
-        .select('id');
+        .select('id, user_id, payload');
       notified += (data ?? []).length;
+      inserted.push(...(data ?? []));
     }
 
-    return json({ ok: true, translations: fresh.length, candidates: rows.length, notified });
+    // e-mail OPT-IN (profiles.email_digest) via Resend — 1 e-mail por usuário
+    // com a lista da semana. Sem RESEND_API_KEY, o digest segue só no sino.
+    let emailed = 0;
+    const resendKey = Deno.env.get('RESEND_API_KEY');
+    if (resendKey && inserted.length > 0) {
+      const siteUrl = Deno.env.get('SITE_URL') ?? 'https://romvault.vercel.app';
+      const from = Deno.env.get('RESEND_FROM') ?? 'ROMVault <onboarding@resend.dev>';
+      const byUser = new Map<string, { game_title?: string; game_slug?: string; language?: string }[]>();
+      for (const n of inserted) {
+        const uid = n.user_id as string;
+        byUser.set(uid, [...(byUser.get(uid) ?? []), n.payload as never]);
+      }
+      const { data: optIns } = await admin.from('profiles')
+        .select('id').eq('email_digest', true).in('id', [...byUser.keys()]);
+      for (const p of optIns ?? []) {
+        const { data: au } = await admin.auth.admin.getUserById(p.id as string);
+        const email = au?.user?.email;
+        if (!email) continue;
+        const items = byUser.get(p.id as string) ?? [];
+        const list = items.map((x) =>
+          `<li><a href="${siteUrl}/games/${x.game_slug ?? ''}">${x.game_title ?? '?'}</a> — ${x.language ?? '?'}</li>`).join('');
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from,
+            to: [email],
+            subject: `Seu backlog ganhou ${items.length === 1 ? 'uma tradução' : `${items.length} traduções`} — ROMVault`,
+            html: `<p>Jogos do seu backlog que ganharam tradução:</p><ul>${list}</ul>`
+              + `<p><a href="${siteUrl}">Abrir o ROMVault</a> · Pra parar de receber: Configurações → Privacidade.</p>`,
+          }),
+        });
+        if (res.ok) emailed++;
+      }
+    }
+
+    return json({ ok: true, translations: fresh.length, candidates: rows.length, notified, emailed });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }

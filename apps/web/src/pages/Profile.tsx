@@ -17,7 +17,7 @@ import {
   useProfileByUsername, useMyProfile, useContributions, useUpdateProfile,
 } from '@/hooks/useProfile';
 import { useMyFavorites } from '@/hooks/useFavorites';
-import { useLibrary, useUserPlaythroughs } from '@/hooks/useTracks';
+import { useLibrary, useUserPlaythroughs, useLibraryCopies } from '@/hooks/useTracks';
 import { useIsFollowing, useToggleFollow, useFollowCounts, useFriendsFeed } from '@/hooks/useFollows';
 import { useAuth } from '@/auth/AuthProvider';
 import type { Kind } from '@/components/entities/kinds';
@@ -34,6 +34,7 @@ export function Profile() {
   const { data: favorites = [] } = useMyFavorites(profile?.id);
   const { data: libTracks = [] } = useLibrary(profile?.id);
   const { data: playthroughs = [] } = useUserPlaythroughs(profile?.id);
+  const { data: copies = [] } = useLibraryCopies(profile?.id);
   const { data: followCounts } = useFollowCounts(profile?.id);
 
   if (isLoading) return <LoadingPage />;
@@ -87,6 +88,8 @@ export function Profile() {
         {isMe ? <ProfileEditor profile={profile} /> : <FollowButton userId={profile.id} />}
       </div>
 
+      <ActivityStrip tracks={libTracks} playthroughs={playthroughs} copies={copies} />
+
       <VitrineTeaser userId={profile.id} username={profile.username ?? username ?? ''} />
 
       {isMe && <FriendsFeed />}
@@ -132,6 +135,32 @@ export function Profile() {
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+/**
+ * Atividade da semana (estilo gametrack): jogos com atividade, zeradas e
+ * cópias novas nos últimos 7 dias — calculado do que a página já carrega.
+ */
+function ActivityStrip({ tracks, playthroughs, copies }: {
+  tracks: { updated_at: string }[];
+  playthroughs: { finished_on: string }[];
+  copies: { id: string }[] & { acquired_at?: string | null }[];
+}) {
+  const { t } = useTranslation();
+  const weekAgo = Date.now() - 7 * 86_400_000;
+  const active = tracks.filter((x) => new Date(x.updated_at).getTime() >= weekAgo).length;
+  const runs = playthroughs.filter((p) => new Date(p.finished_on).getTime() >= weekAgo).length;
+  const newCopies = (copies as { acquired_at?: string | null }[])
+    .filter((c) => c.acquired_at && new Date(c.acquired_at).getTime() >= weekAgo).length;
+  if (active === 0 && runs === 0 && newCopies === 0) return null;
+  return (
+    <div className="activity-strip mono">
+      <span className="activity-label">// {t('profile:weekActivity')}</span>
+      <span className="activity-item">{t('profile:weekActive', { count: active })}</span>
+      {runs > 0 && <span className="activity-item">{t('profile:weekRuns', { count: runs })}</span>}
+      {newCopies > 0 && <span className="activity-item">{t('profile:weekCopies', { count: newCopies })}</span>}
     </div>
   );
 }

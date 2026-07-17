@@ -150,10 +150,26 @@ function AccountLinksSection() {
           });
         }}
       />
-      {(['psn', 'xbox', 'nintendo', 'gog', 'epic'] as const).map((p) => (
+      <SyncAccountRow
+        provider="psn"
+        title="PlayStation"
+        hint={t('settings:psnHint')}
+        placeholder={t('settings:psnUserPh')}
+        linked={linked('psn')}
+        invoke={async (id) => {
+          const { data, error } = await getSupabase().functions.invoke('psn-import', { body: { psn_user: id } });
+          if (error) throw error;
+          const d = data as { error?: string; psn_games?: number; matched?: number; tracks_added?: number };
+          if (d?.error) throw new Error(d.error);
+          return t('settings:psnDone', {
+            total: d?.psn_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
+          });
+        }}
+      />
+      {(['xbox', 'nintendo', 'gog', 'epic'] as const).map((p) => (
         <div key={p} className="account-row account-row-soon">
           <div className="account-row-head">
-            <span className="account-name">{{ psn: 'PlayStation', xbox: 'Xbox', nintendo: 'Nintendo', gog: 'GOG', epic: 'Epic' }[p]}</span>
+            <span className="account-name">{{ xbox: 'Xbox', nintendo: 'Nintendo', gog: 'GOG', epic: 'Epic' }[p]}</span>
             <span className="chip">{t('settings:accountsSoon')}</span>
           </div>
         </div>
@@ -240,10 +256,20 @@ function PrivacySection() {
   const { data: me } = useMyProfile();
   const update = useUpdateProfile();
   const isPublic = (me as unknown as { library_public?: boolean } | null)?.library_public ?? true;
+  const emailDigest = (me as unknown as { email_digest?: boolean } | null)?.email_digest ?? false;
 
   async function setPublic(value: boolean) {
     try {
       await update.mutateAsync({ library_public: value });
+      toast.success(t('settings:privacySaved'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    }
+  }
+
+  async function setDigest(value: boolean) {
+    try {
+      await update.mutateAsync({ email_digest: value });
       toast.success(t('settings:privacySaved'));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('forms:submitError'));
@@ -269,6 +295,22 @@ function PrivacySection() {
           >
             <option value="public">{t('settings:privacyPublic')}</option>
             <option value="private">{t('settings:privacyPrivate')}</option>
+          </Select>
+        </div>
+      </div>
+      <div className="setting-row">
+        <span className="mono" style={{ color: 'var(--muted)' }}>
+          {t('settings:emailDigestLabel')}
+        </span>
+        <div style={{ minWidth: 200 }}>
+          <Select
+            value={emailDigest ? 'on' : 'off'}
+            onChange={(e) => void setDigest(e.target.value === 'on')}
+            disabled={update.isPending}
+            aria-label={t('settings:emailDigestLabel')}
+          >
+            <option value="off">{t('settings:emailDigestOff')}</option>
+            <option value="on">{t('settings:emailDigestOn')}</option>
           </Select>
         </div>
       </div>

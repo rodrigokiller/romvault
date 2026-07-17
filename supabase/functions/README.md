@@ -127,3 +127,35 @@ supabase functions deploy backlog-digest --no-verify-jwt
 ```sql
 select public.setup_digest_cron('https://SEU-PROJETO.supabase.co/functions/v1/backlog-digest', 'SEGREDO-IGUAL-AO-CRON_SECRET');
 ```
+
+## game-sync (ferramenta de admin por jogo)
+
+Na página do jogo (admin): re-sincroniza metadados/arte do IGDB (capa/thumb
+sempre; resto só se vazio) ou define capa/boxart/box3d por URL.
+
+```sh
+supabase functions deploy game-sync --no-verify-jwt   # usa os secrets TWITCH_*
+```
+
+## psn-import (PlayStation, API não-oficial)
+
+Usuário informa o username da PSN (perfil público). Autenticação via NPSSO de
+uma conta de serviço (expira ~2 meses — renovar quando o sync falhar):
+logado na PSN, abra ca.account.sony.com/api/v1/ssocookie e copie o valor.
+
+```sh
+supabase secrets set PSN_NPSSO=<64 chars>
+supabase functions deploy psn-import --no-verify-jwt
+```
+
+Modo cron (todas as contas vinculadas): mesmo x-cron-secret; agende com um
+cron.schedule apontando pra função, ou reuse setup_ra_cron trocando a URL.
+
+## backlog-digest por E-MAIL (opcional)
+
+Com RESEND_API_KEY setada, quem ligar "digest por e-mail" nas configurações
+recebe o resumo semanal por e-mail (Resend free tier; RESEND_FROM opcional).
+
+```sh
+supabase secrets set RESEND_API_KEY=re_...
+```
