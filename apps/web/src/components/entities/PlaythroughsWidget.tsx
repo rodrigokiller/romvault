@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Plus, X, Star, Languages, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -6,7 +6,10 @@ import { Select } from '@/components/ui/Select';
 import { Input, Textarea } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/auth/AuthProvider';
-import { useMyPlaythroughs, useAddPlaythrough, useRemovePlaythrough, type Playthrough, type PatchKind } from '@/hooks/useTracks';
+import {
+  useMyPlaythroughs, useAddPlaythrough, useRemovePlaythrough, useMySyncData, useMyCopies, useMyTrack,
+  type Playthrough, type PatchKind, type Track,
+} from '@/hooks/useTracks';
 import { useUpsertReview } from '@/hooks/useReviews';
 
 /** Opção de patch (tradução/hack DESTE jogo) pro "jogou com". */
@@ -30,6 +33,9 @@ export function PlaythroughsWidget({ gameId, patchOptions = [] }: { gameId: stri
   const toast = useToast();
   const { user, disabled } = useAuth();
   const { data: runs = [] } = useMyPlaythroughs(gameId);
+  const { data: syncData = [] } = useMySyncData(gameId);
+  const { data: copies = [] } = useMyCopies(gameId);
+  const { data: track } = useMyTrack(gameId);
   const add = useAddPlaythrough(gameId);
   const remove = useRemovePlaythrough(gameId);
   const upsertReview = useUpsertReview('game', gameId);
@@ -41,7 +47,26 @@ export function PlaythroughsWidget({ gameId, patchOptions = [] }: { gameId: stri
   const [rating, setRating] = useState(0);
   const [patch, setPatch] = useState(''); // "kind:id" ou vazio
 
+  // sugestão de data: última sessão (sync) > aquisição da cópia > entrada na biblioteca
+  const suggestedDate = useMemo(() => {
+    const lastPlayed = syncData.map((r) => r.last_played).filter(Boolean).sort().pop();
+    if (lastPlayed) return String(lastPlayed).slice(0, 10);
+    const acquired = copies.map((c) => c.acquired_at).filter(Boolean).sort().pop();
+    if (acquired) return String(acquired).slice(0, 10);
+    const created = (track as (Track & { created_at?: string }) | null | undefined)?.created_at;
+    if (created) return String(created).slice(0, 10);
+    return null;
+  }, [syncData, copies, track]);
+
   if (disabled || !user) return null;
+
+  function openAdd() {
+    setAdding((v) => {
+      const next = !v;
+      if (next && !value && suggestedDate) setValue(suggestedDate);
+      return next;
+    });
+  }
 
   const patchLabel = (p: Playthrough): PatchOption | null =>
     (p.patch_id && patchOptions.find((o) => o.id === p.patch_id && o.kind === p.patch_kind)) || null;
@@ -72,7 +97,7 @@ export function PlaythroughsWidget({ gameId, patchOptions = [] }: { gameId: stri
     <div className="copies">
       <div className="copies-head">
         <span className="copies-title mono">{t('library:runsTitle', { count: runs.length })}</span>
-        <Button size="sm" variant="ghost" onClick={() => setAdding((v) => !v)}>
+        <Button size="sm" variant="ghost" onClick={openAdd}>
           <Plus /> {t('library:runAdd')}
         </Button>
       </div>
@@ -118,6 +143,9 @@ export function PlaythroughsWidget({ gameId, patchOptions = [] }: { gameId: stri
           {precision === 'month' && <Input type="month" value={value} onChange={(e) => setValue(e.target.value)} />}
           {precision === 'year' && (
             <Input type="number" min={1970} max={2100} placeholder="2024" value={value} onChange={(e) => setValue(e.target.value)} />
+          )}
+          {suggestedDate && value === suggestedDate && (
+            <span className="muted-text" style={{ fontSize: '0.72rem' }}>{t('library:runDateSuggested')}</span>
           )}
           {patchOptions.length > 0 && (
             <Select value={patch} onChange={(e) => setPatch(e.target.value)} aria-label={t('library:runWith')}>

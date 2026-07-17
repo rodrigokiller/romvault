@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { ArrowLeft, Download, Star, Gamepad2, Trophy } from 'lucide-react';
+import { ArrowLeft, Download, Star, Gamepad2, Trophy, Image as ImageIcon, ExternalLink, PackageX } from 'lucide-react';
 import { usePatchUsage } from '@/hooks/useAccounts';
 import { ReportButton } from '@/components/entities/ReportButton';
 import { Badge } from '@/components/ui/Badge';
@@ -46,6 +46,13 @@ function PatchUsageStat({ kind, id }: { kind: 'translation' | 'romhack'; id: str
 type Row = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === 'string' && v ? v : null);
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
+
+/** Extrai o id de um link do YouTube (watch, youtu.be, embed) ou null. */
+function youtubeId(url: string | null): string | null {
+  if (!url) return null;
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,20})/);
+  return m?.[1] ?? null;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * LISTA (genérica, apresentacional) — recebe a query já resolvida
@@ -161,6 +168,25 @@ function MaterialListView({
         )}
       </div>
 
+      <div className="search-filters" style={{ marginTop: 'calc(var(--s3) * -1)' }}>
+        <button
+          type="button"
+          className={`search-chip ${filters.hasFile ? 'is-active' : ''}`}
+          onClick={() => setFilters({ ...filters, hasFile: filters.hasFile ? undefined : true })}
+        >
+          <Download aria-hidden style={{ width: 12, height: 12, verticalAlign: '-2px', marginRight: 4 }} />
+          {t('browse:withDownload')}
+        </button>
+        <button
+          type="button"
+          className={`search-chip ${filters.hasImages ? 'is-active' : ''}`}
+          onClick={() => setFilters({ ...filters, hasImages: filters.hasImages ? undefined : true })}
+        >
+          <ImageIcon aria-hidden style={{ width: 12, height: 12, verticalAlign: '-2px', marginRight: 4 }} />
+          {t('browse:withImages')}
+        </button>
+      </div>
+
       {query.isLoading ? (
         <LoadingPage />
       ) : items.length === 0 ? (
@@ -224,6 +250,9 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
   const description = str(item.description);
   const fileUrl = str(item.file_url);
   const sourceUrl = str(item.source_code_url);
+  const originUrl = str(item.source_url);
+  const dataSource = str(item.data_source);
+  const videoId = youtubeId(str(item.video_url));
   const screenshots = Array.isArray(item.screenshots)
     ? (item.screenshots.filter((s) => typeof s === 'string') as string[])
     : [];
@@ -239,6 +268,18 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
       <div className="detail-head">
         {(kind === 'romhack' || kind === 'translation' || kind === 'doc' || kind === 'tool') && (
           <div className="detail-report">
+            {dataSource && dataSource !== 'manual' && (
+              originUrl ? (
+                <a
+                  href={originUrl} target="_blank" rel="noopener noreferrer"
+                  className="origin-badge mono" title={t('entities:originHint')}
+                >
+                  <ExternalLink aria-hidden /> {dataSource}
+                </a>
+              ) : (
+                <span className="origin-badge mono" title={t('entities:originHint')}>{dataSource}</span>
+              )
+            )}
             <ReportButton subjectType={kind} subjectId={String(item.id)} subjectLabel={title} />
           </div>
         )}
@@ -287,6 +328,15 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
             {SUBJECT_OF[kind] && <FavoriteButton subjectType={SUBJECT_OF[kind]} subjectId={String(item.id)} />}
             <ShareButton title={title} />
           </div>
+
+          {/* honestidade: a fonte não hospeda o arquivo deste item */}
+          {!fileUrl && originUrl && (
+            <p className="nofile-note">
+              <PackageX aria-hidden />
+              {t('entities:noFileNote')}{' '}
+              <a href={originUrl} target="_blank" rel="noopener noreferrer">{t('entities:noFileLink')}</a>
+            </p>
+          )}
         </div>
       </div>
 
@@ -320,6 +370,22 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
             <span key={tag} className="chip">#{tag}</span>
           ))}
         </div>
+      )}
+
+      {/* o hack em movimento: video_url (YouTube) veio do enrich das fontes */}
+      {videoId && (
+        <section className="section">
+          <div className="section-head"><h2>{t('entities:videoTitle')}</h2></div>
+          <div className="video-embed">
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${videoId}`}
+              title={title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              loading="lazy"
+            />
+          </div>
+        </section>
       )}
 
       {screenshots.length > 0 && (

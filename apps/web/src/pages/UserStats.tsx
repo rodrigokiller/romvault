@@ -3,8 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { ArrowLeft, BarChart3, Trophy, Gamepad2, Users } from 'lucide-react';
+import { ArrowLeft, BarChart3, Trophy, Gamepad2, Users, RefreshCw, Package } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
+import { Dialog } from '@/components/ui/Dialog';
 import { env } from '@/lib/env';
 import { useProfileByUsername } from '@/hooks/useProfile';
 import { useLibrary, useUserPlaythroughs, useUserSyncRows, useLibraryCopies } from '@/hooks/useTracks';
@@ -77,6 +78,12 @@ export function UserStats() {
   const { data: copies = [] } = useLibraryCopies(profile?.id);
   const [period, setPeriod] = useState<Period>('month');
   const { data: growth = [] } = useCollectionGrowth(profile?.id);
+  // modal do dia: clicar num quadrado do heatmap mostra as atividades dele
+  const [dayOpen, setDayOpen] = useState<string | null>(null);
+  const titleOf = useMemo(
+    () => new Map(tracks.map((tr) => [tr.game_id, { title: tr.game.title, slug: tr.game.slug }])),
+    [tracks],
+  );
 
   const isMe = Boolean(me && profile && me.id === profile.id);
   const sinceMs = Date.now() - PERIOD_DAYS[period] * 86_400_000;
@@ -264,11 +271,21 @@ export function UserStats() {
               >
                 {heat.cells.map((c) => {
                   const level = c.out || c.future || c.count === 0 ? 0 : Math.min(4, Math.ceil((c.count / heat.max) * 4));
-                  return (
+                  // dia com atividade é CLICÁVEL: abre o modal com o detalhe
+                  return c.count > 0 && !c.out && !c.future ? (
+                    <button
+                      key={c.key}
+                      type="button"
+                      className={`heat-cell heat-${level} heat-click`}
+                      title={`${c.key}: ${t('ustats:heatDay', { count: c.count })}`}
+                      aria-label={`${c.key}: ${t('ustats:heatDay', { count: c.count })}`}
+                      onClick={() => setDayOpen(c.key)}
+                    />
+                  ) : (
                     <span
                       key={c.key}
                       className={`heat-cell heat-${level} ${c.out ? 'heat-out' : ''} ${c.future ? 'heat-future' : ''}`}
-                      title={c.future ? c.key : `${c.key}: ${c.count > 0 ? t('ustats:heatDay', { count: c.count }) : t('ustats:heatNone')}`}
+                      title={c.future ? c.key : `${c.key}: ${t('ustats:heatNone')}`}
                     />
                   );
                 })}
@@ -359,6 +376,55 @@ export function UserStats() {
 
       {stats.runs === 0 && stats.active === 0 && (
         <EmptyState icon={Gamepad2} title={t('ustats:emptyTitle')} text={t('ustats:emptyText')} />
+      )}
+
+      {/* modal do dia (tracking: zeradas, sessões de sync e cópias novas) */}
+      {dayOpen && (
+        <Dialog open onClose={() => setDayOpen(null)} title={t('ustats:dayTitle', { date: dayOpen })}>
+          <ul className="day-acts">
+            {playthroughs
+              .filter((p) => p.finished_on.slice(0, 10) === dayOpen)
+              .map((p, i) => (
+                <li key={`r-${i}`} className="day-act">
+                  <Trophy aria-hidden className="day-act-icon day-act-run" />
+                  <span>
+                    {t('ustats:dayRun')}{' '}
+                    {titleOf.get(p.game_id)
+                      ? <Link to={`/games/${titleOf.get(p.game_id)!.slug}`}>{titleOf.get(p.game_id)!.title}</Link>
+                      : t('ustats:dayUnknownGame')}
+                  </span>
+                </li>
+              ))}
+            {syncRows
+              .filter((r) => r.last_played?.slice(0, 10) === dayOpen)
+              .map((r, i) => (
+                <li key={`s-${i}`} className="day-act">
+                  <RefreshCw aria-hidden className="day-act-icon" />
+                  <span>
+                    {t('ustats:daySession')}{' '}
+                    {titleOf.get(r.game_id)
+                      ? <Link to={`/games/${titleOf.get(r.game_id)!.slug}`}>{titleOf.get(r.game_id)!.title}</Link>
+                      : t('ustats:dayUnknownGame')}
+                    {' '}<span className="mono muted-text">({r.provider === 'retroachievements' ? 'RA' : r.provider})</span>
+                  </span>
+                </li>
+              ))}
+            {(copies as { game_id: string; platform?: string; acquired_at?: string | null }[])
+              .filter((c) => c.acquired_at?.slice(0, 10) === dayOpen)
+              .map((c, i) => (
+                <li key={`c-${i}`} className="day-act">
+                  <Package aria-hidden className="day-act-icon day-act-copy" />
+                  <span>
+                    {t('ustats:dayCopy')}{' '}
+                    {titleOf.get(c.game_id)
+                      ? <Link to={`/games/${titleOf.get(c.game_id)!.slug}`}>{titleOf.get(c.game_id)!.title}</Link>
+                      : t('ustats:dayUnknownGame')}
+                    {c.platform ? <span className="mono muted-text"> · {c.platform}</span> : null}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </Dialog>
       )}
     </div>
   );

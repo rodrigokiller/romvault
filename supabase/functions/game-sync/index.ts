@@ -23,6 +23,18 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
+/** Mensagem legível de QUALQUER erro (PostgrestError é objeto plano, não Error). */
+const errMsg = (e: unknown): string => {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === 'object') {
+    const o = e as { message?: unknown; details?: unknown; hint?: unknown };
+    const parts = [o.message, o.details, o.hint].filter((x) => typeof x === 'string' && x);
+    if (parts.length > 0) return parts.join(' · ');
+    try { return JSON.stringify(e); } catch { /* circular */ }
+  }
+  return String(e);
+};
+
 const norm = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -193,7 +205,9 @@ Deno.serve(async (req: Request) => {
 
     const fields =
       'fields name, cover.image_id, screenshots.image_id, summary, first_release_date, ' +
-      'platforms, themes.name, genres.name, franchises.name, involved_companies.company.name, involved_companies.developer;';
+      'platforms, themes.name, genres.name, franchises.name, involved_companies.company.name, involved_companies.developer, ' +
+      'alternative_names.name, release_dates.date, release_dates.platform, release_dates.human, ' +
+      'aggregated_rating, aggregated_rating_count, rating, rating_count;';
     const query = forceId
       ? `${fields} where id = ${forceId};`
       : (game.igdb_id && !customQuery
@@ -238,6 +252,18 @@ Deno.serve(async (req: Request) => {
     if (!game.igdb_id && hit.id) { patch.igdb_id = hit.id; updated.push('igdb_id'); }
     // vínculo explícito re-aponta o igdb_id (corrigir match errado)
     if (forceId && hit.id && game.igdb_id !== hit.id) { patch.igdb_id = hit.id; updated.push('igdb_id'); }
+    // igdb_id é ÚNICO: se outro jogo já usa este id, erro CLARO em vez do
+    // "duplicate key" cru (era a causa do {"error":"[object Object]"})
+    if (patch.igdb_id) {
+      const { data: clash } = await admin.from('games')
+        .select('slug, title').eq('igdb_id', patch.igdb_id).neq('id', gameId).maybeSingle();
+      if (clash) {
+        return json({
+          error: `Este id do IGDB já está vinculado a "${clash.title}" (/games/${clash.slug}). `
+            + 'Se são o mesmo jogo duplicado, funda com: npm run import -- --source=dedupe --dry',
+        }, 409);
+      }
+    }
     // +18 (tema Erotic) marca sempre que detectado
     // deno-lint-ignore no-explicit-any
     if ((hit.themes ?? []).some((t: any) => t.name === 'Erotic') && !game.is_adult) {
@@ -276,11 +302,45 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    /* metadados extras -> metadata (merge): releases POR PLATAFORMA (Chrono
+       Trigger: SFC 1995-03-11, SNES 1995-08-11, Wii 2011...), títulos
+       alternativos/localizados e notas do IGDB (críticos agregados + usuários) */
+    const meta = { ...((game.metadata as Record<string, unknown> | null) ?? {}) };
+    let metaTouched = false;
+    if (hit.release_dates?.length) {
+      // deno-lint-ignore no-explicit-any
+      const releases = (hit.release_dates as any[])
+        .map((r) => ({
+          platform: PLATFORM_SHORT[r.platform] ?? null,
+          date: r.date ? new Date(r.date * 1000).toISOString().slice(0, 10) : (r.human ?? null),
+        }))
+        .filter((r) => r.platform && r.date)
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      if (releases.length > 0) { meta.releases = releases; metaTouched = true; updated.push('releases'); }
+    }
+    if (hit.alternative_names?.length) {
+      // deno-lint-ignore no-explicit-any
+      const alts = (hit.alternative_names as any[]).map((a) => String(a.name)).filter(Boolean).slice(0, 8);
+      if (alts.length > 0) { meta.alt_titles = alts; metaTouched = true; updated.push('alt_titles'); }
+    }
+    if (hit.aggregated_rating || hit.rating) {
+      meta.scores = {
+        critics: hit.aggregated_rating ? Math.round(hit.aggregated_rating) : null,
+        critics_count: hit.aggregated_rating_count ?? null,
+        users: hit.rating ? Math.round(hit.rating) : null,
+        users_count: hit.rating_count ?? null,
+        source: 'igdb',
+      };
+      metaTouched = true;
+      updated.push('scores');
+    }
+    if (metaTouched) patch.metadata = meta;
+
     if (updated.length === 0) return json({ ok: true, action, updated, note: 'nada novo no IGDB' });
     const { error } = await admin.from('games').update(patch).eq('id', gameId);
     if (error) throw error;
     return json({ ok: true, action, matched: hit.name, updated });
   } catch (err) {
-    return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+    return json({ error: errMsg(err) }, 500);
   }
 });

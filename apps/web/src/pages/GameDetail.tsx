@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { Gamepad2, Languages as LanguagesIcon } from 'lucide-react';
+import { getSupabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { useGame, useRelatedGames } from '@/hooks/useGames';
 import { useGameRomhacks, useGameTranslations, useGameDocuments } from '@/hooks/useMaterials';
@@ -119,12 +122,15 @@ export function GameDetail() {
             <ReportButton subjectType="game" subjectId={game.id} subjectLabel={title} />
           </div>
         )}
-        <div className="detail-cover">
-          {game?.cover_url ? (
-            <img src={game.cover_url} alt={title} />
-          ) : (
-            <Gamepad2 aria-hidden />
-          )}
+        <div className="detail-side">
+          <div className="detail-cover">
+            {game?.cover_url ? (
+              <img src={game.cover_url} alt={title} />
+            ) : (
+              <Gamepad2 aria-hidden />
+            )}
+          </div>
+          {game && <GameSideStats game={game} completion={completion} />}
         </div>
         <div className="detail-info">
           <span className="kicker">// {t('entities:kindGame')}</span>
@@ -196,16 +202,7 @@ export function GameDetail() {
           </>
         )}
 
-        {tab === 'releases' && (
-          <dl className="meta-grid">
-            <MetaItem label={t('games:released')} value={game?.release_date} />
-            <MetaItem label={t('games:platforms')} value={game?.platforms?.join(', ')} />
-            {game?.regional_titles &&
-              Object.entries(game.regional_titles as Record<string, string>).map(([region, name]) => (
-                <MetaItem key={region} label={region} value={name} />
-              ))}
-          </dl>
-        )}
+        {tab === 'releases' && <ReleasesTab game={game} />}
 
         {tab === 'translations' && <RelatedGrid kind="translation" query={translations} />}
         {tab === 'romhacks' && <RelatedGrid kind="romhack" query={romhacks} />}
@@ -224,6 +221,141 @@ export function GameDetail() {
       )}
 
       {game && <Reviews subjectType="game" subjectId={game.id} />}
+    </div>
+  );
+}
+
+interface GameMeta {
+  scores?: { critics?: number | null; critics_count?: number | null; users?: number | null; users_count?: number | null };
+  releases?: { platform: string; date: string }[];
+  alt_titles?: string[];
+}
+
+/**
+ * Coluna sob a capa (aproveita o espaço vazio): notas (críticos agregados do
+ * IGDB + usuários + nota da casa via reviews), contadores da comunidade
+ * (têm/jogando/zeraram) e HLTB compacto quando existir.
+ */
+function GameSideStats({ game, completion }: {
+  game: NonNullable<ReturnType<typeof useGame>['data']>;
+  completion?: Record<string, string> | null;
+}) {
+  const { t } = useTranslation();
+  const { data: community } = useGameCommunity(game.id);
+  const meta = (game.metadata ?? {}) as GameMeta;
+  const scores = meta.scores;
+  const hasScores = Boolean(scores?.critics || scores?.users || community?.review_avg);
+  const hasCommunity = Boolean(community && community.owners > 0);
+  const hltb = [
+    { label: t('games:completionMain'), value: completion?.main_story },
+    { label: t('games:completionExtras'), value: completion?.main_extras },
+    { label: t('games:completionFull'), value: completion?.completionist },
+  ].filter((x) => x.value);
+  if (!hasScores && !hasCommunity && hltb.length === 0) return null;
+  return (
+    <div className="side-stats">
+      {hasScores && (
+        <div className="side-card">
+          <span className="side-card-label mono">// {t('games:scoresTitle')}</span>
+          {scores?.critics ? (
+            <div className="side-score">
+              <span className="side-score-num">{scores.critics}</span>
+              <span className="side-score-what">{t('games:scoreCritics', { count: scores.critics_count ?? 0 })}</span>
+            </div>
+          ) : null}
+          {scores?.users ? (
+            <div className="side-score">
+              <span className="side-score-num">{scores.users}</span>
+              <span className="side-score-what">{t('games:scoreUsers', { count: scores.users_count ?? 0 })}</span>
+            </div>
+          ) : null}
+          {community?.review_avg ? (
+            <div className="side-score">
+              <span className="side-score-num side-score-ours">{community.review_avg}</span>
+              <span className="side-score-what">{t('games:scoreOurs', { count: community.review_n })}</span>
+            </div>
+          ) : null}
+        </div>
+      )}
+      {hasCommunity && community && (
+        <div className="side-card">
+          <span className="side-card-label mono">// {t('games:communityTitle')}</span>
+          <div className="side-row"><span>{t('games:communityOwners')}</span><span className="mono">{community.owners}</span></div>
+          {community.playing > 0 && (
+            <div className="side-row"><span>{t('games:communityPlaying')}</span><span className="mono">{community.playing}</span></div>
+          )}
+          {community.finished > 0 && (
+            <div className="side-row"><span>{t('games:communityFinished')}</span><span className="mono">{community.finished}</span></div>
+          )}
+        </div>
+      )}
+      {hltb.length > 0 && (
+        <div className="side-card">
+          <span className="side-card-label mono">// {t('games:completionTitle')}</span>
+          {hltb.map((x) => (
+            <div key={x.label} className="side-row"><span>{x.label}</span><span className="mono">{x.value}</span></div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Contadores agregados da comunidade (RPC; some em silêncio se não migrado). */
+function useGameCommunity(gameId: string) {
+  return useQuery({
+    queryKey: ['gameCommunity', gameId],
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<{ owners: number; playing: number; finished: number; review_avg: number | null; review_n: number } | null> => {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const { data, error } = await sb.rpc('game_community_stats', { gid: gameId });
+      if (error) return null;
+      const row = (Array.isArray(data) ? data[0] : data) as
+        { owners: number; playing: number; finished: number; review_avg: number | null; review_n: number } | undefined;
+      return row ?? null;
+    },
+  });
+}
+
+/** Aba Releases: datas POR PLATAFORMA (metadata.releases do IGDB) + títulos. */
+function ReleasesTab({ game }: { game: ReturnType<typeof useGame>['data'] }) {
+  const { t } = useTranslation();
+  const meta = (game?.metadata ?? {}) as GameMeta;
+  const releases = meta.releases ?? [];
+  const alts = meta.alt_titles ?? [];
+  return (
+    <div>
+      {releases.length > 0 ? (
+        <div className="releases-list">
+          {releases.map((r, i) => (
+            <div key={`${r.platform}-${r.date}-${i}`} className="releases-row">
+              <span className="releases-plat"><Badge tone="accent">{r.platform}</Badge></span>
+              <span className="releases-date mono">{r.date}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <dl className="meta-grid">
+          <MetaItem label={t('games:released')} value={game?.release_date} />
+          <MetaItem label={t('games:platforms')} value={game?.platforms?.join(', ')} />
+        </dl>
+      )}
+      {(alts.length > 0 || game?.alt_title) && (
+        <div style={{ marginTop: 'var(--s5)' }}>
+          <span className="kicker">// {t('games:altTitles')}</span>
+          <ul className="alt-titles">
+            {game?.alt_title && <li>{game.alt_title}</li>}
+            {alts.filter((a) => a !== game?.alt_title).map((a) => <li key={a}>{a}</li>)}
+          </ul>
+        </div>
+      )}
+      {game?.regional_titles && (
+        <dl className="meta-grid" style={{ marginTop: 'var(--s4)' }}>
+          {Object.entries(game.regional_titles as Record<string, string>).map(([region, name]) => (
+            <MetaItem key={region} label={region} value={name} />
+          ))}
+        </dl>
+      )}
     </div>
   );
 }

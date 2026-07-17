@@ -27,6 +27,9 @@ export interface MaterialFilters {
   category?: string;
   language?: string;
   sort?: 'downloads' | 'rating' | 'recent';
+  /** só itens com arquivo pra baixar / com screenshots */
+  hasFile?: boolean;
+  hasImages?: boolean;
 }
 
 /** Um material com o jogo de origem embutido (quando houver). */
@@ -64,6 +67,8 @@ function buildList(kind: MaterialKind, filters: MaterialFilters) {
     if (col === 'categories') q = q.contains('categories', [filters.category]);
     else if (col) q = q.eq(col, filters.category);
   }
+  if (filters.hasFile) q = q.not('file_url', 'is', null);
+  if (filters.hasImages) q = q.not('thumbnail', 'is', null);
   const order = ORDER[filters.sort ?? 'downloads'];
   return q.order(order.col, { ascending: order.asc });
 }
