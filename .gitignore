@@ -38,3 +38,4 @@ desktop.ini
 # ── supabase (CLI local) ──────────────────────────────────────
 supabase/.branches/
 supabase/.temp/
+fix-matches-suspeitos.txt
