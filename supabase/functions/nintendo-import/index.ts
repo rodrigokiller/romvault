@@ -67,15 +67,34 @@ async function zncLogin(sessionToken: string): Promise<ZncAuth> {
   });
   const me = await meRes.json();
 
-  // assinatura f via imink (mesmo serviço que o nxapi usa)
+  // assinatura f: tenta imink e cai pro znca-api do nxapi (os dois serviços
+  // que a comunidade mantém — certificado do imink já expirou uma vez)
   const reqId = crypto.randomUUID();
-  const fRes = await fetch('https://api.imink.app/f', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'User-Agent': 'ROMVault/1.0' },
-    body: JSON.stringify({ token: tok.id_token, hash_method: 1, request_id: reqId }),
-  });
-  if (!fRes.ok) throw new Error(`Serviço de assinatura (imink) indisponível: HTTP ${fRes.status}`);
-  const f = await fRes.json();
+  const fBody = JSON.stringify({ token: tok.id_token, hash_method: 1, request_id: reqId });
+  const F_PROVIDERS = [
+    'https://api.imink.app/f',
+    'https://nxapi-znca-api.fancy.org.uk/api/znca/f',
+  ];
+  // deno-lint-ignore no-explicit-any
+  let f: any = null;
+  let lastErr = '';
+  for (const url of F_PROVIDERS) {
+    try {
+      const fRes = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': 'ROMVault/1.0 (+https://romvault.app)' },
+        body: fBody,
+      });
+      if (!fRes.ok) { lastErr = `${url}: HTTP ${fRes.status}`; continue; }
+      f = await fRes.json();
+      if (f?.f) break;
+      lastErr = `${url}: resposta sem f`;
+      f = null;
+    } catch (e) {
+      lastErr = `${url}: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+  if (!f) throw new Error(`Nenhum serviço de assinatura respondeu (${lastErr}) — tente mais tarde.`);
 
   const appVersion = await nsoAppVersion();
   const loginRes = await fetch(`${ZNC}/v3/Account/Login`, {

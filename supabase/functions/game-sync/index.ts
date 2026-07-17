@@ -182,12 +182,16 @@ Deno.serve(async (req: Request) => {
     const token = (await tokRes.json())?.access_token;
     if (!token) return json({ error: 'OAuth Twitch falhou.' }, 502);
 
+    // termo customizado (estilo "fix match" do Plex): admin pode corrigir a busca
+    const customQuery = String(body.query ?? '').replace(/"/g, '').slice(0, 100).trim();
+    const searchTerm = customQuery || String(game.title).replace(/"/g, '');
+
     const fields =
       'fields name, cover.image_id, screenshots.image_id, summary, first_release_date, ' +
       'platforms, genres.name, franchises.name, involved_companies.company.name, involved_companies.developer;';
-    const query = game.igdb_id
+    const query = game.igdb_id && !customQuery
       ? `${fields} where id = ${game.igdb_id};`
-      : `${fields} search "${String(game.title).replace(/"/g, '')}"; limit 10;`;
+      : `${fields} search "${searchTerm}"; limit 10;`;
     const igdbRes = await fetch('https://api.igdb.com/v4/games', {
       method: 'POST',
       headers: { 'Client-ID': twitchId, Authorization: `Bearer ${token}` },
@@ -196,10 +200,24 @@ Deno.serve(async (req: Request) => {
     if (!igdbRes.ok) return json({ error: `IGDB: HTTP ${igdbRes.status}` }, 502);
     // deno-lint-ignore no-explicit-any
     const hits = (await igdbRes.json()) as any[];
-    const hit = game.igdb_id
+    /*
+     * Matching SEGURO (sem cair cego no 1º resultado — era assim que um FF VI
+     * ganhava arte de FF VII): 1º nome exato; 2º candidato que divide
+     * plataforma com o nosso jogo; com termo customizado o admin manda, então
+     * aceita o 1º. Sem match: erro sugerindo o termo de busca.
+     */
+    const ourPlats = new Set((game.platforms ?? []) as string[]);
+    // deno-lint-ignore no-explicit-any
+    const sharesPlat = (h: any) =>
+      (h.platforms ?? []).some((pid: number) => ourPlats.has(PLATFORM_SHORT[pid]));
+    const hit = (game.igdb_id && !customQuery)
       ? hits[0]
-      : (hits.find((h) => norm(h.name) === norm(game.title)) ?? hits[0]);
-    if (!hit) return json({ error: `IGDB não achou "${game.title}".` }, 404);
+      : (hits.find((h) => norm(h.name) === norm(searchTerm))
+        ?? hits.find(sharesPlat)
+        ?? (customQuery ? hits[0] : undefined));
+    if (!hit) {
+      return json({ error: `IGDB não achou nada confiável pra "${searchTerm}" — tente ajustar o termo de busca.` }, 404);
+    }
 
     const patch: Record<string, unknown> = {};
     const updated: string[] = [];

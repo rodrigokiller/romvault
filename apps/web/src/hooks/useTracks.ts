@@ -243,6 +243,30 @@ export function useMySyncData(gameId: string | undefined) {
   });
 }
 
+/** Map game_id -> último jogado (max entre provedores) — ordenação "Atividade". */
+export function useUserLastPlayed(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['lastPlayed', userId],
+    enabled: env.configured && Boolean(userId),
+    staleTime: 60_000,
+    queryFn: async (): Promise<Map<string, string>> => {
+      const { data, error } = await db()
+        .from('game_sync_data')
+        .select('game_id, last_played')
+        .eq('user_id', userId as string)
+        .not('last_played', 'is', null)
+        .range(0, 9999);
+      if (error) return new Map();
+      const map = new Map<string, string>();
+      for (const r of (data ?? []) as { game_id: string; last_played: string }[]) {
+        const prev = map.get(r.game_id);
+        if (!prev || r.last_played > prev) map.set(r.game_id, r.last_played);
+      }
+      return map;
+    },
+  });
+}
+
 /**
  * Resumo do sync POR PROVEDOR de um usuário (a "aba tracking" dentro da
  * Library): jogos, horas somadas e conquistas por conta conectada.

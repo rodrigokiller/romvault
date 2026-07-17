@@ -41,6 +41,7 @@ const Users = lazy(() => import('./pages/Users').then((m) => ({ default: m.Users
 const Stats = lazy(() => import('./pages/Stats').then((m) => ({ default: m.Stats })));
 const Vitrine = lazy(() => import('./pages/Vitrine').then((m) => ({ default: m.Vitrine })));
 const Scene = lazy(() => import('./pages/Scene').then((m) => ({ default: m.Scene })));
+const About = lazy(() => import('./pages/About').then((m) => ({ default: m.About })));
 const CollectionsList = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionsList })));
 const CollectionDetail = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionDetail })));
 
@@ -78,6 +79,7 @@ export function App() {
                       <Route path="users" element={<Users />} />
                       <Route path="stats" element={<Stats />} />
                       <Route path="scene" element={<Scene />} />
+                      <Route path="sobre" element={<About />} />
                       <Route path="u/:username" element={<Profile />} />
                       <Route path="u/:username/library" element={<Library />} />
                       <Route path="u/:username/vitrine" element={<Vitrine />} />

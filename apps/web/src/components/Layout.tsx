@@ -29,6 +29,8 @@ export function Layout() {
             {' · '}
             <Link to="/scene" className="section-link">{t('scene:title')}</Link>
             {' · '}
+            <Link to="/sobre" className="section-link">{t('about:title')}</Link>
+            {' · '}
             <Link to="/api" className="section-link">API</Link>
             {' · '}{t('common:tagline')} · {new Date().getFullYear()}
           </span>

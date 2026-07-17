@@ -135,6 +135,7 @@ function AccountLinksSection() {
     if (!search.includes('openid.mode=id_res') || openidBusy) return;
     setOpenidBusy(true);
     window.history.replaceState({}, '', '/settings'); // limpa a URL feia
+    toast.success(t('settings:steamVerifying'));
     (async () => {
       try {
         const { steamid } = await invokeFn<{ steamid: string }>('steam-openid', { query: search });
@@ -147,6 +148,8 @@ function AccountLinksSection() {
         }));
       } catch (err) {
         toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+      } finally {
+        setOpenidBusy(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,6 +338,12 @@ function SyncAccountRow({
     if (!touched && linked?.account_id) setValue(linked.account_id);
   }, [linked?.account_id, touched]);
 
+  // cooldown anti-spam: re-sync manual só depois de 30min (o cron cobre o resto)
+  const COOLDOWN_MS = 30 * 60_000;
+  const sinceSync = linked?.last_sync ? Date.now() - new Date(linked.last_sync).getTime() : Infinity;
+  const cooling = Boolean(linked) && sinceSync < COOLDOWN_MS;
+  const coolMin = cooling ? Math.ceil((COOLDOWN_MS - sinceSync) / 60_000) : 0;
+
   async function run() {
     const id = value.trim();
     if (!id) return;
@@ -354,6 +363,16 @@ function SyncAccountRow({
     }
   }
 
+  async function doUnlink() {
+    try {
+      await unlink.mutateAsync(provider);
+      setTouched(false);
+      setValue('');
+    } catch {
+      toast.error(t('forms:submitError'));
+    }
+  }
+
   return (
     <div className="account-row">
       <div className="account-row-head">
@@ -369,7 +388,11 @@ function SyncAccountRow({
             </button>
           )}
         </span>
-        {linked ? (
+        {running ? (
+          <span className="account-status mono account-status-busy">
+            <Spinner /> {t('settings:accountsSyncing')}
+          </span>
+        ) : linked ? (
           <span className="account-status mono">
             {t('settings:accountsLinked', { id: linked.account_id })}
             {linked.last_sync ? ` · ${new Date(linked.last_sync).toLocaleDateString()}` : ''}
@@ -380,18 +403,38 @@ function SyncAccountRow({
       </div>
       <div className="api-create">
         <Field label={title} hint={hint}>
-          {(id) => <Input id={id} value={value} onChange={(e) => { setTouched(true); setValue(e.target.value); }} placeholder={placeholder} />}
+          {(id) => (
+            <span className={provider === 'nintendo' ? 'input-prefixed' : undefined}>
+              {provider === 'nintendo' && <span className="input-prefix mono">SW-</span>}
+              <Input
+                id={id} value={value}
+                onChange={(e) => { setTouched(true); setValue(e.target.value); }}
+                placeholder={provider === 'nintendo' ? '1234-5678-9012' : placeholder}
+                disabled={running || Boolean(linked)}
+              />
+            </span>
+          )}
         </Field>
-        <Button variant="primary" onClick={() => void run()} disabled={running || !value.trim()}>
-          {running ? <Spinner /> : <><RefreshCw /> {t('settings:accountsSync')}</>}
+        <Button
+          variant="primary"
+          onClick={() => void run()}
+          disabled={running || !value.trim() || cooling}
+          title={cooling ? t('settings:accountsCooldown', { min: coolMin }) : undefined}
+        >
+          {running
+            ? <Spinner />
+            : <><RefreshCw /> {linked ? t('settings:accountsSync') : t('settings:accountsLinkBtn')}</>}
         </Button>
         {extra}
         {linked && (
-          <Button variant="ghost" onClick={() => void unlink.mutateAsync(provider).catch(() => toast.error(t('forms:submitError')))}>
+          <Button variant="ghost" disabled={running} onClick={() => void doUnlink()}>
             <Trash2 /> {t('settings:accountsUnlink')}
           </Button>
         )}
       </div>
+      {cooling && (
+        <span className="field-hint">{t('settings:accountsCooldown', { min: coolMin })}</span>
+      )}
       {helpOpen && help && (
         <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} title={`${title} — ${t('settings:accountsHelp')}`}>
           <ol className="help-steps">

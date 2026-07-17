@@ -164,6 +164,47 @@ Deno.serve(async (req: Request) => {
         .eq('user_id', user.id).eq('game_id', u.game_id);
     }
 
+    // 5b) enriquece os jogos RECÉM-CRIADOS com o IGDB (capa/igdb_id) — teto de
+    // 25 por sync pra caber no tempo da function; o resto a fila de arte pega
+    const twitchId = Deno.env.get('TWITCH_CLIENT_ID');
+    const twitchSecret = Deno.env.get('TWITCH_CLIENT_SECRET');
+    let enriched = 0;
+    if (twitchId && twitchSecret && toCreate.length > 0) {
+      try {
+        const tokRes = await fetch(
+          `https://id.twitch.tv/oauth2/token?client_id=${twitchId}&client_secret=${twitchSecret}&grant_type=client_credentials`,
+          { method: 'POST' },
+        );
+        const igdbToken = (await tokRes.json())?.access_token;
+        if (igdbToken) {
+          for (const c of toCreate.slice(0, 25)) {
+            const gid = gameIdOf.get(c.external_ids.steam);
+            if (!gid) continue;
+            const res = await fetch('https://api.igdb.com/v4/games', {
+              method: 'POST',
+              headers: { 'Client-ID': twitchId, Authorization: `Bearer ${igdbToken}` },
+              body: `fields name, cover.image_id, first_release_date; search "${c.title.replace(/"/g, '')}"; limit 5;`,
+            });
+            if (!res.ok) continue;
+            // deno-lint-ignore no-explicit-any
+            const hits = (await res.json()) as any[];
+            const hit = hits.find((h) => norm(h.name) === norm(c.title));
+            if (!hit?.cover?.image_id) continue;
+            await admin.from('games').update({
+              igdb_id: hit.id,
+              cover_url: `https://images.igdb.com/igdb/image/upload/t_cover_big_2x/${hit.cover.image_id}.jpg`,
+              thumbnail: `https://images.igdb.com/igdb/image/upload/t_cover_big/${hit.cover.image_id}.jpg`,
+              ...(hit.first_release_date
+                ? { release_date: new Date(hit.first_release_date * 1000).toISOString().slice(0, 10) }
+                : {}),
+            }).eq('id', gid).is('cover_url', null);
+            enriched++;
+            await new Promise((r) => setTimeout(r, 300)); // 4 req/s do IGDB
+          }
+        }
+      } catch { /* enriquecimento é bônus: nunca derruba o sync */ }
+    }
+
     // 6b) dado BRUTO por provedor (game_sync_data): horas/último jogo por conta
     // (dedupe por game_id: dois appids podem casar no mesmo jogo)
     const syncByGame = new Map<string, Record<string, unknown>>();
@@ -201,6 +242,7 @@ Deno.serve(async (req: Request) => {
       ok: true,
       steam_games: owned.length,
       games_created: created,
+      games_enriched: enriched,
       tracks_added: newTracks.length,
       hours_updated: hourUpdates.length,
       copies_added: newCopies.length,

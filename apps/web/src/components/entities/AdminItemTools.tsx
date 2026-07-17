@@ -28,6 +28,7 @@ export function AdminItemTools({ gameId, dataSource, updatedAt, igdbId }: {
   const [running, setRunning] = useState(false);
   const [target, setTarget] = useState<'cover_url' | 'boxart' | 'box3d'>('cover_url');
   const [url, setUrl] = useState('');
+  const [query, setQuery] = useState(''); // "fix match" estilo Plex: corrige o termo
 
   if (!isAdmin) return null;
 
@@ -67,12 +68,19 @@ export function AdminItemTools({ gameId, dataSource, updatedAt, igdbId }: {
           <div className="admin-tools-row">
             <Button
               size="sm" variant="secondary" disabled={running}
-              onClick={() => void call({ game_id: gameId, action: 'igdb' }, t('admin:itemSynced'))}
+              onClick={() => void call(
+                { game_id: gameId, action: 'igdb', ...(query.trim() ? { query: query.trim() } : {}) },
+                t('admin:itemSynced'),
+              )}
             >
               {running ? <Spinner /> : <RefreshCw />} {t('admin:itemSyncIgdb')}
             </Button>
-            <span className="admin-tools-hint">{t('admin:itemSyncHint')}</span>
+            <Input
+              value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('admin:itemQueryPh')} aria-label={t('admin:itemQueryPh')}
+            />
           </div>
+          <span className="admin-tools-hint">{t('admin:itemSyncHint')}</span>
           <div className="admin-tools-row">
             <Select value={target} onChange={(e) => setTarget(e.target.value as typeof target)} aria-label={t('admin:itemArtTarget')}>
               <option value="cover_url">{t('admin:art_cover')}</option>

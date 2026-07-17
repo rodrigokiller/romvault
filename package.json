@@ -15,6 +15,7 @@
     "test": "npm run test --workspaces --if-present",
     "preview": "npm run preview --workspace @romvault/web",
     "help": "node scripts/help.mjs",
+    "smoke": "node scripts/smoke.mjs",
     "check-images": "node scripts/check-images.mjs",
     "import": "node scripts/import.mjs",
     "import:igdb": "node scripts/import.mjs --source=igdb",

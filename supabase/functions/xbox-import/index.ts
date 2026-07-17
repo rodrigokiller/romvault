@@ -69,14 +69,24 @@ async function xbl(path: string, key: string): Promise<any> {
 
 // deno-lint-ignore no-explicit-any
 async function syncUser(admin: any, key: string, userId: string, gamertag: string, byKey: Map<string, string>) {
-  // gamertag -> xuid
-  const search = await xbl(`/search/${encodeURIComponent(gamertag)}`, key);
+  // gamertag -> xuid (dois endpoints do xbl.io: search e friends/search)
   // deno-lint-ignore no-explicit-any
-  const people = (search?.people ?? []) as any[];
-  const person = people.find((p) => norm(p.gamertag ?? '') === norm(gamertag)) ?? people[0];
-  if (!person?.xuid) throw new Error(`Gamertag "${gamertag}" não encontrada.`);
+  let people: any[] = [];
+  try {
+    const search = await xbl(`/search/${encodeURIComponent(gamertag)}`, key);
+    people = (search?.people ?? []);
+  } catch { /* tenta o outro endpoint */ }
+  if (people.length === 0) {
+    try {
+      const alt = await xbl(`/friends/search?gt=${encodeURIComponent(gamertag)}`, key);
+      people = (alt?.profileUsers ?? alt?.people ?? []);
+    } catch { /* segue vazio */ }
+  }
+  const person = people.find((p) => norm(p.gamertag ?? p.settings?.find?.((s: { id: string }) => s.id === 'Gamertag')?.value ?? '') === norm(gamertag)) ?? people[0];
+  const xuid = person?.xuid ?? person?.id;
+  if (!xuid) throw new Error(`Gamertag "${gamertag}" não encontrada no xbl.io — confira a XBLIO_KEY e o gamertag exato (xbox.com/play).`);
 
-  const data = await xbl(`/achievements/player/${person.xuid}`, key);
+  const data = await xbl(`/achievements/player/${xuid}`, key);
   const titles = (data?.titles ?? []) as XblTitle[];
   if (titles.length === 0) throw new Error('Nenhum jogo no histórico (perfil privado?).');
 

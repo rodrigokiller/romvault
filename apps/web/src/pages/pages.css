@@ -3170,3 +3170,43 @@
   border: 1px solid var(--line);
   flex-shrink: 0;
 }
+
+/* ── /sobre ────────────────────────────────────────────────────────────────── */
+.about-pillars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s4);
+}
+.about-pillar {
+  padding: var(--s4);
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.about-pillar-icon { width: 18px; height: 18px; color: var(--accent); }
+.about-pillar h3 { margin: var(--s2) 0; font-size: 0.95rem; }
+.about-pillar p { color: var(--muted); font-size: 0.85rem; line-height: 1.55; }
+.about-sources {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s3);
+  font-size: 0.8rem;
+}
+
+/* input com prefixo fixo (friend code SW-) */
+.input-prefixed { display: flex; align-items: stretch; }
+.input-prefix {
+  display: grid;
+  place-items: center;
+  padding: 0 var(--s2);
+  background: var(--panel-2);
+  border: 1px solid var(--line-bright);
+  border-right: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.input-prefixed .input { flex: 1; }
+
+/* status "sincronizando" nas contas */
+.account-status-busy { color: var(--amber); display: inline-flex; align-items: center; gap: 6px; }

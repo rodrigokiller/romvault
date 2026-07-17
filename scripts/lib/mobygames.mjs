@@ -95,7 +95,12 @@ export async function importMobygames(ctx) {
       `/games?title=${encodeURIComponent(g.title)}&platform=${plat.platform_id}&limit=3&format=normal`,
       key, log, c,
     );
-    const hit = (search?.games ?? []).find((m) => norm(m.title) === norm(g.title)) ?? search?.games?.[0];
+    // match exato; fallback SÓ se os títulos forem parentes (um contém o
+    // outro) — cair cego no 1º resultado colava scan de outro jogo
+    const cand = search?.games ?? [];
+    const me = norm(g.title);
+    const hit = cand.find((m) => norm(m.title) === me)
+      ?? cand.find((m) => { const other = norm(m.title); return other.includes(me) || me.includes(other); });
     if (!hit) { stats.sem_match++; itemLog(stats.sem_match, c.dim(`  – sem match: ${g.title}`)); await markMiss(g); continue; }
 
     await sleep(5500);

@@ -7,7 +7,7 @@ import { GameQuickView } from '@/components/entities/GameQuickView';
 import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
 import { useProfileByUsername } from '@/hooks/useProfile';
 import {
-  useLibrary, useLibraryCopies, useUserPlaythroughs, useUserSyncSummary,
+  useLibrary, useLibraryCopies, useUserPlaythroughs, useUserSyncSummary, useUserLastPlayed,
   TRACK_STATUSES, type TrackStatus, type TrackWithGame,
 } from '@/hooks/useTracks';
 import { STATUS_ICON } from '@/components/entities/TrackButton';
@@ -63,11 +63,12 @@ export function Library() {
   const { data: copies = [] } = useLibraryCopies(profile?.id);
   const { data: playthroughs = [] } = useUserPlaythroughs(profile?.id);
   const { data: syncSummary = [] } = useUserSyncSummary(profile?.id);
+  const { data: lastPlayed } = useUserLastPlayed(profile?.id);
   const [status, setStatus] = useState<TrackStatus | 'all'>('all');
   const [platform, setPlatform] = useState<string | null>(null);
   const [onlyDupes, setOnlyDupes] = useState(false);
   const [onlyPlayable, setOnlyPlayable] = useState(false); // tem tradução no idioma da UI
-  const [order, setOrder] = useState<'recent' | 'az' | 'platform'>('recent');
+  const [order, setOrder] = useState<'recent' | 'az' | 'platform' | 'activity'>('recent');
   // arte da vitrine: capa de loja (retrato) ou box art física
   const [artMode, setArtMode] = useState<'store' | 'box'>('box');
   const shelfRef = useRef<HTMLDivElement | null>(null);
@@ -120,9 +121,20 @@ export function Library() {
       list = [...list].sort((a, b) =>
         (a.game.platforms?.[0] ?? '').localeCompare(b.game.platforms?.[0] ?? '') ||
         a.game.title.localeCompare(b.game.title));
+    } else if (order === 'activity') {
+      // último jogado (dos syncs) primeiro; quem não tem (retro/manual)
+      // mantém a ordem normal no fim — sem "ferrar" a parte retro
+      list = [...list].sort((a, b) => {
+        const la = lastPlayed?.get(a.game_id) ?? '';
+        const lb = lastPlayed?.get(b.game_id) ?? '';
+        if (la && lb) return lb.localeCompare(la);
+        if (la) return -1;
+        if (lb) return 1;
+        return 0;
+      });
     }
     return list;
-  }, [tracks, status, platform, copiesByGame, onlyDupes, onlyPlayable, langsByGame, uiCode, order]);
+  }, [tracks, status, platform, copiesByGame, onlyDupes, onlyPlayable, langsByGame, uiCode, order, lastPlayed]);
 
   // anima a reorganização da estante (filtros/ordenação)
   useFlip(shelfRef, `${status}|${platform}|${onlyDupes}|${onlyPlayable}|${order}|${shown.length}`);
@@ -317,7 +329,7 @@ export function Library() {
             </button>
           )}
           <span className="chips-sep" aria-hidden>·</span>
-          {(['recent', 'az', 'platform'] as const).map((o) => (
+          {(['recent', 'az', 'platform', 'activity'] as const).map((o) => (
             <button
               key={o}
               type="button"
