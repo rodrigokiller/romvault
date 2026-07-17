@@ -14,33 +14,57 @@ const esc = (s) =>
 
 export default async function handler(req, res) {
   const slug = String(req.query.slug ?? '').slice(0, 200);
+  const user = String(req.query.user ?? '').slice(0, 60);
+  const year = String(req.query.year ?? '').slice(0, 4);
   const base = process.env.SITE_URL ?? 'https://romvault.app';
   const supaUrl = process.env.VITE_SUPABASE_URL;
   const supaKey = process.env.VITE_SUPABASE_ANON_KEY;
+  const headers = { apikey: supaKey, Authorization: `Bearer ${supaKey}` };
 
   let title = 'ROMVault';
   let description = 'O hub do romhacking: jogos, traduções, romhacks, docs e ferramentas.';
   let image = null;
+  let pageUrl = base;
 
   if (slug && supaUrl && supaKey) {
+    // página de JOGO
+    pageUrl = `${base}/games/${slug}`;
     try {
       const r = await fetch(
         `${supaUrl}/rest/v1/games?slug=eq.${encodeURIComponent(slug)}&select=title,description,cover_url,thumbnail,platforms&limit=1`,
-        { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` } },
+        { headers },
       );
       const [game] = await r.json();
       if (game) {
-        title = `${game.title} — ROMVault`;
+        title = `${game.title}: ROMVault`;
         if (game.description) description = String(game.description).slice(0, 200);
         else if (game.platforms?.length) description = `Jogo de ${game.platforms.join(', ')} no ROMVault.`;
         image = game.cover_url ?? game.thumbnail ?? null;
       }
-    } catch {
-      /* catálogo fora do ar: cai no padrão */
-    }
+    } catch { /* catálogo fora do ar: cai no padrão */ }
+  } else if (user && year && supaUrl && supaKey) {
+    // RETROSPECTIVA anual (compartilhada no Discord aparece bonita)
+    pageUrl = `${base}/u/${user}/year/${year}`;
+    try {
+      const pr = await fetch(
+        `${supaUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(user)}&select=id,avatar_url&limit=1`,
+        { headers },
+      );
+      const [prof] = await pr.json();
+      if (prof) {
+        const cr = await fetch(
+          `${supaUrl}/rest/v1/game_playthroughs?user_id=eq.${prof.id}&finished_on=gte.${year}-01-01&finished_on=lte.${year}-12-31&select=id`,
+          { headers: { ...headers, Prefer: 'count=exact', Range: '0-0' } },
+        );
+        const total = Number((cr.headers.get('content-range') ?? '/0').split('/')[1] || 0);
+        title = `Retrospectiva ${year} de @${user}: ROMVault`;
+        description = total > 0
+          ? `${total} ${total === 1 ? 'jogo zerado' : 'jogos zerados'} em ${year}. Veja a retrospectiva completa.`
+          : `A retrospectiva de @${user} em ${year} no ROMVault.`;
+        image = prof.avatar_url ?? null;
+      }
+    } catch { /* perfil privado/fora do ar: padrão */ }
   }
-
-  const pageUrl = `${base}/games/${slug}`;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
   res.status(200).send(`<!doctype html>

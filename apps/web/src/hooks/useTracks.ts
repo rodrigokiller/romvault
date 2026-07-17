@@ -243,6 +243,24 @@ export function useMySyncData(gameId: string | undefined) {
   });
 }
 
+/** Linhas cruas de sync de um usuário (painel de stats: heatmap/períodos). */
+export function useUserSyncRows(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['syncRows', userId],
+    enabled: env.configured && Boolean(userId),
+    staleTime: 60_000,
+    queryFn: async (): Promise<{ game_id: string; provider: string; platform: string | null; hours_played: number | null; last_played: string | null }[]> => {
+      const { data, error } = await db()
+        .from('game_sync_data')
+        .select('game_id, provider, platform, hours_played, last_played')
+        .eq('user_id', userId as string)
+        .range(0, 9999);
+      if (error) return [];
+      return (data ?? []) as { game_id: string; provider: string; platform: string | null; hours_played: number | null; last_played: string | null }[];
+    },
+  });
+}
+
 /** Map game_id -> último jogado (max entre provedores) — ordenação "Atividade". */
 export function useUserLastPlayed(userId: string | undefined) {
   return useQuery({

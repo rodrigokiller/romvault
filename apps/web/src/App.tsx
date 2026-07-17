@@ -43,6 +43,7 @@ const Vitrine = lazy(() => import('./pages/Vitrine').then((m) => ({ default: m.V
 const Scene = lazy(() => import('./pages/Scene').then((m) => ({ default: m.Scene })));
 const About = lazy(() => import('./pages/About').then((m) => ({ default: m.About })));
 const Changelog = lazy(() => import('./pages/Changelog').then((m) => ({ default: m.Changelog })));
+const UserStats = lazy(() => import('./pages/UserStats').then((m) => ({ default: m.UserStats })));
 const CollectionsList = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionsList })));
 const CollectionDetail = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionDetail })));
 
@@ -86,6 +87,7 @@ export function App() {
                       <Route path="u/:username/library" element={<Library />} />
                       <Route path="u/:username/vitrine" element={<Vitrine />} />
                       <Route path="u/:username/year/:year" element={<YearReview />} />
+                      <Route path="u/:username/stats" element={<UserStats />} />
                       <Route path="settings" element={<Settings />} />
                       <Route path="api" element={<ApiDocs />} />
                       <Route path="search" element={<Search />} />

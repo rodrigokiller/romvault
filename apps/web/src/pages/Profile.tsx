@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { User, Pencil, Check, X, Library as LibraryIcon, Store, UserPlus, UserMinus, Trophy } from 'lucide-react';
+import { User, Pencil, Check, X, Library as LibraryIcon, Store, UserPlus, UserMinus, Trophy, BarChart3 } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -81,6 +81,12 @@ export function Profile() {
             </Link>
             <Link to={`/u/${profile.username}/vitrine`} className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Store aria-hidden style={{ width: 15, height: 15 }} /> {t('vitrine:viewVitrine')}
+            </Link>
+            <Link
+              to={`/u/${profile.username}/stats`}
+              className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <BarChart3 aria-hidden style={{ width: 15, height: 15 }} /> {t('ustats:link')}
             </Link>
             {playthroughs.length > 0 && (
               <Link
