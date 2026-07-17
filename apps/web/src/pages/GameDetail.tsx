@@ -114,6 +114,11 @@ export function GameDetail() {
         className={`detail-head ${heroImg ? 'detail-hero' : ''}`}
         style={heroImg ? ({ '--hero-img': `url("${heroImg}")` } as React.CSSProperties) : undefined}
       >
+        {game && (
+          <div className="detail-report">
+            <ReportButton subjectType="game" subjectId={game.id} subjectLabel={title} />
+          </div>
+        )}
         <div className="detail-cover">
           {game?.cover_url ? (
             <img src={game.cover_url} alt={title} />
@@ -155,7 +160,6 @@ export function GameDetail() {
               <PrivacyToggle gameId={game.id} />
               <FavoriteButton subjectType="game" subjectId={game.id} />
               <ShareButton title={title} />
-              <ReportButton subjectType="game" subjectId={game.id} subjectLabel={title} />
             </div>
           )}
           {game && <SyncDataPanel gameId={game.id} />}

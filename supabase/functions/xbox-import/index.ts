@@ -130,7 +130,7 @@ async function syncUser(admin: any, key: string, userId: string, gamertag: strin
   for (const m of matched) {
     const a = m.t.achievement;
     const pct = Math.round(a?.progressPercentage ?? 0);
-    const status = pct >= 100 ? 'finished' : 'playing';
+    const status = pct >= 100 ? 'finished' : 'owned';
     const src = trackByGame.get(m.gid);
     if (src === undefined) {
       newTracks.push({

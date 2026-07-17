@@ -450,12 +450,17 @@ function RunsTimeline({ playthroughs }: { playthroughs: { finished_on: string }[
   );
 }
 
-/** Barra de progresso do backlog: terminados / total da biblioteca. */
+/**
+ * Barra de progresso do backlog: terminados / jogos EM JOGO. "Na coleção"
+ * (owned) fica de fora do denominador — ter 800 jogos importados da Steam
+ * não significa 800 jogos na fila.
+ */
 function BacklogProgress({ tracks }: { tracks: { status: string }[] }) {
   const { t } = useTranslation();
-  const total = tracks.length;
+  const counted = tracks.filter((x) => x.status !== 'owned');
+  const total = counted.length;
   if (total === 0) return null;
-  const finished = tracks.filter((x) => x.status === 'finished').length;
+  const finished = counted.filter((x) => x.status === 'finished').length;
   const pct = Math.round((finished / total) * 100);
   return (
     <div className="backlog-progress">

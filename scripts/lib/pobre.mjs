@@ -86,7 +86,12 @@ function parseChunks(html) {
 
 /** Parseia uma página de entrada. Retorna null se não parecer uma entrada. */
 function parseEntry(html, path) {
-  const download = html.match(/href="(https?:\/\/cdn\.romhackers\.org[^"]+)"/i)?.[1] ?? null;
+  // download: CDN oficial primeiro; senão qualquer link direto de arquivo
+  // (entradas antigas do PO.B.R.E apontam pra hosts externos)
+  const download =
+    html.match(/href="(https?:\/\/cdn\.romhackers\.org[^"]+)"/i)?.[1]
+    ?? html.match(/href="(https?:\/\/[^"]+\.(?:zip|rar|7z|ips|bps|ups|xdelta|exe)(?:\?[^"]*)?)"/i)?.[1]
+    ?? null;
   const chunks = parseChunks(html);
   if (!download && chunks.length === 0) return null;
 
@@ -112,6 +117,61 @@ const SECTIONS = {
   utilitarios: { table: 'tools', entity: 'utility', needsGame: false },
   tutoriais: { table: 'documents', entity: 'document', needsGame: false },
 };
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * ENRICH — re-visita entradas ja importadas que ficaram SEM download (link
+ * fora do CDN) ou sem screenshots e completa os campos. Nao cria nada.
+ *   npm run import -- --source=pobre --enrich [--limit=N]
+ * ═══════════════════════════════════════════════════════════════════════════ */
+export async function enrichPobre(ctx) {
+  const { sb, flag, DRY, log, c, step, itemLog, fetchAll } = ctx;
+  const source = 'romhackers.org';
+  const limit = Number(flag('limit', 0)) || 0;
+  const stats = { atualizados: 0, sem_download_ainda: 0, erros: 0 };
+
+  // id_map reverso: nosso id -> path no site
+  const pathOf = new Map();
+  for (const r of await fetchAll(() =>
+    sb.from('id_map').select('romvault_id, external_id').eq('source', source))) {
+    pathOf.set(r.romvault_id, String(r.external_id));
+  }
+
+  for (const [secName, sec] of Object.entries(SECTIONS)) {
+    const pending = (await fetchAll(() =>
+      sb.from(sec.table).select('id, file_url, thumbnail').eq('data_source', source)))
+      .filter((r) => !r.file_url || !r.thumbnail);
+    if (pending.length === 0) continue;
+    step(`PO.B.R.E enrich — /${secName} (${pending.length} incompletos)`);
+
+    let count = 0;
+    for (const row of pending) {
+      if (limit && count >= limit) break;
+      const path = pathOf.get(row.id);
+      if (!path) continue;
+      await sleep(450);
+      const html = await fetchHtml(`${BASE}/${path.replace(/^\//, '')}`, log, c);
+      if (!html) continue;
+      const entry = parseEntry(html, path);
+      if (!entry) continue;
+
+      const patch = {};
+      if (!row.file_url && entry.download) patch.file_url = entry.download;
+      if (!row.thumbnail && entry.screenshots[0]) {
+        patch.thumbnail = entry.screenshots[0];
+        patch.screenshots = entry.screenshots;
+      }
+      if (Object.keys(patch).length === 0) { stats.sem_download_ainda++; continue; }
+      count++;
+      if (DRY) { stats.atualizados++; itemLog(count, `  ${c.dim('[dry]')} ${path} -> ${Object.keys(patch).join(', ')}`); continue; }
+      const { error } = await sb.from(sec.table).update(patch).eq('id', row.id);
+      if (error) { stats.erros++; if (stats.erros <= 5) log(c.red(`  ✖ ${path}: ${error.message}`)); continue; }
+      stats.atualizados++;
+      itemLog(count, `  ${c.green('+')} ${path} ${c.dim(Object.keys(patch).join(', '))}`);
+    }
+    log(`  ${c.green('✓')} ${secName}: ${count} atualizados`);
+  }
+  return stats;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export async function importPobre(ctx) {

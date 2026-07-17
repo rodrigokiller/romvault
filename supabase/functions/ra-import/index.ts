@@ -133,7 +133,7 @@ async function syncUser(
   for (const m of matched) {
     const earned = Number(m.ra.NumAwarded);
     const total = Number(m.ra.MaxPossible);
-    const status = total > 0 && earned >= total ? 'finished' : 'playing';
+    const status = total > 0 && earned >= total ? 'finished' : 'owned';
     const src = trackByGame.get(m.gid);
     if (src === undefined) {
       newTracks.push({

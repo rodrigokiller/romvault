@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFlip } from '@/hooks/useFlip';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -147,6 +147,22 @@ export function Library() {
 
   // anima a reorganização da estante (filtros/ordenação)
   useFlip(shelfRef, `${status}|${platform}|${onlyDupes}|${onlyPlayable}|${showPrivate}|${order}|${shown.length}`);
+
+  // atalhos do modo seleção: Esc cancela, Ctrl+A seleciona os visíveis
+  useEffect(() => {
+    if (!selecting) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setSelecting(false);
+        setSelected(new Set());
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setSelected(new Set(shown.map((x) => x.game_id)));
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selecting, shown]);
 
   const totalHours = useMemo(
     () => tracks.reduce((sum, x) => sum + (x.hours_played ?? 0), 0),

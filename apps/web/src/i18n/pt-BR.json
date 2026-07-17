@@ -505,7 +505,10 @@
     "gamesTitle": "Jogados no período",
     "emptyTitle": "Período sem registros",
     "emptyText": "Zeradas, syncs e cópias novas aparecem aqui. Vincule contas nas configurações pro painel se preencher sozinho.",
-    "heatYears": "Ano do heatmap"
+    "heatYears": "Ano do heatmap",
+    "growthTitle": "Crescimento da coleção",
+    "growthGames": "jogos na biblioteca",
+    "growthFinished": "zerados"
   },
   "gate": {
     "kicker": "beta fechado",
@@ -570,7 +573,9 @@
     "completions_one": "{{count}} zerada",
     "completions_other": "{{count}} zeradas",
     "emptyTitle": "Ainda sem zeradas com patch",
-    "emptyText": "Quando a comunidade registrar zeradas informando a tradução/hack usada, o ranking nasce aqui."
+    "emptyText": "Quando a comunidade registrar zeradas informando a tradução/hack usada, o ranking nasce aqui.",
+    "hotTitle": "Em alta na semana",
+    "hotHint": "Downloads nos últimos 7 dias"
   },
   "vitrine": {
     "title": "Vitrine de {{user}}",
@@ -619,7 +624,9 @@
     "emptyTitle": "Nenhuma zerada neste ano",
     "emptyText": "Nada registrado em {{year}}. Bora zerar algo?",
     "shareTitle": "{{user}} zerou {{count}} jogos em {{year}} no ROMVault!",
-    "playedTitle": "Jogados no ano ({{count}})"
+    "playedTitle": "Jogados no ano ({{count}})",
+    "playedLabel": "jogos jogados",
+    "hoursLabel": "horas nos jogos do ano"
   },
   "collections": {
     "kicker": "// curadoria",

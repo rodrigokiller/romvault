@@ -237,6 +237,11 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
       </Link>
 
       <div className="detail-head">
+        {(kind === 'romhack' || kind === 'translation' || kind === 'doc' || kind === 'tool') && (
+          <div className="detail-report">
+            <ReportButton subjectType={kind} subjectId={String(item.id)} subjectLabel={title} />
+          </div>
+        )}
         <div className="detail-cover detail-cover-wide">
           {str(item.thumbnail) ? (
             <img src={str(item.thumbnail) as string} alt={title} />
@@ -281,9 +286,6 @@ function MaterialDetailView({ kind, query }: { kind: Kind; query: UseQueryResult
             )}
             {SUBJECT_OF[kind] && <FavoriteButton subjectType={SUBJECT_OF[kind]} subjectId={String(item.id)} />}
             <ShareButton title={title} />
-            {(kind === 'romhack' || kind === 'translation' || kind === 'doc' || kind === 'tool') && (
-              <ReportButton subjectType={kind} subjectId={String(item.id)} subjectLabel={title} />
-            )}
           </div>
         </div>
       </div>

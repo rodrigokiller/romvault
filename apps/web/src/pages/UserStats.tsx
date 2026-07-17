@@ -41,6 +41,26 @@ function useFollowingAvg(myId: string | undefined, sinceISO: string) {
   });
 }
 
+/** Snapshots mensais da coleção (job collection-snapshot): série de crescimento. */
+function useCollectionGrowth(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['collectionGrowth', userId],
+    enabled: env.configured && Boolean(userId),
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<{ month: string; games: number; finished: number; hours: number }[]> => {
+      const { data, error } = await db()
+        .from('collection_snapshots')
+        .select('month, games, finished, hours')
+        .eq('user_id', userId as string)
+        .order('month', { ascending: true })
+        .limit(48);
+      // tabela ainda não migrada: sem seção, sem erro
+      if (error) return [];
+      return (data ?? []) as { month: string; games: number; finished: number; hours: number }[];
+    },
+  });
+}
+
 /**
  * /u/:user/stats — painel estilo trakt: cards do período (semana/mês/ano),
  * HEATMAP de atividade do último ano (estilo GitHub), plataformas e jogos
@@ -56,6 +76,7 @@ export function UserStats() {
   const { data: syncRows = [] } = useUserSyncRows(profile?.id);
   const { data: copies = [] } = useLibraryCopies(profile?.id);
   const [period, setPeriod] = useState<Period>('month');
+  const { data: growth = [] } = useCollectionGrowth(profile?.id);
 
   const isMe = Boolean(me && profile && me.id === profile.id);
   const sinceMs = Date.now() - PERIOD_DAYS[period] * 86_400_000;
@@ -104,21 +125,20 @@ export function UserStats() {
     start.setDate(start.getDate() - start.getDay());
     const end = new Date(heatYear, 11, 31);
     end.setDate(end.getDate() + (6 - end.getDay()));
-    const cells: { key: string; count: number; off: boolean }[] = [];
+    const cells: { key: string; count: number; out: boolean; future: boolean }[] = [];
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const key = dayKey(d);
       cells.push({
         key,
         count: map.get(key) ?? 0,
-        off: d.getFullYear() !== heatYear || d > today, // fora do ano/futuro: invisível
+        out: d.getFullYear() !== heatYear,   // sobra de semana de outro ano: invisível
+        future: d.getFullYear() === heatYear && d > today, // ainda por vir: pontilhado fraco
       });
     }
     const max = Math.max(1, ...cells.map((c) => c.count));
     const weeks = Math.ceil(cells.length / 7);
     return { cells, max, weeks };
   }, [playthroughs, syncRows, copies, heatYear]);
-  // largura EXATA da grade (células 10px + gap 4px) — legendas casam com ela
-  const heatWidth = heat.weeks * 14 - 4;
 
   /* ── plataformas e jogos do período ── */
   const periodPlatforms = useMemo(() => {
@@ -234,28 +254,30 @@ export function UserStats() {
         <div className="section-head"><h2>{t('ustats:heatTitle', { year: heatYear })}</h2></div>
         <div className="heatmap-flex">
           <div className="heatmap-wrap">
-            <div className="heatmap-months mono" aria-hidden style={{ width: heatWidth, minWidth: heatWidth }}>
-              {months.map((m) => <span key={m}>{m}</span>)}
-            </div>
-            <div
-              className="heatmap" role="img" aria-label={t('ustats:heatTitle', { year: heatYear })}
-              style={{ width: heatWidth, minWidth: heatWidth }}
-            >
-              {heat.cells.map((c) => {
-                const level = c.off || c.count === 0 ? 0 : Math.min(4, Math.ceil((c.count / heat.max) * 4));
-                return (
-                  <span
-                    key={c.key}
-                    className={`heat-cell heat-${level} ${c.off ? 'heat-future' : ''}`}
-                    title={`${c.key}: ${c.count > 0 ? t('ustats:heatDay', { count: c.count }) : t('ustats:heatNone')}`}
-                  />
-                );
-              })}
-            </div>
-            <div className="heatmap-legend mono" style={{ width: heatWidth, minWidth: heatWidth }}>
-              <span>{t('ustats:heatLess')}</span>
-              {[0, 1, 2, 3, 4].map((l) => <span key={l} className={`heat-cell heat-${l}`} />)}
-              <span>{t('ustats:heatMore')}</span>
+            <div className="heatmap-scroll">
+              <div className="heatmap-months mono" aria-hidden>
+                {months.map((m) => <span key={m}>{m}</span>)}
+              </div>
+              <div
+                className="heatmap" role="img" aria-label={t('ustats:heatTitle', { year: heatYear })}
+                style={{ '--hm-weeks': heat.weeks } as React.CSSProperties}
+              >
+                {heat.cells.map((c) => {
+                  const level = c.out || c.future || c.count === 0 ? 0 : Math.min(4, Math.ceil((c.count / heat.max) * 4));
+                  return (
+                    <span
+                      key={c.key}
+                      className={`heat-cell heat-${level} ${c.out ? 'heat-out' : ''} ${c.future ? 'heat-future' : ''}`}
+                      title={c.future ? c.key : `${c.key}: ${c.count > 0 ? t('ustats:heatDay', { count: c.count }) : t('ustats:heatNone')}`}
+                    />
+                  );
+                })}
+              </div>
+              <div className="heatmap-legend mono">
+                <span>{t('ustats:heatLess')}</span>
+                {[0, 1, 2, 3, 4].map((l) => <span key={l} className={`heat-cell heat-${l}`} />)}
+                <span>{t('ustats:heatMore')}</span>
+              </div>
             </div>
           </div>
           <div className="heatmap-years" role="tablist" aria-label={t('ustats:heatYears')}>
@@ -308,6 +330,30 @@ export function UserStats() {
               </Link>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* crescimento da coleção (snapshots mensais) — precisa de 2+ pontos */}
+      {growth.length >= 2 && (
+        <section className="section">
+          <div className="section-head"><h2>{t('ustats:growthTitle')}</h2></div>
+          <div className="growth-chart" role="img" aria-label={t('ustats:growthTitle')}>
+            {growth.map((s) => {
+              const max = Math.max(1, ...growth.map((x) => x.games));
+              return (
+                <div key={s.month} className="growth-col" title={`${s.month.slice(0, 7)}: ${s.games} · ${Math.round(s.hours)}h`}>
+                  <div className="growth-bar">
+                    <div className="growth-fill" style={{ height: `${(s.games / max) * 100}%` }} />
+                    <div className="growth-fill growth-fill-finished" style={{ height: `${(s.finished / max) * 100}%` }} />
+                  </div>
+                  <span className="growth-label mono">{s.month.slice(2, 7)}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="muted-text mono growth-legend">
+            {t('ustats:growthGames')} · <span className="growth-legend-finished">{t('ustats:growthFinished')}</span>
+          </p>
         </section>
       )}
 

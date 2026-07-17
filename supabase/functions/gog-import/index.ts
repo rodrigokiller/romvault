@@ -128,7 +128,7 @@ async function syncUser(admin: any, userId: string, username: string, byKey: Map
     const src = trackByGame.get(m.gid);
     if (src === undefined) {
       newTracks.push({
-        user_id: userId, game_id: m.gid, status: 'backlog', platform: 'PC',
+        user_id: userId, game_id: m.gid, status: 'owned', platform: 'PC',
         hours_played: m.g.hours, source: 'gog',
       });
     } else if (src === 'gog' && m.g.hours) {

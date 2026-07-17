@@ -60,6 +60,26 @@ export function YearReview() {
     }
     return [...seen].slice(0, 60);
   }, [syncRows, year]);
+  // mês da última sessão de cada jogo do ano (agrupa os jogados por mês)
+  const playedMonthOf = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of syncRows) {
+      if (!r.last_played || r.last_played.slice(0, 4) !== year) continue;
+      const m = Number(r.last_played.slice(5, 7)) - 1;
+      const prev = map.get(r.game_id);
+      if (prev === undefined || m > prev) map.set(r.game_id, m);
+    }
+    return map;
+  }, [syncRows, year]);
+  // horas somadas dos jogos jogados no ano (max por jogo entre provedores)
+  const hoursYear = useMemo(() => {
+    const perGame = new Map<string, number>();
+    for (const r of syncRows) {
+      if (!r.last_played || r.last_played.slice(0, 4) !== year || !r.hours_played) continue;
+      perGame.set(r.game_id, Math.max(perGame.get(r.game_id) ?? 0, r.hours_played));
+    }
+    return Math.round([...perGame.values()].reduce((a, b) => a + b, 0));
+  }, [syncRows, year]);
   // resolve título/capa numa query só
   const { data: playedGames = [] } = useQuery({
     queryKey: ['yearPlayed', profile?.id, year, playedIds.length],
@@ -126,6 +146,18 @@ export function YearReview() {
                 <span className="wrapped-num">{runs.length}</span>
                 <span className="wrapped-label">{t('wrapped:finished', { count: runs.length })}</span>
               </div>
+              {playedGames.length > 0 && (
+                <div className="wrapped-stat">
+                  <span className="wrapped-num">{playedGames.length}</span>
+                  <span className="wrapped-label">{t('wrapped:playedLabel')}</span>
+                </div>
+              )}
+              {hoursYear > 0 && (
+                <div className="wrapped-stat">
+                  <span className="wrapped-num">{hoursYear}h</span>
+                  <span className="wrapped-label">{t('wrapped:hoursLabel')}</span>
+                </div>
+              )}
               {topPlatform && (
                 <div className="wrapped-stat">
                   <span className="wrapped-num">{topPlatform}</span>
@@ -167,19 +199,30 @@ export function YearReview() {
           </>
         )}
 
-        {/* jogados no ano (dos syncs) — não só zerados */}
+        {/* jogados no ano (dos syncs), agrupados pelo MÊS da última sessão */}
         {playedGames.length > 0 && (
           <section className="section">
             <div className="section-head"><h2>{t('wrapped:playedTitle', { count: playedGames.length })}</h2></div>
-            <div className="my-strip-covers" style={{ flexWrap: 'wrap' }}>
-              {playedGames.map((g) => (
-                <Link key={g.id} to={`/games/${g.slug}`} title={g.title}>
-                  {g.cover_url || g.thumbnail
-                    ? <img src={g.cover_url ?? g.thumbnail ?? ''} alt={g.title} loading="lazy" />
-                    : <span className="my-strip-fallback">{g.title}</span>}
-                </Link>
-              ))}
-            </div>
+            {Array.from({ length: 12 }, (_, m) => {
+              const inMonth = playedGames.filter((g) => playedMonthOf.get(g.id) === m);
+              if (inMonth.length === 0) return null;
+              return (
+                <div key={m} className="wrapped-month-group">
+                  <span className="wrapped-month-head mono">
+                    {MONTHS[m]} <span className="search-chip-n">{inMonth.length}</span>
+                  </span>
+                  <div className="my-strip-covers" style={{ flexWrap: 'wrap' }}>
+                    {inMonth.map((g) => (
+                      <Link key={g.id} to={`/games/${g.slug}`} title={g.title}>
+                        {g.cover_url || g.thumbnail
+                          ? <img src={g.cover_url ?? g.thumbnail ?? ''} alt={g.title} loading="lazy" />
+                          : <span className="my-strip-fallback">{g.title}</span>}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </section>
         )}
       </div>

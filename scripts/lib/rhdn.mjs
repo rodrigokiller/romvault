@@ -19,9 +19,10 @@
  *   Documents(dockey, title, categorykey, gamekey, version, reldate, downloads, description)
  *   language(id, name) · genres(genrekey, description) · Hackscat/utilcat/Category(categorykey, catname)
  */
-import { readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { execSync } from 'node:child_process';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, rmSync } from 'node:fs';
+import { execSync, execFileSync } from 'node:child_process';
+import { join, basename } from 'node:path';
+import { tmpdir } from 'node:os';
 import { parseMysqlDump } from './mysqldump.mjs';
 
 const TABLE_CANDIDATES = {
@@ -130,6 +131,251 @@ function findSqlRecursive(dir) {
     } else if (name.toLowerCase().endsWith('.sql')) return p;
   }
   return null;
+}
+
+/** youtube do dump: URL completa OU só o id do vídeo. Vazio -> null. */
+function youtubeUrl(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^[A-Za-z0-9_-]{6,20}$/.test(s)) return `https://www.youtube.com/watch?v=${s}`;
+  return null;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * ENRICH — completa o que o import inicial não trouxe, SEM recriar nada:
+ *   fase 1 (só o dump SQL): file_url (respeitando `nofile` — entradas que o
+ *     RHDN nunca hospedou ficam sem botão de download em vez de link morto),
+ *     source_url e video_url (coluna youtube).
+ *   fase 2 (--images=<rhdn_20240801.zip>, o dump COMPLETO de 12,5 GB do
+ *     Archive): extrai as screenshots citadas em hackimages/transimage/
+ *     tscreen/screenshot, sobe pro Storage do Supabase (bucket uploads,
+ *     catalog/rhdn/) e grava thumbnail + screenshots (teto --shots, padrão 2).
+ *
+ *   npm run import -- --source=rhdn --enrich --file=C:\dl\romhacking.sql.zip
+ *   npm run import -- --source=rhdn --enrich --file=... --images=C:\dl\rhdn_20240801.zip --shots=2
+ * ═══════════════════════════════════════════════════════════════════════════ */
+export async function enrichRhdn(ctx) {
+  const { sb, flag, DRY, log, c, step, itemLog, fetchAll } = ctx;
+  const source = 'romhacking.net';
+
+  const file = flag('file');
+  if (!file || file === true) {
+    log(c.red('✖ informe o dump: --file=C:\\caminho\\romhacking.sql.zip'));
+    process.exit(1);
+  }
+  const imagesZip = flag('images');
+  const maxShots = Math.max(1, Number(flag('shots', 2)) || 2);
+
+  step('RHDN enrich — lendo o dump');
+  const sqlPath = resolveSqlFile(String(file), log);
+  const tables = parseMysqlDump(readFileSync(sqlPath, 'utf8'));
+  log(`  ${tables.size} tabelas parseadas`);
+
+  /* screenshots por item (alem da title screen que vem na propria linha) */
+  const hackShots = new Map();
+  for (const r of findTable(tables, ['hackimages'])?.rows ?? []) {
+    if (r.hackkey == null || !r.filename) continue;
+    const k = Number(r.hackkey);
+    hackShots.set(k, [...(hackShots.get(k) ?? []), String(r.filename)]);
+  }
+  const transShots = new Map();
+  for (const r of findTable(tables, ['transimage'])?.rows ?? []) {
+    if (r.transkey == null || !r.filename) continue;
+    const k = Number(r.transkey);
+    transShots.set(k, [...(transShots.get(k) ?? []), String(r.filename)]);
+  }
+  log(`  screenshots no dump: ${hackShots.size} hacks, ${transShots.size} traducoes`);
+
+  /* secoes: linha do dump -> {extId, file_url, video_url, images[]} */
+  const SECTIONS = [
+    {
+      key: 'hacks', table: 'romhacks', entity: 'hack', urlPart: 'hacks',
+      info: (r) => ({
+        extId: r.hackkey,
+        nofile: Number(r.nofile) === 1,
+        video: youtubeUrl(r.youtube),
+        images: [r.tscreen, ...(hackShots.get(Number(r.hackkey)) ?? [])].filter(Boolean).map(String),
+      }),
+    },
+    {
+      key: 'translations', table: 'translations', entity: 'translation', urlPart: 'translations',
+      info: (r) => ({
+        extId: r.transkey,
+        nofile: Number(r.nofile) === 1,
+        video: youtubeUrl(r.youtube),
+        images: [r.tscreen, ...(transShots.get(Number(r.transkey)) ?? [])].filter(Boolean).map(String),
+      }),
+    },
+    {
+      key: 'utilities', table: 'tools', entity: 'utility', urlPart: 'utilities',
+      info: (r) => ({
+        extId: r.utilkey,
+        nofile: Number(r.nofile) === 1,
+        video: null,
+        images: [r.screenshot].filter(Boolean).map(String),
+      }),
+    },
+    {
+      key: 'documents', table: 'documents', entity: 'document', urlPart: 'documents',
+      info: (r) => ({ extId: r.dockey, nofile: Number(r.nofile) === 1, video: null, images: [] }),
+    },
+  ];
+
+  /* indice do zip de imagens (fase 2): basename -> caminho interno */
+  let zipIndex = null;
+  let tmpDir = null;
+  if (imagesZip && imagesZip !== true) {
+    if (!existsSync(String(imagesZip))) {
+      log(c.red(`✖ zip de imagens nao encontrado: ${imagesZip}`));
+      process.exit(1);
+    }
+    step('Indexando o zip de imagens (uma vez; cache ao lado do zip)');
+    const cachePath = `${imagesZip}.list.txt`;
+    let listing;
+    if (existsSync(cachePath)) {
+      listing = readFileSync(cachePath, 'utf8');
+      log(`  cache: ${cachePath}`);
+    } else {
+      log('  tar -tf … (12,5 GB — pode levar alguns minutos)');
+      listing = execFileSync('tar', ['-tf', String(imagesZip)], {
+        encoding: 'utf8', maxBuffer: 1024 * 1024 * 512,
+      });
+      writeFileSync(cachePath, listing);
+    }
+    zipIndex = new Map();
+    for (const line of listing.split(/\r?\n/)) {
+      const p = line.trim();
+      if (!p || p.endsWith('/')) continue;
+      const base = basename(p).toLowerCase();
+      if (!zipIndex.has(base)) zipIndex.set(base, p);
+    }
+    log(`  ${zipIndex.size} arquivos indexados`);
+    tmpDir = join(tmpdir(), 'rhdn-media');
+    mkdirSync(tmpDir, { recursive: true });
+  }
+
+  const CONTENT_TYPE = { png: 'image/png', gif: 'image/gif', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
+
+  /** Extrai um lote de caminhos do zip pro tmpDir (um tar por lote). */
+  function extractBatch(paths) {
+    if (paths.length === 0) return;
+    execFileSync('tar', ['-xf', String(imagesZip), '-C', tmpDir, ...paths], {
+      stdio: 'ignore', maxBuffer: 1024 * 1024 * 64,
+    });
+  }
+
+  /** Sobe uma imagem local pro Storage; retorna a URL publica (ou null). */
+  async function uploadImage(localPath, name) {
+    const ext = name.split('.').pop()?.toLowerCase() ?? 'png';
+    const storagePath = `catalog/rhdn/${name}`;
+    const { error } = await sb.storage.from('uploads').upload(storagePath, readFileSync(localPath), {
+      contentType: CONTENT_TYPE[ext] ?? 'application/octet-stream', upsert: true,
+    });
+    if (error) return null;
+    return sb.storage.from('uploads').getPublicUrl(storagePath).data.publicUrl;
+  }
+
+  const stats = { atualizados: 0, com_imagens: 0, sem_id_map: 0, sem_arquivo_zip: 0, erros: 0 };
+  const limit = Number(flag('limit', 0)) || 0;
+  const only = String(flag('section', 'all'));
+
+  for (const sec of SECTIONS) {
+    if (only !== 'all' && only !== sec.key) continue;
+    const t = findTable(tables, TABLE_CANDIDATES[sec.key]);
+    if (!t) continue;
+
+    step(`${sec.key} — enrich (${t.rows.length} no dump)`);
+
+    // id_map: extId -> nosso id · estado atual: quem ja tem thumbnail/file_url
+    const mapped = new Map();
+    for (const r of await fetchAll(() =>
+      sb.from('id_map').select('romvault_id, external_id').eq('source', source).eq('entity', sec.entity))) {
+      mapped.set(String(r.external_id), r.romvault_id);
+    }
+    const current = new Map();
+    for (const r of await fetchAll(() =>
+      sb.from(sec.table).select('id, thumbnail, file_url, source_url').eq('data_source', source))) {
+      current.set(r.id, r);
+    }
+    log(`  id_map: ${mapped.size} mapeados · ${current.size} linhas nossas`);
+
+    // monta a lista de trabalho
+    const work = [];
+    for (const r of t.rows) {
+      const info = sec.info(r);
+      if (info.extId == null) continue;
+      const rvId = mapped.get(String(info.extId));
+      if (!rvId) { stats.sem_id_map++; continue; }
+      const cur = current.get(rvId);
+      if (!cur) { stats.sem_id_map++; continue; }
+      work.push({ ...info, rvId, cur });
+      if (limit && work.length >= limit) break;
+    }
+
+    // fase 2: extrai as imagens necessarias em lotes ANTES dos updates
+    const localOf = new Map(); // basename(lower) -> caminho extraido
+    if (zipIndex) {
+      const need = [];
+      for (const w of work) {
+        if (w.cur.thumbnail) continue; // ja enriquecido: pula
+        for (const img of w.images.slice(0, maxShots)) {
+          const hit = zipIndex.get(img.toLowerCase());
+          if (hit && !localOf.has(img.toLowerCase())) {
+            localOf.set(img.toLowerCase(), join(tmpDir, hit));
+            need.push(hit);
+          }
+        }
+      }
+      log(`  extraindo ${need.length} imagens do zip …`);
+      for (let i = 0; i < need.length; i += 200) {
+        extractBatch(need.slice(i, i + 200));
+        if (i % 2000 === 0 && i > 0) log(c.dim(`  … ${i}/${need.length}`));
+      }
+    }
+
+    // updates com concorrencia limitada
+    let done = 0;
+    const POOL = 12;
+    for (let i = 0; i < work.length; i += POOL) {
+      await Promise.all(work.slice(i, i + POOL).map(async (w) => {
+        const patch = {};
+        const wantFile = w.nofile ? null : `https://www.romhacking.net/download/${sec.urlPart}/${w.extId}/`;
+        if ((w.cur.file_url ?? null) !== wantFile) patch.file_url = wantFile;
+        const wantSource = `https://www.romhacking.net/${sec.urlPart}/${w.extId}/`;
+        if ((w.cur.source_url ?? null) !== wantSource) patch.source_url = wantSource;
+        if (w.video && (sec.table === 'romhacks' || sec.table === 'translations')) patch.video_url = w.video;
+
+        // fase 2: sobe as imagens e aponta thumbnail/screenshots
+        if (zipIndex && !w.cur.thumbnail && w.images.length > 0) {
+          const urls = [];
+          for (const img of w.images.slice(0, maxShots)) {
+            const local = localOf.get(img.toLowerCase());
+            if (!local || !existsSync(local)) { stats.sem_arquivo_zip++; continue; }
+            const url = await uploadImage(local, img);
+            if (url) urls.push(url);
+          }
+          if (urls.length > 0) {
+            patch.thumbnail = urls[0];
+            patch.screenshots = urls;
+            stats.com_imagens++;
+          }
+        }
+
+        if (Object.keys(patch).length === 0) return;
+        if (DRY) { stats.atualizados++; return; }
+        const { error } = await sb.from(sec.table).update(patch).eq('id', w.rvId);
+        if (error) { stats.erros++; if (stats.erros <= 5) log(c.red(`  ✖ ${w.rvId}: ${error.message}`)); return; }
+        stats.atualizados++;
+      }));
+      done = Math.min(i + POOL, work.length);
+      if (done % 240 === 0) log(c.dim(`  … ${done}/${work.length}`));
+    }
+    log(`  ${c.green('✓')} ${sec.key}: ${done} processados`);
+  }
+
+  if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
+  return stats;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */

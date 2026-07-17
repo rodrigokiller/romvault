@@ -23,6 +23,11 @@
  *   npm run import -- --source=rhdn --file=C:\dl\romhacking.sql.zip --inspect
  *   npm run import -- --source=rhdn --file=... --section=hacks --limit=50 --dry
  *   npm run import -- --source=rhdn --file=...        # dump completo do romhacking.net
+ *   npm run import -- --source=rhdn --enrich --file=...            # downloads/nofile/youtube
+ *   npm run import -- --source=rhdn --enrich --file=... --images=C:\dl\rhdn_20240801.zip
+ *                                                      # + screenshots -> Storage (--shots=2)
+ *   npm run import -- --source=smwc --enrich           # imagens dos hacks do SMWC (API)
+ *   npm run import -- --source=pobre --enrich          # downloads/shots que faltaram
  *   (baixe o romhacking.sql.zip LOGADO no Internet Archive:
  *    https://archive.org/details/romhacking.net-20240801)
  *
@@ -68,7 +73,7 @@ const flag = (name, def = undefined) => {
   const next = args[idx + 1];
   return next && !next.startsWith('--') ? next : true;
 };
-const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section', 'verbose', 'backfill'];
+const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section', 'verbose', 'backfill', 'enrich', 'images', 'shots'];
 const DRY = Boolean(flag('dry', false));
 const SOURCE = String(flag('source', 'dataset'));
 // --dry implica --verbose (dry-run existe pra inspecionar o que seria feito)
@@ -668,6 +673,72 @@ async function fetchJsonPolite(url, tries = 5) {
   throw new Error('HTTP 429 persistente (rate-limit)');
 }
 
+/** Normaliza as URLs de imagem da API do SMWC (podem vir com //). */
+const smwcImages = (h) =>
+  (Array.isArray(h.images) ? h.images : [])
+    .map((u) => (String(u).startsWith('//') ? 'https:' + u : String(u)))
+    .filter((u) => /^https:\/\//.test(u))
+    .slice(0, 8);
+
+/**
+ * ENRICH do SMWC: os hacks ja importados ganham thumbnail/screenshots — a API
+ * de listagem ja devolve `images` (dl.smwcentral.net), o import antigo ignorava.
+ *   npm run import -- --source=smwc --enrich
+ */
+async function enrichSmwc(sb) {
+  const source = 'smwcentral';
+  const entity = 'romhack:smw';
+  step('SMW Central — enrich de imagens (todas as paginas)');
+
+  const idOf = new Map();
+  for (const r of await fetchAll(() =>
+    sb.from('id_map').select('romvault_id, external_id').eq('source', source).eq('entity', entity))) {
+    idOf.set(String(r.external_id), r.romvault_id);
+  }
+  const hasThumb = new Set();
+  for (const r of await fetchAll(() =>
+    sb.from('romhacks').select('id, thumbnail').eq('data_source', 'smwcentral').not('thumbnail', 'is', null))) {
+    hasThumb.add(r.id);
+  }
+  log(`  id_map: ${idOf.size} hacks · ja com thumbnail: ${hasThumb.size}`);
+
+  const stats = { atualizados: 0, sem_imagem: 0, skipped: 0, erros: 0 };
+  let page = 1;
+  for (let i = 0; i < 1000; i++, page++) {
+    if (i > 0) await sleep(3000);
+    let body;
+    try {
+      body = await fetchJsonPolite(`https://www.smwcentral.net/ajax.php?a=getsectionlist&s=smwhacks&u=0&n=${page}`);
+    } catch (err) {
+      log(c.red(`✖ SMWC pagina ${page}: ${err.message} — rode de novo depois (continua de onde parou)`));
+      break;
+    }
+    const hacks = body?.data ?? [];
+    if (hacks.length === 0) break;
+
+    for (const h of hacks) {
+      const rvId = idOf.get(String(h.id));
+      if (!rvId) continue;
+      if (hasThumb.has(rvId)) { stats.skipped++; continue; }
+      const imgs = smwcImages(h);
+      if (imgs.length === 0) { stats.sem_imagem++; continue; }
+      if (DRY) { stats.atualizados++; continue; }
+      const { error } = await sb.from('romhacks')
+        .update({ thumbnail: imgs[0], screenshots: imgs })
+        .eq('id', rvId);
+      if (error) { stats.erros++; if (stats.erros <= 5) log(c.red(`  ✖ smwc:${h.id}: ${error.message}`)); continue; }
+      stats.atualizados++;
+      itemLog(stats.atualizados, `  ${c.green('+')} ${stripHtml(h.name)} ${c.dim(`${imgs.length} img`)}`);
+    }
+
+    const last = Number(body?.last_page) || page;
+    log(c.dim(`  … pagina ${page}/${last} (${stats.atualizados} atualizados)`));
+    if (page >= last) break;
+    if (DRY && page >= 2) { log(c.amber('  (dry-run: parando na pagina 2)')); break; }
+  }
+  return stats;
+}
+
 async function importSmwc(sb) {
   const source = 'smwcentral';
   const entity = 'romhack:smw';
@@ -723,10 +794,13 @@ async function importSmwc(sb) {
 
       const f = h.fields ?? {};
       const authors = Array.isArray(h.authors) ? h.authors.map((a) => a?.name).filter(Boolean).join(', ') : null;
+      const imgs = smwcImages(h);
       const row = {
         game_id: game?.id,
         title: stripHtml(h.name) || `SMWC #${extId}`,
         description: stripHtml(f.description) || null,
+        thumbnail: imgs[0] ?? null,
+        screenshots: imgs,
         categories: ['Levels'],
         difficulty: typeof f.difficulty === 'string' ? stripHtml(f.difficulty) : null,
         hack_type: typeof f.length === 'string' || typeof f.length === 'number' ? `${f.length} exits` : null,
@@ -784,15 +858,19 @@ async function main() {
   log(c.cyan('ROMVault importer') + c.dim(`  source=${SOURCE}${DRY ? '  (dry-run)' : ''}`));
   const sb = makeClient();
 
+  const ENRICH = Boolean(flag('enrich', false));
   let stats;
   if (SOURCE === 'igdb') stats = await importIgdb(sb);
-  else if (SOURCE === 'smwc' || SOURCE === 'smwcentral') stats = await importSmwc(sb);
-  else if (SOURCE === 'rhdn' || SOURCE === 'romhacking') {
-    const { importRhdn } = await import('./lib/rhdn.mjs');
-    stats = await importRhdn({ sb, flag, DRY, log, c, step, slugifyText, itemLog, fetchAll });
+  else if (SOURCE === 'smwc' || SOURCE === 'smwcentral') {
+    stats = ENRICH ? await enrichSmwc(sb) : await importSmwc(sb);
+  } else if (SOURCE === 'rhdn' || SOURCE === 'romhacking') {
+    const { importRhdn, enrichRhdn } = await import('./lib/rhdn.mjs');
+    const ctx = { sb, flag, DRY, log, c, step, slugifyText, itemLog, fetchAll };
+    stats = ENRICH ? await enrichRhdn(ctx) : await importRhdn(ctx);
   } else if (SOURCE === 'pobre' || SOURCE === 'romhackers') {
-    const { importPobre } = await import('./lib/pobre.mjs');
-    stats = await importPobre({ sb, flag, DRY, log, c, step, slugifyText, itemLog, fetchAll });
+    const { importPobre, enrichPobre } = await import('./lib/pobre.mjs');
+    const ctx = { sb, flag, DRY, log, c, step, slugifyText, itemLog, fetchAll };
+    stats = ENRICH ? await enrichPobre(ctx) : await importPobre(ctx);
   } else if (SOURCE === 'covers') {
     stats = await importCovers(sb);
   } else if (SOURCE === 'purge-mods') {

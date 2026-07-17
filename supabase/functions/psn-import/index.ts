@@ -168,7 +168,8 @@ async function syncUser(admin: any, token: string, userId: string, username: str
   for (const m of matched) {
     const earned = sum(m.t.earnedTrophies);
     const total = sum(m.t.definedTrophies);
-    const status = m.t.progress >= 100 ? 'finished' : 'playing';
+    // 100% = zerado; senão "Na coleção" (status ativo é escolha do usuário)
+    const status = m.t.progress >= 100 ? 'finished' : 'owned';
     const src = trackByGame.get(m.gid);
     if (src === undefined) {
       newTracks.push({

@@ -505,7 +505,10 @@
     "gamesTitle": "Played this period",
     "emptyTitle": "Nothing in this period",
     "emptyText": "Completions, syncs and new copies show up here. Link accounts in settings and the dashboard fills itself.",
-    "heatYears": "Heatmap year"
+    "heatYears": "Heatmap year",
+    "growthTitle": "Collection growth",
+    "growthGames": "games in library",
+    "growthFinished": "finished"
   },
   "gate": {
     "kicker": "closed beta",
@@ -570,7 +573,9 @@
     "completions_one": "{{count}} completion",
     "completions_other": "{{count}} completions",
     "emptyTitle": "No patched completions yet",
-    "emptyText": "Once the community logs completions with the translation/hack used, the ranking is born here."
+    "emptyText": "Once the community logs completions with the translation/hack used, the ranking is born here.",
+    "hotTitle": "Hot this week",
+    "hotHint": "Downloads in the last 7 days"
   },
   "vitrine": {
     "title": "{{user}}'s showcase",
@@ -619,7 +624,9 @@
     "emptyTitle": "No completions this year",
     "emptyText": "Nothing logged in {{year}}, go finish something!",
     "shareTitle": "{{user}} finished {{count}} games in {{year}} on ROMVault!",
-    "playedTitle": "Played this year ({{count}})"
+    "playedTitle": "Played this year ({{count}})",
+    "playedLabel": "games played",
+    "hoursLabel": "hours across the year's games"
   },
   "collections": {
     "kicker": "// curated",

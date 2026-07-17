@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Trophy, Languages, Sparkles, Users } from 'lucide-react';
+import { Trophy, Languages, Sparkles, Users, Download, Flame } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
@@ -63,13 +63,62 @@ function useSceneTop(limit = 20) {
   });
 }
 
+interface HotRow { kind: string; id: string; n: number; title: string; gameTitle: string | null; gameSlug: string | null }
+const HOT_TABLES: Record<string, { table: string; route: string }> = {
+  romhack: { table: 'romhacks', route: 'romhacks' },
+  translation: { table: 'translations', route: 'translations' },
+  doc: { table: 'documents', route: 'docs' },
+  tool: { table: 'tools', route: 'tools' },
+};
+
+/** "Em alta na semana": downloads dos últimos 7 dias (RPC trending_week). */
+function useSceneHot(limit = 10) {
+  return useQuery({
+    queryKey: ['sceneHot', limit],
+    enabled: env.configured,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<HotRow[]> => {
+      const { data, error } = await db().rpc('trending_week', { days: 7, lim: limit });
+      if (error) return [];
+      const rows = (data ?? []) as { subject_type: string; subject_id: string; cnt: number }[];
+      const byKind = new Map<string, string[]>();
+      for (const r of rows) {
+        if (!HOT_TABLES[r.subject_type]) continue;
+        byKind.set(r.subject_type, [...(byKind.get(r.subject_type) ?? []), r.subject_id]);
+      }
+      const matOf = new Map<string, { title: string | null; game: { title?: string; slug?: string } | null }>();
+      await Promise.all([...byKind.entries()].map(async ([kind, ids]) => {
+        const q = kind === 'tool'
+          ? db().from('tools').select('id, title').in('id', ids)
+          : db().from(HOT_TABLES[kind].table).select('id, title, game:games(title, slug)').in('id', ids);
+        const { data: mats } = await q;
+        for (const m of (mats ?? []) as unknown as { id: string; title: string | null; game?: { title?: string; slug?: string } | null }[]) {
+          matOf.set(`${kind}:${m.id}`, { title: m.title, game: m.game ?? null });
+        }
+      }));
+      return rows
+        .map((r) => {
+          const m = matOf.get(`${r.subject_type}:${r.subject_id}`);
+          if (!m) return null;
+          return {
+            kind: r.subject_type, id: r.subject_id, n: Number(r.cnt),
+            title: m.title ?? '?', gameTitle: m.game?.title ?? null, gameSlug: m.game?.slug ?? null,
+          };
+        })
+        .filter(Boolean) as HotRow[];
+    },
+  });
+}
+
 /**
- * /scene — a vitrine social da cena: o que a comunidade mais zera COM patch.
- * Prova social pros tradutores/hackers; descoberta pros jogadores.
+ * /scene — a vitrine social da cena: o que a comunidade mais zera COM patch
+ * (all-time) + o que está EM ALTA na semana (downloads). Prova social pros
+ * tradutores/hackers; descoberta pros jogadores.
  */
 export function Scene() {
   const { t } = useTranslation();
   const { data: top, isLoading } = useSceneTop(20);
+  const { data: hot = [] } = useSceneHot(10);
 
   if (isLoading) return <LoadingPage />;
 
@@ -80,6 +129,36 @@ export function Scene() {
         <h1>{t('scene:title')}</h1>
         <p className="page-sub">{t('scene:subtitle')}</p>
       </header>
+
+      {hot.length > 0 && (
+        <section className="section">
+          <div className="section-head">
+            <h2><Flame aria-hidden style={{ width: 16, height: 16, verticalAlign: '-2px' }} /> {t('scene:hotTitle')}</h2>
+          </div>
+          <ol className="scene-rank">
+            {hot.map((row, i) => (
+              <li key={`${row.kind}-${row.id}`} className="scene-rank-item">
+                <span className="scene-rank-pos mono">{String(i + 1).padStart(2, '0')}</span>
+                <span className="scene-rank-body">
+                  <Link to={`/${HOT_TABLES[row.kind].route}/${row.id}`} className="scene-rank-title">
+                    {row.title}
+                  </Link>
+                  {row.gameTitle && (
+                    <span className="scene-rank-game">
+                      {row.gameSlug
+                        ? <Link to={`/games/${row.gameSlug}`}>{row.gameTitle}</Link>
+                        : row.gameTitle}
+                    </span>
+                  )}
+                </span>
+                <span className="scene-rank-n mono" title={t('scene:hotHint')}>
+                  <Download aria-hidden /> {row.n}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       {!top || top.length === 0 ? (
         <EmptyState icon={Users} title={t('scene:emptyTitle')} text={t('scene:emptyText')} />

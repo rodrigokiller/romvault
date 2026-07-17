@@ -151,7 +151,8 @@ Deno.serve(async (req: Request) => {
       const src = trackByGame.get(gid);
       if (src === undefined) {
         newTracks.push({
-          user_id: user.id, game_id: gid, status: 'backlog', platform: 'PC',
+          // importado = "Na coleção" (você TEM o jogo); status de jogo é escolha do usuário
+          user_id: user.id, game_id: gid, status: 'owned', platform: 'PC',
           hours_played: hours || null, source: 'steam',
         });
       } else if (src === 'steam' && hours > 0) {
