@@ -380,11 +380,14 @@ function VitrineCard({
         onClick={(e) => { if (ordering) e.preventDefault(); }}
       >
         <span className="vitrine-flip">
-          <span className="vitrine-face vitrine-face-front">
+          <span className={`vitrine-face vitrine-face-front ${(o.game as Game & { is_adult?: boolean }).is_adult ? 'adult-blur' : ''}`}>
             {art ? (
               <FadeImg src={art} alt={o.game.title} />
             ) : (
               <span className="vitrine-card-fallback">{o.game.title}</span>
+            )}
+            {(o.game as Game & { is_adult?: boolean }).is_adult && (
+              <span className="adult-tag mono" title={t('games:adultHint')}>+18</span>
             )}
           </span>
           {back && (

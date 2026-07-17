@@ -2,13 +2,14 @@ import { useMemo, useRef, useState } from 'react';
 import { useFlip } from '@/hooks/useFlip';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages, RefreshCw, Lock } from 'lucide-react';
+import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages, RefreshCw, Lock, LockOpen, Check, CheckSquare, X } from 'lucide-react';
 import { GameQuickView } from '@/components/entities/GameQuickView';
+import { useToast } from '@/components/ui/Toast';
 import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
 import { useProfileByUsername } from '@/hooks/useProfile';
 import {
   useLibrary, useLibraryCopies, useUserPlaythroughs, useUserSyncSummary, useUserLastPlayed,
-  TRACK_STATUSES, type TrackStatus, type TrackWithGame,
+  useSetGamesPrivacyBulk, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
 } from '@/hooks/useTracks';
 import { STATUS_ICON } from '@/components/entities/TrackButton';
 import { BatchAdd } from '@/components/entities/BatchAdd';
@@ -53,6 +54,7 @@ function relativeDate(iso: string, t: (k: string, o?: Record<string, unknown>) =
 /** Estante de jogos do usuário: abas por status + prateleira de capas. */
 export function Library() {
   const { t, i18n } = useTranslation();
+  const toast = useToast();
   const { username } = useParams<{ username: string }>();
   const [params, setParams] = useSearchParams();
   const showcase = params.get('view') === 'showcase';
@@ -72,6 +74,10 @@ export function Library() {
   const [order, setOrder] = useState<'recent' | 'az' | 'platform' | 'activity'>('recent');
   // arte da vitrine: capa de loja (retrato) ou box art física
   const [artMode, setArtMode] = useState<'store' | 'box'>('box');
+  // modo seleção: marcar vários jogos e aplicar privacidade em massa
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const bulkPrivacy = useSetGamesPrivacyBulk();
   const shelfRef = useRef<HTMLDivElement | null>(null);
 
   const counts = useMemo(() => {
@@ -177,6 +183,27 @@ export function Library() {
     );
   }
 
+  function toggleSelect(gameId: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(gameId)) next.delete(gameId);
+      else next.add(gameId);
+      return next;
+    });
+  }
+
+  async function applyBulk(isPrivate: boolean) {
+    const ids = [...selected];
+    try {
+      await bulkPrivacy.mutateAsync({ gameIds: ids, isPrivate });
+      toast.success(t('library:bulkDone', { count: ids.length }));
+      setSelecting(false);
+      setSelected(new Set());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    }
+  }
+
   return (
     <div className="container">
       <header className="page-head">
@@ -236,6 +263,16 @@ export function Library() {
               title={t('library:exportHint')}
             >
               <Download aria-hidden /> {t('library:export')}
+            </button>
+          )}
+          {isMe && !showcase && tracks.length > 0 && (
+            <button
+              type="button"
+              className={`lib-stat lib-showcase ${selecting ? 'is-active' : ''}`}
+              onClick={() => { setSelecting((v) => !v); setSelected(new Set()); }}
+              title={t('library:selectHint')}
+            >
+              <CheckSquare aria-hidden /> {t('library:selectMode')}
             </button>
           )}
         </div>
@@ -371,8 +408,51 @@ export function Library() {
               key={track.game_id} track={track} runs={runsByGame.get(track.game_id) ?? 0}
               showcase={showcase} artMode={artMode}
               langBadge={(langsByGame?.get(track.game_id) ?? []).includes(uiCode) ? uiCode : null}
+              selecting={selecting}
+              isSelected={selected.has(track.game_id)}
+              onToggleSelect={() => toggleSelect(track.game_id)}
             />
           ))}
+        </div>
+      )}
+
+      {/* barra de ações em massa (modo seleção): privacidade estilo Steam */}
+      {selecting && (
+        <div className="bulk-bar" role="toolbar" aria-label={t('library:selectMode')}>
+          <span className="bulk-bar-count mono">{t('library:selectedCount', { count: selected.size })}</span>
+          <button
+            type="button" className="search-chip"
+            onClick={() => setSelected(new Set(shown.map((x) => x.game_id)))}
+          >
+            {t('library:selectVisible')}
+          </button>
+          {selected.size > 0 && (
+            <button type="button" className="search-chip" onClick={() => setSelected(new Set())}>
+              {t('library:selectClear')}
+            </button>
+          )}
+          <span className="chips-sep" aria-hidden>·</span>
+          <button
+            type="button" className="search-chip bulk-chip-private"
+            disabled={selected.size === 0 || bulkPrivacy.isPending}
+            onClick={() => void applyBulk(true)}
+          >
+            <Lock aria-hidden /> {t('library:bulkPrivate')}
+          </button>
+          <button
+            type="button" className="search-chip"
+            disabled={selected.size === 0 || bulkPrivacy.isPending}
+            onClick={() => void applyBulk(false)}
+          >
+            <LockOpen aria-hidden /> {t('library:bulkPublic')}
+          </button>
+          <button
+            type="button" className="search-chip"
+            onClick={() => { setSelecting(false); setSelected(new Set()); }}
+            aria-label={t('forms:actionReset')}
+          >
+            <X aria-hidden />
+          </button>
         </div>
       )}
     </div>
@@ -386,11 +466,15 @@ const CARTON_PLATFORMS = new Set([
   'GBC', 'GBA', 'Virtual Boy', '32X', 'FDS', 'TG-16',
 ]);
 
-function ShelfItem({ track, runs, showcase, artMode, langBadge }: { track: TrackWithGame; runs: number; showcase: boolean; artMode: 'store' | 'box'; langBadge?: string | null }) {
+function ShelfItem({ track, runs, showcase, artMode, langBadge, selecting = false, isSelected = false, onToggleSelect }: {
+  track: TrackWithGame; runs: number; showcase: boolean; artMode: 'store' | 'box';
+  langBadge?: string | null; selecting?: boolean; isSelected?: boolean; onToggleSelect?: () => void;
+}) {
   const { t } = useTranslation();
   const [viewOpen, setViewOpen] = useState(false);
   const g = track.game;
   const SIcon = STATUS_ICON[track.status];
+  const adult = Boolean((g as typeof g & { is_adult?: boolean }).is_adult);
   /** Bloqueia a navegação do Link pai (quick view abre modal no lugar). */
   function halt(e: { preventDefault: () => void; stopPropagation: () => void }) {
     e.preventDefault();
@@ -406,8 +490,14 @@ function ShelfItem({ track, runs, showcase, artMode, langBadge }: { track: Track
     ? (JEWEL_PLATFORMS.has(plat) ? 'jewel' : CARTON_PLATFORMS.has(plat) ? 'carton' : null)
     : null;
   return (
-    <Link to={`/games/${g.slug}`} className="shelf-item" title={g.title} data-flip={track.game_id}>
-      <div className={`shelf-cover status-${track.status} ${box3d ? 'shelf-cover-3d' : ''}`}>
+    <Link
+      to={`/games/${g.slug}`}
+      className={`shelf-item ${selecting ? 'is-selecting' : ''} ${isSelected ? 'is-selected' : ''}`}
+      title={g.title} data-flip={track.game_id}
+      aria-pressed={selecting ? isSelected : undefined}
+      onClick={selecting ? (e) => { halt(e); onToggleSelect?.(); } : undefined}
+    >
+      <div className={`shelf-cover status-${track.status} ${box3d ? 'shelf-cover-3d' : ''} ${adult ? 'adult-blur' : ''}`}>
         {box3d ? (
           <FadeImg src={box3d} alt={g.title} />
         ) : boxart ? (
@@ -426,17 +516,29 @@ function ShelfItem({ track, runs, showcase, artMode, langBadge }: { track: Track
         ) : (
           <span className="shelf-cover-fallback">{g.title}</span>
         )}
+        {adult && <span className="adult-tag mono" title={t('games:adultHint')}>+18</span>}
         <span className={`shelf-badge badge-${track.status}`} title={t(`library:status_${track.status}`)}>
           <SIcon aria-hidden />
         </span>
-        <button
-          type="button"
-          className="shelf-eye"
-          title={t('games:quickView')}
-          onClick={(e) => { halt(e); setViewOpen(true); }}
-        >
-          <Eye aria-hidden />
-        </button>
+        {track.is_private && !selecting && (
+          <span className="shelf-private" title={t('library:privateBadge')}>
+            <Lock aria-hidden />
+          </span>
+        )}
+        {selecting ? (
+          <span className={`shelf-check ${isSelected ? 'is-on' : ''}`} aria-hidden>
+            {isSelected && <Check />}
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="shelf-eye"
+            title={t('games:quickView')}
+            onClick={(e) => { halt(e); setViewOpen(true); }}
+          >
+            <Eye aria-hidden />
+          </button>
+        )}
         {runs >= 2 && (
           <span className="shelf-runs" title={t('library:runsBadge', { count: runs })}>
             <Trophy aria-hidden /> ×{runs}

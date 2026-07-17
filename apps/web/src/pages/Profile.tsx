@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { User, Pencil, Check, X, Library as LibraryIcon, Store, UserPlus, UserMinus, Trophy, BarChart3 } from 'lucide-react';
+import { User, Pencil, Check, X, Library as LibraryIcon, Store, UserPlus, UserMinus, Trophy, BarChart3, BadgeCheck } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -97,6 +97,7 @@ export function Profile() {
               </Link>
             )}
           </span>
+          <SyncedBadges username={profile.username ?? ''} />
           <InvitedBy invitedBy={(profile as unknown as { invited_by?: string | null }).invited_by} />
           <BacklogProgress tracks={libTracks} />
         </div>
@@ -302,6 +303,49 @@ function SceneStats({ userId }: { userId: string }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** Nome de exibição dos provedores nos badges de sync do perfil. */
+const PROVIDER_LABEL: Record<string, string> = {
+  steam: 'Steam',
+  retroachievements: 'RA',
+  psn: 'PSN',
+  xbox: 'Xbox',
+  gog: 'GOG',
+  nintendo: 'Nintendo',
+  epic: 'Epic',
+};
+
+/**
+ * "Biblioteca verificada por sync": chips dos provedores conectados — prova
+ * social de que a estante é alimentada por contas reais (estilo PlayTracker).
+ * Só os NOMES dos provedores saem do banco (RPC público, gated em
+ * library_public); nenhum dado de conta.
+ */
+function SyncedBadges({ username }: { username: string }) {
+  const { t } = useTranslation();
+  const { data: providers = [] } = useQuery({
+    queryKey: ['syncedProviders', username],
+    enabled: Boolean(username),
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<string[]> => {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const { data, error } = await sb.rpc('public_synced_providers', { p_username: username });
+      // RPC ainda não migrado ou perfil privado: sem badge, sem erro na tela
+      if (error) return [];
+      return (data ?? []) as string[];
+    },
+  });
+  if (providers.length === 0) return null;
+  return (
+    <div className="sync-badges" title={t('profile:syncedHint')}>
+      {providers.map((p) => (
+        <span key={p} className="sync-badge mono">
+          <BadgeCheck aria-hidden /> {PROVIDER_LABEL[p] ?? p}
+        </span>
+      ))}
+    </div>
   );
 }
 

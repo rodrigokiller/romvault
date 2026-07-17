@@ -187,6 +187,40 @@ export function useSetGamePrivacy() {
 }
 
 /**
+ * Privacidade EM MASSA (modo seleção da Library): mesmo interruptor do
+ * useSetGamePrivacy, mas pra N jogos de uma vez — ids em blocos de 200 pra
+ * não estourar o limite de URL do PostgREST.
+ */
+export function useSetGamesPrivacyBulk() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ gameIds, isPrivate }: { gameIds: string[]; isPrivate: boolean }) => {
+      const uid = user?.id;
+      if (!uid) throw new Error('Não autenticado.');
+      for (let i = 0; i < gameIds.length; i += 200) {
+        const chunk = gameIds.slice(i, i + 200);
+        const { error: e1 } = await db().from('game_tracks')
+          .update({ is_private: isPrivate })
+          .eq('user_id', uid).in('game_id', chunk);
+        if (e1) throw e1;
+        const { error: e2 } = await db().from('game_copies')
+          .update({ is_private: isPrivate })
+          .eq('user_id', uid).in('game_id', chunk);
+        if (e2) throw e2;
+      }
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['library'] });
+      void qc.invalidateQueries({ queryKey: ['libraryCopies'] });
+      void qc.invalidateQueries({ queryKey: ['ownedGames'] });
+      void qc.invalidateQueries({ queryKey: ['track'] });
+      void qc.invalidateQueries({ queryKey: ['copies'] });
+    },
+  });
+}
+
+/**
  * Arte custom do usuário pra um jogo (vitrine): atualiza o track; se o jogo
  * ainda não tem track, cria um "Na coleção" — nunca mexe num status existente.
  */

@@ -19,16 +19,19 @@ export function GameCard({ game, translationBadges }: { game: Game; translationB
   // selinho SO quando ha traducao no idioma DA INTERFACE (pt-BR -> BR)
   const uiCode = uiLangCode(i18n.language || 'pt-BR');
   const hasUiLang = translationBadges?.includes(uiCode) ?? false;
+  // +18: capa borrada até o hover, mesmo pra quem optou por ver adulto
+  const adult = Boolean((game as Game & { is_adult?: boolean }).is_adult);
   return (
     <Link to={`/games/${game.slug}`} style={{ display: 'block' }}>
       <Card interactive padSm>
         <div className="tile">
-          <div className="tile-thumb tile-cover">
+          <div className={`tile-thumb tile-cover ${adult ? 'adult-blur' : ''}`}>
             {game.cover_url || game.thumbnail ? (
               <FadeImg src={game.cover_url ?? game.thumbnail ?? ''} alt={game.title} />
             ) : (
               <Gamepad2 aria-hidden />
             )}
+            {adult && <span className="adult-tag mono" title={t('games:adultHint')}>+18</span>}
             <QuickActions game={game} translationBadges={translationBadges} />
             {hasUiLang && (
               <span className="tile-langs" title={t('games:hasTranslations')}>
