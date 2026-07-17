@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Key, Copy, Trash2, Plus, BookOpen, RefreshCw } from 'lucide-react';
+import { Key, Copy, Trash2, Plus, BookOpen, RefreshCw, Gamepad2, Trophy, Gamepad, type LucideIcon } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { Spinner } from '@/components/ui/feedback';
 import { Card } from '@/components/ui/Card';
@@ -120,6 +120,7 @@ function AccountLinksSection() {
       </div>
       <SyncAccountRow
         provider="steam"
+        icon={Gamepad2}
         title="Steam"
         hint={t('settings:steamIdHint')}
         placeholder="76561198... ou vanity"
@@ -136,6 +137,7 @@ function AccountLinksSection() {
       />
       <SyncAccountRow
         provider="retroachievements"
+        icon={Trophy}
         title="RetroAchievements"
         hint={t('settings:raHint')}
         placeholder={t('settings:raUserPh')}
@@ -152,6 +154,7 @@ function AccountLinksSection() {
       />
       <SyncAccountRow
         provider="psn"
+        icon={Gamepad}
         title="PlayStation"
         hint={t('settings:psnHint')}
         placeholder={t('settings:psnUserPh')}
@@ -169,7 +172,10 @@ function AccountLinksSection() {
       {(['xbox', 'nintendo', 'gog', 'epic'] as const).map((p) => (
         <div key={p} className="account-row account-row-soon">
           <div className="account-row-head">
-            <span className="account-name">{{ xbox: 'Xbox', nintendo: 'Nintendo', gog: 'GOG', epic: 'Epic' }[p]}</span>
+            <span className="account-name">
+              <Gamepad2 aria-hidden className="account-icon" />
+              {{ xbox: 'Xbox', nintendo: 'Nintendo', gog: 'GOG', epic: 'Epic' }[p]}
+            </span>
             <span className="chip">{t('settings:accountsSoon')}</span>
           </div>
         </div>
@@ -180,9 +186,10 @@ function AccountLinksSection() {
 
 /** Linha de provedor FUNCIONAL: input + sync + estado do vínculo. */
 function SyncAccountRow({
-  provider, title, hint, placeholder, linked, invoke,
+  provider, icon: Icon, title, hint, placeholder, linked, invoke,
 }: {
   provider: Provider;
+  icon: LucideIcon;
   title: string;
   hint: string;
   placeholder: string;
@@ -222,7 +229,7 @@ function SyncAccountRow({
   return (
     <div className="account-row">
       <div className="account-row-head">
-        <span className="account-name">{title}</span>
+        <span className="account-name"><Icon aria-hidden className="account-icon" />{title}</span>
         {linked ? (
           <span className="account-status mono">
             {t('settings:accountsLinked', { id: linked.account_id })}

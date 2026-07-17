@@ -132,7 +132,14 @@ export function GameDetail() {
           )}
           {game && <CopiesWidget gameId={game.id} platforms={game.platforms ?? []} patchOptions={patchOptions} />}
           {game && <PlaythroughsWidget gameId={game.id} patchOptions={patchOptions} />}
-          {game && <AdminItemTools gameId={game.id} />}
+          {game && (
+            <AdminItemTools
+              gameId={game.id}
+              dataSource={game.data_source}
+              updatedAt={(game as unknown as { updated_at?: string }).updated_at ?? null}
+              igdbId={game.igdb_id}
+            />
+          )}
         </div>
       </div>
 

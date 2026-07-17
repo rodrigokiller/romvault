@@ -58,6 +58,81 @@ function ArtCoverage() {
   );
 }
 
+/**
+ * Fila de arte: jogos SEM capa ordenados por IMPORTÂNCIA (nº de vínculos:
+ * hacks+traduções+tracks+cópias). Botão processa a fila via game-sync (IGDB),
+ * um por um, com progresso — curadoria em série sem visitar página por página.
+ */
+function ArtQueue() {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number; fixed: number } | null>(null);
+  const { data: queue = [], refetch } = useQuery({
+    queryKey: ['artQueue'],
+    enabled: env.configured,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await db().rpc('games_missing_cover', { lim: 30 });
+      if (error) return [] as { id: string; title: string; platforms: string[] | null; links: number }[];
+      return (data ?? []) as { id: string; title: string; platforms: string[] | null; links: number }[];
+    },
+  });
+
+  async function runBatch() {
+    setRunning(true);
+    let fixed = 0;
+    setProgress({ done: 0, total: queue.length, fixed });
+    for (let i = 0; i < queue.length; i++) {
+      try {
+        const { data, error } = await getSupabase().functions.invoke('game-sync', {
+          body: { game_id: queue[i].id, action: 'igdb' },
+        });
+        const d = data as { updated?: string[] } | null;
+        if (!error && d?.updated?.includes('cover')) fixed++;
+      } catch { /* item falhou: segue a fila */ }
+      setProgress({ done: i + 1, total: queue.length, fixed });
+    }
+    toast.success(t('admin:queueDone', { fixed, total: queue.length }));
+    setRunning(false);
+    void refetch();
+    void qc.invalidateQueries({ queryKey: ['artCoverage'] });
+  }
+
+  if (queue.length === 0) return null;
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('admin:queueTitle')}</div>
+        <div className="card-sub">{t('admin:queueHint')}</div>
+      </div>
+      <ul className="art-queue">
+        {queue.slice(0, 10).map((g) => (
+          <li key={g.id} className="art-queue-item mono">
+            <span className="art-queue-title">{g.title}</span>
+            <span className="art-queue-plat">{(g.platforms ?? []).slice(0, 3).join(' ')}</span>
+            <span className="art-queue-links">{t('admin:queueLinks', { count: Number(g.links) })}</span>
+          </li>
+        ))}
+        {queue.length > 10 && (
+          <li className="art-queue-item art-queue-more mono">+{queue.length - 10}…</li>
+        )}
+      </ul>
+      <div className="admin-tools-row">
+        <Button variant="primary" size="sm" onClick={() => void runBatch()} disabled={running}>
+          {running ? <Spinner /> : <DownloadCloud />} {t('admin:queueRun', { count: queue.length })}
+        </Button>
+        {progress && (
+          <span className="mono admin-tools-hint">
+            {progress.done}/{progress.total} · {t('admin:queueFixed', { count: progress.fixed })}
+          </span>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 /** Dispara a Edge Function `igdb-sync` (só admin; requer deploy + secrets). */
 function IgdbSyncPanel() {
   const { t } = useTranslation();
@@ -178,6 +253,7 @@ export function Admin() {
       </header>
 
       <ArtCoverage />
+      <ArtQueue />
 
       <IgdbSyncPanel />
 

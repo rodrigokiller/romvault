@@ -14,7 +14,12 @@ import { useIsAdmin } from '@/hooks/useProfile';
  * Ferramenta de admin NA PÁGINA do jogo (estilo trakt): re-sincroniza
  * metadados/arte do IGDB ou define arte manual por URL — sem sair da página.
  */
-export function AdminItemTools({ gameId }: { gameId: string }) {
+export function AdminItemTools({ gameId, dataSource, updatedAt, igdbId }: {
+  gameId: string;
+  dataSource?: string | null;
+  updatedAt?: string | null;
+  igdbId?: number | null;
+}) {
   const { t } = useTranslation();
   const toast = useToast();
   const qc = useQueryClient();
@@ -53,6 +58,12 @@ export function AdminItemTools({ gameId }: { gameId: string }) {
       </button>
       {open && (
         <div className="admin-tools-body">
+          {/* histórico: de onde veio e quando foi tocado pela última vez */}
+          <span className="admin-tools-hint mono">
+            {t('admin:itemSource')}: {dataSource ?? '?'}
+            {igdbId ? ` · igdb_id ${igdbId}` : ` · ${t('admin:itemNoIgdb')}`}
+            {updatedAt ? ` · ${t('admin:itemUpdated')} ${new Date(updatedAt).toLocaleDateString()}` : ''}
+          </span>
           <div className="admin-tools-row">
             <Button
               size="sm" variant="secondary" disabled={running}
