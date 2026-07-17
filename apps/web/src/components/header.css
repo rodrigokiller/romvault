@@ -30,23 +30,23 @@
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
-/* a barra do topo IGNORA o limite do corpo: vai de ponta a ponta */
+/* mesma largura do corpo (a nav agrupada em submenus já coube) */
 .site-header-inner {
   height: 100%;
-  max-width: none;
-  padding: 0 var(--s6);
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 var(--s5);
   display: flex;
   align-items: center;
   gap: var(--s4);
 }
 
-/* logo à esquerda; a NAV centraliza no espaço livre entre logo e busca */
+/* logo + nav agrupados à esquerda; a BUSCA estica e ocupa o meio */
 .header-left {
   display: flex;
   align-items: center;
   gap: var(--s5);
-  flex: 1 1 auto;
-  min-width: 0;
+  flex-shrink: 0;
 }
 .header-brand {
   display: inline-flex;
@@ -56,7 +56,6 @@
   display: flex;
   align-items: center;
   gap: var(--s2);
-  margin: 0 auto; /* centro do espaço entre o logo e a busca */
 }
 .header-link {
   font-family: var(--mono);
@@ -121,7 +120,10 @@
   align-items: center;
   gap: var(--s2);
   height: 34px;
-  flex-shrink: 0;
+  flex: 1 1 auto;      /* preenche o espaço entre a nav e os ícones */
+  min-width: 0;
+  max-width: 380px;
+  margin-left: auto;
   padding: 0 var(--s2) 0 var(--s3);
   background: var(--panel);
   border: 1px solid var(--line-bright);
@@ -146,6 +148,7 @@
   text-overflow: ellipsis;
 }
 .header-search-kbd {
+  margin-left: auto; /* atalho encosta na borda direita do campo */
   padding: 1px 6px;
   background: var(--bg);
   border: 1px solid var(--line-bright);
