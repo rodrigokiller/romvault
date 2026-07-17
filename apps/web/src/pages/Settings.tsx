@@ -222,15 +222,17 @@ function AccountLinksSection() {
           };
         }}
       />
-      <div className="account-row account-row-soon">
-        <div className="account-row-head">
-          <span className="account-name">
-            <Gamepad2 aria-hidden className="account-icon" />
-            Epic
-          </span>
-          <span className="chip">{t('settings:accountsSoon')}</span>
+      {(['Epic', 'EA', 'Battle.net', 'Riot', 'Ubisoft'] as const).map((name) => (
+        <div key={name} className="account-row account-row-soon">
+          <div className="account-row-head">
+            <span className="account-name">
+              <Gamepad2 aria-hidden className="account-icon" />
+              {name}
+            </span>
+            <span className="chip">{t('settings:accountsSoon')}</span>
+          </div>
         </div>
-      </div>
+      ))}
     </Card>
   );
 }

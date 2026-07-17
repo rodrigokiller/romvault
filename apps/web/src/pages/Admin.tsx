@@ -133,6 +133,59 @@ function ArtQueue() {
   );
 }
 
+/* status fixo de cada integração (o que está no ar vs em obra) */
+const INTEGRATIONS: { provider: string; label: string; state: 'ok' | 'beta' | 'soon' }[] = [
+  { provider: 'steam', label: 'Steam', state: 'ok' },
+  { provider: 'retroachievements', label: 'RetroAchievements', state: 'ok' },
+  { provider: 'psn', label: 'PlayStation', state: 'ok' },
+  { provider: 'xbox', label: 'Xbox', state: 'ok' },
+  { provider: 'gog', label: 'GOG', state: 'ok' },
+  { provider: 'nintendo', label: 'Nintendo', state: 'beta' },
+  { provider: 'epic', label: 'Epic', state: 'soon' },
+];
+
+/** Status vivo das integrações: contas vinculadas + último sync por provedor. */
+function IntegrationsPanel() {
+  const { t } = useTranslation();
+  const { data: rows = [] } = useQuery({
+    queryKey: ['integrationsStatus'],
+    enabled: env.configured,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await db().rpc('integrations_status');
+      if (error) return [] as { provider: string; accounts: number; last_sync: string | null }[];
+      return (data ?? []) as { provider: string; accounts: number; last_sync: string | null }[];
+    },
+  });
+  const of = (p: string) => rows.find((r) => r.provider === p);
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('admin:integTitle')}</div>
+        <div className="card-sub">{t('admin:integHint')}</div>
+      </div>
+      <ul className="integ-list">
+        {INTEGRATIONS.map((i) => {
+          const live = of(i.provider);
+          return (
+            <li key={i.provider} className="integ-item mono">
+              <span className={`integ-state integ-${i.state}`}>
+                {t(`admin:integ_${i.state}`)}
+              </span>
+              <span className="integ-name">{i.label}</span>
+              <span className="integ-meta">
+                {live
+                  ? `${t('admin:integAccounts', { count: Number(live.accounts) })}${live.last_sync ? ` · sync ${new Date(live.last_sync).toLocaleString()}` : ''}`
+                  : '—'}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
 /** Dispara a Edge Function `igdb-sync` (só admin; requer deploy + secrets). */
 function IgdbSyncPanel() {
   const { t } = useTranslation();
@@ -254,6 +307,7 @@ export function Admin() {
 
       <ArtCoverage />
       <ArtQueue />
+      <IntegrationsPanel />
 
       <IgdbSyncPanel />
 

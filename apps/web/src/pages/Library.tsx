@@ -12,6 +12,7 @@ import {
 } from '@/hooks/useTracks';
 import { STATUS_ICON } from '@/components/entities/TrackButton';
 import { BatchAdd } from '@/components/entities/BatchAdd';
+import { ImportFile } from '@/components/entities/ImportFile';
 import { FadeImg } from '@/components/ui/FadeImg';
 import { useAuth } from '@/auth/AuthProvider';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
@@ -211,6 +212,7 @@ export function Library() {
             </button>
           )}
           {isMe && !showcase && <BatchAdd />}
+          {isMe && !showcase && <ImportFile />}
           {isMe && !showcase && tracks.length > 0 && (
             <button
               type="button"

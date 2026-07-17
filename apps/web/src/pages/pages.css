@@ -3122,3 +3122,20 @@
   color: var(--accent);
 }
 .sync-summary-item svg { width: 11px; height: 11px; }
+
+/* status das integrações (admin) */
+.integ-list { list-style: none; padding: 0; display: grid; gap: 2px; }
+.integ-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  padding: 5px var(--s3);
+  background: var(--panel-2);
+  font-size: 0.76rem;
+}
+.integ-state { min-width: 64px; font-size: 0.66rem; letter-spacing: 0.03em; }
+.integ-ok { color: var(--accent); }
+.integ-beta { color: var(--amber); }
+.integ-soon { color: var(--muted); }
+.integ-name { min-width: 150px; color: var(--ink-bright); }
+.integ-meta { color: var(--muted); font-size: 0.7rem; }
