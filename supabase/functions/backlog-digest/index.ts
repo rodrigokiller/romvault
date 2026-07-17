@@ -142,6 +142,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    await admin.from('job_runs').insert({ job: 'backlog-digest', mode: viaCron ? 'cron' : 'manual', ok: true, stats: { translations: fresh.length, notified, emailed } }).then(() => {}, () => {});
     return json({ ok: true, translations: fresh.length, candidates: rows.length, notified, emailed });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);

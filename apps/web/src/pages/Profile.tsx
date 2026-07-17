@@ -82,7 +82,16 @@ export function Profile() {
             <Link to={`/u/${profile.username}/vitrine`} className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Store aria-hidden style={{ width: 15, height: 15 }} /> {t('vitrine:viewVitrine')}
             </Link>
+            {playthroughs.length > 0 && (
+              <Link
+                to={`/u/${profile.username}/year/${new Date().getFullYear()}`}
+                className="section-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <Trophy aria-hidden style={{ width: 15, height: 15 }} /> {t('profile:yearReview', { year: new Date().getFullYear() })}
+              </Link>
+            )}
           </span>
+          <InvitedBy invitedBy={(profile as unknown as { invited_by?: string | null }).invited_by} />
           <BacklogProgress tracks={libTracks} />
         </div>
         {isMe ? <ProfileEditor profile={profile} /> : <FollowButton userId={profile.id} />}
@@ -287,6 +296,27 @@ function SceneStats({ userId }: { userId: string }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** "convidado por @x": a semente do social (sistema de convites do beta). */
+function InvitedBy({ invitedBy }: { invitedBy?: string | null }) {
+  const { t } = useTranslation();
+  const { data } = useQuery({
+    queryKey: ['inviter', invitedBy],
+    enabled: Boolean(invitedBy),
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const { data: p } = await sb.from('profiles').select('username').eq('id', invitedBy as string).maybeSingle();
+      return (p?.username as string | null) ?? null;
+    },
+  });
+  if (!data) return null;
+  return (
+    <p className="muted-text mono" style={{ marginTop: 'var(--s2)', fontSize: '0.74rem' }}>
+      {t('profile:invitedBy')} <Link to={`/u/${data}`} className="section-link">@{data}</Link>
+    </p>
   );
 }
 

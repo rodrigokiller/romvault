@@ -247,6 +247,7 @@ Deno.serve(async (req: Request) => {
         await accumulate(admin, acc.user_id as string, friend.presence, byKey);
         ok++;
       }
+      await admin.from('job_runs').insert({ job: 'nintendo-cron', mode: 'cron', ok: true, stats: { accounts: accounts.length, synced: ok, not_friends_yet: absent } }).then(() => {}, () => {});
       return json({ ok: true, mode: 'cron', accounts: accounts.length, synced: ok, not_friends_yet: absent });
     }
 

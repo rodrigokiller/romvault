@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Key, Copy, Trash2, Plus, BookOpen, RefreshCw, Gamepad2, Trophy, Gamepad, HelpCircle, LogIn, ExternalLink, type LucideIcon } from 'lucide-react';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabase } from '@/lib/supabase';
 import { invokeFn } from '@/lib/invokeFn';
 import { Dialog } from '@/components/ui/Dialog';
 import { Spinner } from '@/components/ui/feedback';
@@ -96,6 +98,7 @@ export function Settings() {
         )}
       </Card>
 
+      {session && !disabled && <InviteSection />}
       {session && !disabled && <PrivacySection />}
       {session && !disabled && <AccountLinksSection />}
       {session && !disabled && <ApiKeysSection />}
@@ -463,6 +466,50 @@ function SyncAccountRow({
         </Dialog>
       )}
     </div>
+  );
+}
+
+/** Resgate de convite: grava o padrinho no perfil ("convidado por @x"). */
+function InviteSection() {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const { data: me, refetch } = useMyProfile();
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const invitedBy = (me as unknown as { invited_by?: string | null } | null)?.invited_by;
+  if (invitedBy) return null; // já resgatou: nada a mostrar aqui
+
+  async function redeem() {
+    setBusy(true);
+    try {
+      const { data, error } = await (getSupabase() as unknown as SupabaseClient)
+        .rpc('redeem_invite', { invite_code: code.trim().toUpperCase() });
+      if (error) throw new Error(error.message.replace(/^.*?: /, ''));
+      toast.success(t('settings:inviteRedeemed', { user: String(data ?? '') }));
+      setCode('');
+      void refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('settings:inviteTitle')}</div>
+        <div className="card-sub">{t('settings:inviteHint')}</div>
+      </div>
+      <div className="api-create">
+        <Field label={t('settings:inviteCode')}>
+          {(id) => <Input id={id} value={code} onChange={(e) => setCode(e.target.value)} placeholder="RV-XXXX-XXXX" />}
+        </Field>
+        <Button variant="primary" disabled={busy || !code.trim()} onClick={() => void redeem()}>
+          {busy ? <Spinner /> : t('settings:inviteRedeem')}
+        </Button>
+      </div>
+    </Card>
   );
 }
 

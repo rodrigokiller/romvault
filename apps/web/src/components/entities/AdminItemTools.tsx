@@ -24,7 +24,8 @@ export function AdminItemTools({ gameId, dataSource, updatedAt, igdbId }: {
   const toast = useToast();
   const qc = useQueryClient();
   const isAdmin = useIsAdmin();
-  const [open, setOpen] = useState(false);
+  // ?fix=1 (link da fila de reportes) chega com a caixa já aberta
+  const [open, setOpen] = useState(() => new URLSearchParams(window.location.search).has('fix'));
   const [running, setRunning] = useState(false);
   const [target, setTarget] = useState<'cover_url' | 'boxart' | 'box3d'>('cover_url');
   const [url, setUrl] = useState('');

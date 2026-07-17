@@ -69,22 +69,28 @@ async function xbl(path: string, key: string): Promise<any> {
 
 // deno-lint-ignore no-explicit-any
 async function syncUser(admin: any, key: string, userId: string, gamertag: string, byKey: Map<string, string>) {
-  // gamertag -> xuid (dois endpoints do xbl.io: search e friends/search)
+  // gamertag -> xuid (friends/search é o endpoint de JOGADOR do xbl.io;
+  // /search é marketplace — fica como fallback). Erros de baixo aparecem
+  // na mensagem: 401 = XBLIO_KEY errada, 403 = plano/permissão da key.
   // deno-lint-ignore no-explicit-any
   let people: any[] = [];
+  const errs: string[] = [];
   try {
-    const search = await xbl(`/search/${encodeURIComponent(gamertag)}`, key);
-    people = (search?.people ?? []);
-  } catch { /* tenta o outro endpoint */ }
+    const alt = await xbl(`/friends/search?gt=${encodeURIComponent(gamertag)}`, key);
+    people = (alt?.profileUsers ?? alt?.people ?? []);
+  } catch (e) { errs.push(`friends/search: ${e instanceof Error ? e.message : String(e)}`); }
   if (people.length === 0) {
     try {
-      const alt = await xbl(`/friends/search?gt=${encodeURIComponent(gamertag)}`, key);
-      people = (alt?.profileUsers ?? alt?.people ?? []);
-    } catch { /* segue vazio */ }
+      const search = await xbl(`/search/${encodeURIComponent(gamertag)}`, key);
+      people = (search?.people ?? []);
+    } catch (e) { errs.push(`search: ${e instanceof Error ? e.message : String(e)}`); }
   }
   const person = people.find((p) => norm(p.gamertag ?? p.settings?.find?.((s: { id: string }) => s.id === 'Gamertag')?.value ?? '') === norm(gamertag)) ?? people[0];
   const xuid = person?.xuid ?? person?.id;
-  if (!xuid) throw new Error(`Gamertag "${gamertag}" não encontrada no xbl.io — confira a XBLIO_KEY e o gamertag exato (xbox.com/play).`);
+  if (!xuid) {
+    const detail = errs.length ? ` [${errs.join(' | ')}]` : ' [as buscas responderam vazio]';
+    throw new Error(`Gamertag "${gamertag}" não encontrada no xbl.io${detail} — 401 = XBLIO_KEY inválida; vazio = tente o gamertag exato.`);
+  }
 
   const data = await xbl(`/achievements/player/${xuid}`, key);
   const titles = (data?.titles ?? []) as XblTitle[];
@@ -232,6 +238,7 @@ Deno.serve(async (req: Request) => {
         } catch { failed++; }
         await new Promise((r) => setTimeout(r, 1500));
       }
+      await admin.from('job_runs').insert({ job: 'xbox-cron', mode: 'cron', ok: failed === 0, stats: { accounts: accounts.length, synced: ok, failed } }).then(() => {}, () => {});
       return json({ ok: true, mode: 'cron', accounts: accounts.length, synced: ok, failed });
     }
 

@@ -241,6 +241,7 @@ Deno.serve(async (req: Request) => {
         } catch { failed++; }
         await new Promise((r) => setTimeout(r, 1200)); // gentileza com a API do RA
       }
+      await admin.from('job_runs').insert({ job: 'ra-cron', mode: 'cron', ok: failed === 0, stats: { accounts: accounts.length, synced: ok, failed } }).then(() => {}, () => {});
       return json({ ok: true, mode: 'cron', accounts: accounts.length, synced: ok, failed });
     }
 

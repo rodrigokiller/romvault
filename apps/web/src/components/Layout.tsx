@@ -31,6 +31,8 @@ export function Layout() {
             {' · '}
             <Link to="/sobre" className="section-link">{t('about:title')}</Link>
             {' · '}
+            <Link to="/novidades" className="section-link">{t('changelog:title')}</Link>
+            {' · '}
             <Link to="/api" className="section-link">API</Link>
             {' · '}{t('common:tagline')} · {new Date().getFullYear()}
           </span>

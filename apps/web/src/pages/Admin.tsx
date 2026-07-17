@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
@@ -258,9 +258,10 @@ function ReportsPanel() {
             <span className="integ-state integ-beta">{t(`report:r_${r.reason}`)}</span>
             <span className="integ-name" style={{ minWidth: 0, flex: 1 }}>
               {r.subject_url
-                ? <a href={r.subject_url} className="section-link">{r.subject_label ?? r.subject_url}</a>
+                /* ?fix=1 abre a página com as ferramentas de admin já abertas */
+                ? <a href={`${r.subject_url}?fix=1`} className="section-link">{r.subject_label ?? r.subject_url}</a>
                 : (r.subject_label ?? r.subject_type)}
-              {r.note && <span className="integ-meta"> — “{r.note}”</span>}
+              {r.note && <span className="integ-meta"> · “{r.note}”</span>}
             </span>
             <span className="integ-meta">{new Date(r.created_at).toLocaleDateString()}</span>
             <Button size="sm" variant="ghost" onClick={() => void resolve(r.id)}>
@@ -408,6 +409,101 @@ function IgdbSyncPanel() {
   );
 }
 
+/** Últimas rodadas de JOBS (imports CLI, crons de sync, digest). */
+function JobsPanel() {
+  const { t } = useTranslation();
+  const { data: runs = [] } = useQuery({
+    queryKey: ['jobRuns'],
+    enabled: env.configured,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await db()
+        .from('job_runs')
+        .select('id, job, mode, ok, stats, finished_at')
+        .order('finished_at', { ascending: false })
+        .limit(30);
+      if (error) return [] as { id: string; job: string; mode: string | null; ok: boolean; stats: Record<string, unknown>; finished_at: string }[];
+      return (data ?? []) as { id: string; job: string; mode: string | null; ok: boolean; stats: Record<string, unknown>; finished_at: string }[];
+    },
+  });
+  if (runs.length === 0) return null;
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('admin:jobsTitle')}</div>
+        <div className="card-sub">{t('admin:jobsHint')}</div>
+      </div>
+      <ul className="integ-list">
+        {runs.map((r) => (
+          <li key={r.id} className={`integ-item mono ${r.ok ? '' : 'integ-stale'}`}>
+            <span className={`integ-state ${r.ok ? 'integ-ok' : 'integ-stale'}`}>
+              {r.ok ? 'ok' : 'ERRO'}
+            </span>
+            <span className="integ-name">{r.job}{r.mode ? ` (${r.mode})` : ''}</span>
+            <span className="integ-meta" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {Object.entries(r.stats ?? {}).map(([k, v]) => `${k}=${String(v)}`).join(' · ') || '—'}
+            </span>
+            <span className="integ-meta">{new Date(r.finished_at).toLocaleString()}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+/** Convites do beta: gerar códigos e acompanhar usos. */
+function InvitesPanel() {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const { data: me } = useMyProfile();
+  const { data: invites = [] } = useQuery({
+    queryKey: ['invites'],
+    enabled: env.configured,
+    queryFn: async () => {
+      const { data, error } = await db()
+        .from('invites').select('code, max_uses, uses, created_at')
+        .order('created_at', { ascending: false }).limit(30);
+      if (error) return [] as { code: string; max_uses: number; uses: number; created_at: string }[];
+      return (data ?? []) as { code: string; max_uses: number; uses: number; created_at: string }[];
+    },
+  });
+
+  async function create(maxUses: number) {
+    const code = `RV-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const { error } = await db().from('invites').insert({ code, created_by: me?.id, max_uses: maxUses });
+    if (error) toast.error(error.message);
+    else {
+      void navigator.clipboard.writeText(code).catch(() => {});
+      toast.success(t('admin:inviteCreated', { code }));
+      void qc.invalidateQueries({ queryKey: ['invites'] });
+    }
+  }
+
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('admin:invitesTitle')}</div>
+        <div className="card-sub">{t('admin:invitesHint')}</div>
+      </div>
+      <div className="admin-tools-row">
+        <Button size="sm" variant="primary" onClick={() => void create(1)}>{t('admin:inviteNew1')}</Button>
+        <Button size="sm" variant="secondary" onClick={() => void create(5)}>{t('admin:inviteNew5')}</Button>
+      </div>
+      {invites.length > 0 && (
+        <ul className="integ-list">
+          {invites.map((i) => (
+            <li key={i.code} className="integ-item mono">
+              <span className="integ-name">{i.code}</span>
+              <span className="integ-meta">{i.uses}/{i.max_uses} · {new Date(i.created_at).toLocaleDateString()}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 const TABLES = ['games', 'romhacks', 'translations', 'documents', 'tools', 'articles'] as const;
 type AdminTable = (typeof TABLES)[number];
 
@@ -435,8 +531,12 @@ export function Admin() {
   const { isLoading: profileLoading } = useMyProfile();
   const isAdmin = useIsAdmin();
   const [table, setTable] = useState<AdminTable>('games');
+  const [visible, setVisible] = useState(20);
   const list = useAdminList(table);
   const del = useDeleteEntity();
+
+  // trocar de aba volta pros primeiros 20
+  useEffect(() => { setVisible(20); }, [table]);
 
   if (profileLoading) return <LoadingPage />;
   if (!isAdmin) {
@@ -472,6 +572,8 @@ export function Admin() {
       <AddGamePanel />
       <ArtQueue />
       <IntegrationsPanel />
+      <JobsPanel />
+      <InvitesPanel />
 
       <IgdbSyncPanel />
 
@@ -495,17 +597,27 @@ export function Admin() {
       ) : rows.length === 0 ? (
         <EmptyState icon={DbIcon} title={t('browse:emptyTitle')} />
       ) : (
-        <div className="admin-table">
-          {rows.map((row) => (
-            <div key={row.id} className="admin-row">
-              <span className="admin-row-title">{row.title}</span>
-              <span className="admin-row-date mono">{new Date(row.created_at).toLocaleDateString()}</span>
-              <Button variant="danger" size="sm" onClick={() => void remove(row)} disabled={del.isPending}>
-                <Trash2 /> {t('admin:delete')}
+        <>
+          {/* mostra 20 por vez: a página não vira um paredão */}
+          <div className="admin-table">
+            {rows.slice(0, visible).map((row) => (
+              <div key={row.id} className="admin-row">
+                <span className="admin-row-title">{row.title}</span>
+                <span className="admin-row-date mono">{new Date(row.created_at).toLocaleDateString()}</span>
+                <Button variant="danger" size="sm" onClick={() => void remove(row)} disabled={del.isPending}>
+                  <Trash2 /> {t('admin:delete')}
+                </Button>
+              </div>
+            ))}
+          </div>
+          {rows.length > visible && (
+            <div style={{ marginTop: 'var(--s3)', textAlign: 'center' }}>
+              <Button variant="secondary" size="sm" onClick={() => setVisible((v) => v + 20)}>
+                {t('browse:loadMore')} ({rows.length - visible})
               </Button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

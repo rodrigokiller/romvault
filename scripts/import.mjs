@@ -828,7 +828,13 @@ async function main() {
   step('Resumo');
   for (const [k, v] of Object.entries(stats)) log(`  ${k.padEnd(14)} ${v}`);
   if (DRY) log(c.amber('\n(dry-run — nada foi escrito no banco)'));
-  else log(c.green('\n✓ Import concluido.'));
+  else {
+    log(c.green('\n✓ Import concluido.'));
+    // registro do job (painel de jobs no /admin); falha aqui nunca derruba o run
+    try {
+      await sb.from('job_runs').insert({ job: SOURCE, mode: 'cli', ok: true, stats });
+    } catch { /* tabela ainda não migrada: segue o baile */ }
+  }
 }
 
 main().catch((err) => { console.error(c.red('\n✖ Erro fatal:'), err); process.exit(1); });

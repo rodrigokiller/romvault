@@ -276,6 +276,7 @@ Deno.serve(async (req: Request) => {
         } catch { failed++; }
         await new Promise((r) => setTimeout(r, 1500));
       }
+      await admin.from('job_runs').insert({ job: 'psn-cron', mode: 'cron', ok: failed === 0, stats: { accounts: accounts.length, synced: ok, failed } }).then(() => {}, () => {});
       return json({ ok: true, mode: 'cron', accounts: accounts.length, synced: ok, failed });
     }
 
