@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Upload, TrendingUp, Newspaper, Download, Layers } from 'lucide-react';
+import { ArrowRight, Upload, TrendingUp, Newspaper, Download, Layers, Link as LinkIcon } from 'lucide-react';
+import { useAuth } from '@/auth/AuthProvider';
+import { useMyAccounts } from '@/hooks/useAccounts';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -70,6 +72,7 @@ export function Home() {
       </section>
 
       <div className="container">
+        <OnboardingCard />
         <MyShelfStrip />
 
         {/* Trending */}
@@ -253,6 +256,43 @@ function MyShelfStrip() {
             </div>
           </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Onboarding do primeiro login (momento-mágico do PlayTracker): biblioteca
+ * vazia + nenhuma conta vinculada -> convite pra vincular Steam/RA/PSN/Xbox/
+ * GOG e nascer com a biblioteca cheia. Dispensável (localStorage).
+ */
+function OnboardingCard() {
+  const { t } = useTranslation();
+  const { session } = useAuth();
+  const { data: me } = useMyProfile();
+  const { data: tracks = [] } = useLibrary(me?.id ?? undefined);
+  const { data: accounts = [] } = useMyAccounts();
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem('rv:onboarded') === '1');
+
+  if (!session || dismissed || tracks.length > 0 || accounts.length > 0) return null;
+
+  function dismiss() {
+    localStorage.setItem('rv:onboarded', '1');
+    setDismissed(true);
+  }
+
+  return (
+    <section className="onboard">
+      <div className="onboard-body">
+        <span className="kicker">// {t('onboard:kicker')}</span>
+        <h2>{t('onboard:title')}</h2>
+        <p className="page-sub">{t('onboard:text')}</p>
+        <div className="onboard-actions">
+          <Link to="/settings"><Button variant="primary"><LinkIcon /> {t('onboard:cta')}</Button></Link>
+          <Link to="/games"><Button variant="secondary">{t('onboard:browse')}</Button></Link>
+          <Button variant="ghost" onClick={dismiss}>{t('onboard:skip')}</Button>
+        </div>
+        <span className="onboard-providers mono">Steam · RetroAchievements · PlayStation · Xbox · GOG</span>
       </div>
     </section>
   );

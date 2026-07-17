@@ -280,6 +280,12 @@
     "psnHint": "PSN trophies: platinum/100% becomes Finished; progress becomes Playing (public profile)",
     "psnUserPh": "Your PSN username (online ID)",
     "psnDone": "PSN: {{matched}} of {{total}} games matched the catalog, {{tracks}} added to your library!",
+    "xboxHint": "Xbox achievements via xbl.io: 100% becomes Finished; progress becomes Playing",
+    "xboxUserPh": "Your gamertag",
+    "xboxDone": "Xbox: {{matched}} of {{total}} games matched the catalog, {{tracks}} added to your library!",
+    "gogHint": "GOG library via public profile: games + hours (set your GOG profile to public)",
+    "gogUserPh": "Your GOG username",
+    "gogDone": "GOG: {{matched}} of {{total}} games matched the catalog, {{tracks}} added to your library!",
     "emailDigestLabel": "email digest",
     "emailDigestOn": "Weekly (backlog + translations)",
     "emailDigestOff": "Off",
@@ -382,6 +388,9 @@
     "playableChip": "Playable in {{lang}} ({{count}})",
     "playableHint": "Has a fan translation in {{lang}}",
     "lastSession": "Last activity",
+    "syncTitle_one": "Synced data ({{count}} account)",
+    "syncTitle_other": "Synced data ({{count}} accounts)",
+    "syncHint": "The same game can exist on several platforms — each linked account keeps its own data; your manual status is never overwritten.",
     "today": "today",
     "daysAgo_one": "{{count}} day ago",
     "daysAgo_other": "{{count}} days ago",
@@ -403,6 +412,14 @@
     "artModeHint": "Toggles the box art style",
     "artBox": "Art: Box",
     "artStore": "Art: Store"
+  },
+  "onboard": {
+    "kicker": "welcome to the vault",
+    "title": "Start with a full library",
+    "text": "Link your accounts and your games, hours and achievements flow in by themselves — Steam, RetroAchievements, PlayStation, Xbox and GOG. Or add them by hand, your way.",
+    "cta": "Link accounts",
+    "browse": "Browse the catalog",
+    "skip": "Not now"
   },
   "notif": {
     "title": "Notifications",

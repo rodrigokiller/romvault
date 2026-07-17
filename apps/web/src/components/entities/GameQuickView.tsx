@@ -5,6 +5,7 @@ import type { Game } from '@romvault/core';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { SyncDataPanel } from './SyncDataPanel';
 
 /**
  * Quick view de um jogo (modal): capa, plataformas, meta e descrição, sem
@@ -42,6 +43,8 @@ export function GameQuickView({
             {game.genres?.length ? <span className="dot">{game.genres.join(', ')}</span> : null}
           </div>
           {game.description && <p className="qv-desc">{game.description}</p>}
+          {/* modal detalhado: os dados sincronizados DO usuário (horas/conquistas por conta) */}
+          <SyncDataPanel gameId={game.id} compact />
           <Link to={`/games/${game.slug}`} onClick={(e) => e.stopPropagation()}>
             <Button variant="primary" size="sm">{t('games:openFull')}</Button>
           </Link>

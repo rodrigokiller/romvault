@@ -159,3 +159,29 @@ recebe o resumo semanal por e-mail (Resend free tier; RESEND_FROM opcional).
 ```sh
 supabase secrets set RESEND_API_KEY=re_...
 ```
+
+## xbox-import (xbl.io)
+
+Conquistas do Xbox via OpenXBL (key gratuita em xbl.io). Usuário informa o
+gamertag. 100% -> Terminado; cria cópias e game_sync_data; modo cron.
+
+```sh
+supabase secrets set XBLIO_KEY=<key do xbl.io>
+supabase functions deploy xbox-import --no-verify-jwt
+```
+
+## gog-import (perfil público, sem key)
+
+Biblioteca + horas pelo endpoint público gog.com/u/<user>/games/stats
+(perfil precisa estar público no GOG). Sem segredo; modo cron.
+
+```sh
+supabase functions deploy gog-import --no-verify-jwt
+```
+
+## game_sync_data (modelo)
+
+Todos os importers gravam o dado BRUTO por (usuário, jogo, provedor) em
+game_sync_data — o mesmo jogo em N plataformas nunca conflita; o track
+continua sendo o resumo curado (status manual nunca é sobrescrito).
+A UI mostra as linhas por conta na página do jogo e no quick view.

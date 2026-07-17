@@ -77,7 +77,7 @@ Deno.serve(async (req: Request) => {
     );
     if (!ownedRes.ok) return json({ error: `Steam API: ${ownedRes.status}` }, 502);
     const owned = (await ownedRes.json())?.response?.games as
-      | { appid: number; name: string; playtime_forever: number }[]
+      | { appid: number; name: string; playtime_forever: number; rtime_last_played?: number }[]
       | undefined;
     if (!owned || owned.length === 0) {
       return json({ error: 'Biblioteca vazia ou perfil privado (detalhes do jogo precisam ser públicos).' }, 404);
@@ -162,6 +162,25 @@ Deno.serve(async (req: Request) => {
     for (const u of hourUpdates) {
       await admin.from('game_tracks').update({ hours_played: u.hours })
         .eq('user_id', user.id).eq('game_id', u.game_id);
+    }
+
+    // 6b) dado BRUTO por provedor (game_sync_data): horas/último jogo por conta
+    // (dedupe por game_id: dois appids podem casar no mesmo jogo)
+    const syncByGame = new Map<string, Record<string, unknown>>();
+    for (const g of owned) {
+      const gid = gameIdOf.get(g.appid);
+      if (!gid) continue;
+      syncByGame.set(gid, {
+        user_id: user.id, game_id: gid, provider: 'steam', platform: 'PC',
+        hours_played: Math.round((g.playtime_forever / 60) * 10) / 10 || null,
+        last_played: g.rtime_last_played ? new Date(g.rtime_last_played * 1000).toISOString() : null,
+        synced_at: new Date().toISOString(),
+      });
+    }
+    const syncRows = [...syncByGame.values()];
+    for (let i = 0; i < syncRows.length; i += 200) {
+      await admin.from('game_sync_data')
+        .upsert(syncRows.slice(i, i + 200), { onConflict: 'user_id,game_id,provider' });
     }
 
     // 7) cópias digitais Steam (só as que ainda não existem)

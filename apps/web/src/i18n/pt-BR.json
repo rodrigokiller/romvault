@@ -280,6 +280,12 @@
     "psnHint": "Troféus da PSN: platina/100% vira Terminado; progresso vira Jogando (perfil público)",
     "psnUserPh": "Seu username da PSN (online ID)",
     "psnDone": "PSN: {{matched}} de {{total}} jogos casados com o catálogo, {{tracks}} novos na biblioteca!",
+    "xboxHint": "Conquistas do Xbox via xbl.io: 100% vira Terminado; progresso vira Jogando",
+    "xboxUserPh": "Seu gamertag",
+    "xboxDone": "Xbox: {{matched}} de {{total}} jogos casados com o catálogo, {{tracks}} novos na biblioteca!",
+    "gogHint": "Biblioteca do GOG pelo perfil público: jogos + horas (deixe o perfil público no GOG)",
+    "gogUserPh": "Seu username do GOG",
+    "gogDone": "GOG: {{matched}} de {{total}} jogos casados com o catálogo, {{tracks}} novos na biblioteca!",
     "emailDigestLabel": "digest por e-mail",
     "emailDigestOn": "Semanal (backlog + traduções)",
     "emailDigestOff": "Desligado",
@@ -382,6 +388,9 @@
     "playableChip": "Jogável em {{lang}} ({{count}})",
     "playableHint": "Tem tradução de fã em {{lang}}",
     "lastSession": "Última atividade",
+    "syncTitle_one": "Dados sincronizados ({{count}} conta)",
+    "syncTitle_other": "Dados sincronizados ({{count}} contas)",
+    "syncHint": "O mesmo jogo pode existir em várias plataformas — cada conta vinculada tem seus próprios dados; seu status manual nunca é sobrescrito.",
     "today": "hoje",
     "daysAgo_one": "há {{count}} dia",
     "daysAgo_other": "há {{count}} dias",
@@ -403,6 +412,14 @@
     "artModeHint": "Alterna a arte das caixinhas",
     "artBox": "Arte: Caixa",
     "artStore": "Arte: Loja"
+  },
+  "onboard": {
+    "kicker": "bem-vindo ao cofre",
+    "title": "Comece com a biblioteca cheia",
+    "text": "Vincule suas contas e seus jogos, horas e conquistas entram sozinhos — Steam, RetroAchievements, PlayStation, Xbox e GOG. Ou adicione na mão, do seu jeito.",
+    "cta": "Vincular contas",
+    "browse": "Explorar o catálogo",
+    "skip": "Agora não"
   },
   "notif": {
     "title": "Notificações",

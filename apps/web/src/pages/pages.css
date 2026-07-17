@@ -3036,3 +3036,71 @@
   vertical-align: -2px;
   color: var(--muted);
 }
+
+/* ── Dados sincronizados por provedor (página do jogo + quick view) ────────── */
+.syncdata-title-icon { width: 12px; height: 12px; vertical-align: -2px; margin-right: 4px; color: var(--accent); }
+.syncdata-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+}
+.syncdata-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
+}
+.syncdata-provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 150px;
+  color: var(--ink-bright);
+  font-size: 0.74rem;
+}
+.syncdata-provider svg { width: 13px; height: 13px; color: var(--accent); }
+.syncdata-facts {
+  display: inline-flex;
+  gap: var(--s3);
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.syncdata-bar {
+  flex: 1;
+  min-width: 70px;
+  max-width: 160px;
+  height: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.syncdata-bar-fill { display: block; height: 100%; background: var(--accent); }
+.syncdata-compact { margin-top: var(--s3); }
+.syncdata-compact .copies-head { margin-bottom: var(--s2); }
+.syncdata-compact .syncdata-item { padding: 4px var(--s2); }
+
+/* onboarding do primeiro login */
+.onboard {
+  margin-top: var(--s6);
+  padding: var(--s6);
+  background: var(--panel);
+  border: 1px solid var(--accent);
+}
+.onboard h2 { margin-top: var(--s2); }
+.onboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+.onboard-providers {
+  display: block;
+  margin-top: var(--s3);
+  color: var(--muted);
+  font-size: 0.72rem;
+}

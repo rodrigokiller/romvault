@@ -169,12 +169,46 @@ function AccountLinksSection() {
           });
         }}
       />
-      {(['xbox', 'nintendo', 'gog', 'epic'] as const).map((p) => (
+      <SyncAccountRow
+        provider="xbox"
+        icon={Gamepad2}
+        title="Xbox"
+        hint={t('settings:xboxHint')}
+        placeholder={t('settings:xboxUserPh')}
+        linked={linked('xbox')}
+        invoke={async (id) => {
+          const { data, error } = await getSupabase().functions.invoke('xbox-import', { body: { gamertag: id } });
+          if (error) throw error;
+          const d = data as { error?: string; xbox_games?: number; matched?: number; tracks_added?: number };
+          if (d?.error) throw new Error(d.error);
+          return t('settings:xboxDone', {
+            total: d?.xbox_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
+          });
+        }}
+      />
+      <SyncAccountRow
+        provider="gog"
+        icon={Gamepad}
+        title="GOG"
+        hint={t('settings:gogHint')}
+        placeholder={t('settings:gogUserPh')}
+        linked={linked('gog')}
+        invoke={async (id) => {
+          const { data, error } = await getSupabase().functions.invoke('gog-import', { body: { gog_user: id } });
+          if (error) throw error;
+          const d = data as { error?: string; gog_games?: number; matched?: number; tracks_added?: number };
+          if (d?.error) throw new Error(d.error);
+          return t('settings:gogDone', {
+            total: d?.gog_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
+          });
+        }}
+      />
+      {(['nintendo', 'epic'] as const).map((p) => (
         <div key={p} className="account-row account-row-soon">
           <div className="account-row-head">
             <span className="account-name">
               <Gamepad2 aria-hidden className="account-icon" />
-              {{ xbox: 'Xbox', nintendo: 'Nintendo', gog: 'GOG', epic: 'Epic' }[p]}
+              {{ nintendo: 'Nintendo', epic: 'Epic' }[p]}
             </span>
             <span className="chip">{t('settings:accountsSoon')}</span>
           </div>

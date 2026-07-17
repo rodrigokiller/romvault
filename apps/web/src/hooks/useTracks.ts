@@ -212,6 +212,37 @@ export function useLibraryCopies(userId: string | undefined) {
   });
 }
 
+/* ── Dados de SYNC por provedor (game_sync_data): o dado bruto de cada conta ── */
+export interface SyncData {
+  provider: string;
+  platform: string | null;
+  hours_played: number | null;
+  achievements_earned: number | null;
+  achievements_total: number | null;
+  progress: number | null;
+  last_played: string | null;
+  synced_at: string;
+}
+
+/** Linhas de sync do usuário logado pra um jogo (Steam, RA, PSN, Xbox, GOG…). */
+export function useMySyncData(gameId: string | undefined) {
+  const { user } = useAuth();
+  const uid = user?.id;
+  return useQuery({
+    queryKey: ['syncData', gameId, uid],
+    enabled: env.configured && Boolean(gameId && uid),
+    queryFn: async (): Promise<SyncData[]> => {
+      const { data, error } = await db()
+        .from('game_sync_data')
+        .select('provider, platform, hours_played, achievements_earned, achievements_total, progress, last_played, synced_at')
+        .eq('user_id', uid as string).eq('game_id', gameId as string)
+        .order('provider');
+      if (error) return [];
+      return (data ?? []) as unknown as SyncData[];
+    },
+  });
+}
+
 /**
  * Mapa game_id -> status do usuário logado — UMA query compartilhada por todos
  * os cards do grid (não uma por card).

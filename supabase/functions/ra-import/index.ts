@@ -142,6 +142,26 @@ async function syncUser(
     await admin.from('game_tracks').upsert(newTracks.slice(i, i + 200), { onConflict: 'user_id,game_id' });
   }
 
+  // dado BRUTO por provedor (game_sync_data): nunca conflita com manual/outros
+  // (dedupe por game_id: dois sets do RA podem casar no mesmo jogo)
+  const syncByGame = new Map<string, Record<string, unknown>>();
+  for (const m of matched) {
+    const earned = Number(m.ra.NumAwarded);
+    const total = Number(m.ra.MaxPossible);
+    syncByGame.set(m.gid, {
+      user_id: userId, game_id: m.gid, provider: 'retroachievements',
+      platform: m.platform,
+      achievements_earned: earned, achievements_total: total,
+      progress: total > 0 ? Math.min(100, Math.round((earned / total) * 100)) : null,
+      synced_at: new Date().toISOString(),
+    });
+  }
+  const syncRows = [...syncByGame.values()];
+  for (let i = 0; i < syncRows.length; i += 200) {
+    await admin.from('game_sync_data')
+      .upsert(syncRows.slice(i, i + 200), { onConflict: 'user_id,game_id,provider' });
+  }
+
   // cópias: jogado no RA = tem a ROM -> entra na VITRINE (só as que faltam)
   const myCopies = await fetchAll(() =>
     admin.from('game_copies').select('game_id').eq('user_id', userId).eq('store', 'RetroAchievements'));

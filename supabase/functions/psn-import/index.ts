@@ -96,6 +96,7 @@ interface PsnTitle {
   progress: number;
   earnedTrophies: Record<string, number>;
   definedTrophies: Record<string, number>;
+  lastUpdatedDateTime?: string;
 }
 
 async function trophyTitles(token: string, accountId: string): Promise<PsnTitle[]> {
@@ -174,6 +175,31 @@ async function syncUser(admin: any, token: string, userId: string, username: str
   }
   for (let i = 0; i < newTracks.length; i += 200) {
     await admin.from('game_tracks').upsert(newTracks.slice(i, i + 200), { onConflict: 'user_id,game_id' });
+  }
+
+  // dado BRUTO por provedor (game_sync_data) — dedupe por game_id (PS4+PS5
+  // do mesmo jogo casam no mesmo registro; fica o de maior progresso)
+  const syncByGame = new Map<string, { progress: number; row: Record<string, unknown> }>();
+  for (const m of matched) {
+    const progress = Math.min(100, Math.round(m.t.progress ?? 0));
+    const prev = syncByGame.get(m.gid);
+    if (prev && prev.progress >= progress) continue;
+    syncByGame.set(m.gid, {
+      progress,
+      row: {
+        user_id: userId, game_id: m.gid, provider: 'psn',
+        platform: m.platform,
+        achievements_earned: sum(m.t.earnedTrophies), achievements_total: sum(m.t.definedTrophies),
+        progress,
+        last_played: m.t.lastUpdatedDateTime ?? null,
+        synced_at: new Date().toISOString(),
+      },
+    });
+  }
+  const syncRows = [...syncByGame.values()].map((x) => x.row);
+  for (let i = 0; i < syncRows.length; i += 200) {
+    await admin.from('game_sync_data')
+      .upsert(syncRows.slice(i, i + 200), { onConflict: 'user_id,game_id,provider' });
   }
 
   // cópias (vitrine): jogou na PSN = tem o jogo

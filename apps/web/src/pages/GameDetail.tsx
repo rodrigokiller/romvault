@@ -15,6 +15,7 @@ import { PlaythroughsWidget, type PatchOption } from '@/components/entities/Play
 import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { BoxScans } from '@/components/entities/BoxScans';
 import { AdminItemTools } from '@/components/entities/AdminItemTools';
+import { SyncDataPanel } from '@/components/entities/SyncDataPanel';
 import { langCode, uiLangCode } from '@/hooks/useTranslationLangs';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { Badge } from '@/components/ui/Badge';
@@ -130,6 +131,7 @@ export function GameDetail() {
               <ShareButton title={title} />
             </div>
           )}
+          {game && <SyncDataPanel gameId={game.id} />}
           {game && <CopiesWidget gameId={game.id} platforms={game.platforms ?? []} patchOptions={patchOptions} />}
           {game && <PlaythroughsWidget gameId={game.id} patchOptions={patchOptions} />}
           {game && (
