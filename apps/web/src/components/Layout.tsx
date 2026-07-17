@@ -2,6 +2,7 @@ import { Outlet, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Header } from './Header';
 import { CommandPalette } from './CommandPalette';
+import { InviteGate } from './InviteGate';
 import { env } from '@/lib/env';
 import '@/pages/pages.css';
 
@@ -19,7 +20,9 @@ export function Layout() {
         </div>
       )}
       <main className="site-main">
-        <Outlet />
+        <InviteGate>
+          <Outlet />
+        </InviteGate>
       </main>
       <footer className="site-footer">
         <div className="site-footer-inner">

@@ -75,21 +75,23 @@ async function syncUser(admin: any, key: string, userId: string, gamertag: strin
   // deno-lint-ignore no-explicit-any
   let people: any[] = [];
   const errs: string[] = [];
+  const peek = (o: unknown) => JSON.stringify(o ?? null).slice(0, 180); // raio-x da resposta
   try {
     const alt = await xbl(`/friends/search?gt=${encodeURIComponent(gamertag)}`, key);
     people = (alt?.profileUsers ?? alt?.people ?? []);
+    if (people.length === 0) errs.push(`friends/search respondeu: ${peek(alt)}`);
   } catch (e) { errs.push(`friends/search: ${e instanceof Error ? e.message : String(e)}`); }
   if (people.length === 0) {
     try {
       const search = await xbl(`/search/${encodeURIComponent(gamertag)}`, key);
-      people = (search?.people ?? []);
+      people = (search?.people ?? search?.profileUsers ?? []);
+      if (people.length === 0) errs.push(`search respondeu: ${peek(search)}`);
     } catch (e) { errs.push(`search: ${e instanceof Error ? e.message : String(e)}`); }
   }
   const person = people.find((p) => norm(p.gamertag ?? p.settings?.find?.((s: { id: string }) => s.id === 'Gamertag')?.value ?? '') === norm(gamertag)) ?? people[0];
   const xuid = person?.xuid ?? person?.id;
   if (!xuid) {
-    const detail = errs.length ? ` [${errs.join(' | ')}]` : ' [as buscas responderam vazio]';
-    throw new Error(`Gamertag "${gamertag}" não encontrada no xbl.io${detail} — 401 = XBLIO_KEY inválida; vazio = tente o gamertag exato.`);
+    throw new Error(`Gamertag "${gamertag}" não encontrada no xbl.io [${errs.join(' | ')}]`);
   }
 
   const data = await xbl(`/achievements/player/${xuid}`, key);

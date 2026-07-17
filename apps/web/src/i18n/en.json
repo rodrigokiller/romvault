@@ -458,6 +458,12 @@
     "artBox": "Art: Box",
     "artStore": "Art: Store"
   },
+  "gate": {
+    "kicker": "closed beta",
+    "title": "You just need an invite",
+    "text": "ROMVault is in invite-only beta. Redeem your code to get in; if you don't have one, ask whoever showed you the site.",
+    "ok": "Invite redeemed, welcome to ROMVault!"
+  },
   "changelog": {
     "kicker": "captain's log",
     "title": "What's new",

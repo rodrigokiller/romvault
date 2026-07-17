@@ -17,6 +17,7 @@
     "help": "node scripts/help.mjs",
     "smoke": "node scripts/smoke.mjs",
     "fix-matches": "node scripts/fix-matches.mjs",
+    "changelog:draft": "node scripts/changelog-draft.mjs",
     "check-images": "node scripts/check-images.mjs",
     "import": "node scripts/import.mjs",
     "import:igdb": "node scripts/import.mjs --source=igdb",

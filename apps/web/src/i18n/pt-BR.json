@@ -458,6 +458,12 @@
     "artBox": "Arte: Caixa",
     "artStore": "Arte: Loja"
   },
+  "gate": {
+    "kicker": "beta fechado",
+    "title": "Falta só o convite",
+    "text": "O ROMVault está em beta por convite. Resgate o seu código pra entrar; se ainda não tem, fale com quem te indicou o site.",
+    "ok": "Convite resgatado, bem-vindo ao ROMVault!"
+  },
   "changelog": {
     "kicker": "diário de bordo",
     "title": "Novidades",
