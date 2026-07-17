@@ -64,7 +64,9 @@ async function xbl(path: string, key: string): Promise<any> {
     headers: { 'X-Authorization': key, Accept: 'application/json' },
   });
   if (!res.ok) throw new Error(`xbl.io: HTTP ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  // o xbl.io embrulha o payload em { content: {...} } — desembrulha sempre
+  return data?.content ?? data;
 }
 
 // deno-lint-ignore no-explicit-any
