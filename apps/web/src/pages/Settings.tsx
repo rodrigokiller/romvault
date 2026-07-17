@@ -201,9 +201,10 @@ function AccountLinksSection() {
           links: [{ label: 'retroachievements.org', url: 'https://retroachievements.org/' }],
         }}
         invoke={async (id) => {
-          const d = await invokeFn<{ ra_games?: number; matched?: number; tracks_added?: number }>(
+          const d = await invokeFn<{ ra_games?: number; matched?: number; tracks_added?: number; note?: string }>(
             'ra-import', { ra_user: id },
           );
+          if (d?.note) return d.note;
           return t('settings:raDone', {
             total: d?.ra_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
           });
@@ -221,9 +222,10 @@ function AccountLinksSection() {
           links: [{ label: t('settings:help_psn_privacy'), url: 'https://www.playstation.com/acct/privacy' }],
         }}
         invoke={async (id) => {
-          const d = await invokeFn<{ psn_games?: number; matched?: number; tracks_added?: number }>(
+          const d = await invokeFn<{ psn_games?: number; matched?: number; tracks_added?: number; note?: string }>(
             'psn-import', { psn_user: id },
           );
+          if (d?.note) return d.note;
           return t('settings:psnDone', {
             total: d?.psn_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
           });
@@ -241,9 +243,10 @@ function AccountLinksSection() {
           links: [{ label: 'xbox.com', url: 'https://www.xbox.com/' }],
         }}
         invoke={async (id) => {
-          const d = await invokeFn<{ xbox_games?: number; matched?: number; tracks_added?: number }>(
+          const d = await invokeFn<{ xbox_games?: number; matched?: number; tracks_added?: number; note?: string }>(
             'xbox-import', { gamertag: id },
           );
+          if (d?.note) return d.note;
           return t('settings:xboxDone', {
             total: d?.xbox_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
           });
@@ -261,9 +264,10 @@ function AccountLinksSection() {
           links: [{ label: t('settings:help_gog_privacy'), url: 'https://www.gog.com/account/settings/privacy' }],
         }}
         invoke={async (id) => {
-          const d = await invokeFn<{ gog_games?: number; matched?: number; tracks_added?: number }>(
+          const d = await invokeFn<{ gog_games?: number; matched?: number; tracks_added?: number; note?: string }>(
             'gog-import', { gog_user: id },
           );
+          if (d?.note) return d.note;
           return t('settings:gogDone', {
             total: d?.gog_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
           });

@@ -5,6 +5,10 @@ import {
   Gamepad2, Languages, Sparkles, Wrench, FileText, Layers, Newspaper,
   Users, Trophy, BarChart3, Library, Store,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabase } from '@/lib/supabase';
+import { env } from '@/lib/env';
 import { Logo } from './Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { openPalette } from './CommandPalette';
@@ -12,6 +16,29 @@ import { NotificationsBell } from './NotificationsBell';
 import { useAuth } from '@/auth/AuthProvider';
 import { useIsAdmin } from '@/hooks/useProfile';
 import './header.css';
+
+/** Escudo do admin com contador de reportes abertos (a fila te acha). */
+function AdminShield({ label }: { label: string }) {
+  const { data: open = 0 } = useQuery({
+    queryKey: ['openReports'],
+    enabled: env.configured,
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+    queryFn: async () => {
+      const { count } = await (getSupabase() as unknown as SupabaseClient)
+        .from('reports')
+        .select('*', { count: 'exact', head: true })
+        .is('resolved_at', null);
+      return count ?? 0; // RLS: não-admin recebe 0
+    },
+  });
+  return (
+    <Link to="/admin" className="header-icon-btn bell-btn" aria-label={label} title={label}>
+      <Shield aria-hidden />
+      {open > 0 && <span className="bell-dot mono">{open > 9 ? '9+' : open}</span>}
+    </Link>
+  );
+}
 
 /** Item de dropdown da nav (submenu terminal: hover/focus abre pra baixo). */
 interface DropItem {
@@ -105,16 +132,7 @@ export function Header() {
         <div className="header-right">
           <NotificationsBell />
           <LanguageSwitcher />
-          {isAdmin && (
-            <Link
-              to="/admin"
-              className="header-icon-btn"
-              aria-label={t('nav:admin')}
-              title={t('nav:admin')}
-            >
-              <Shield aria-hidden />
-            </Link>
-          )}
+          {isAdmin && <AdminShield label={t('nav:admin')} />}
           {/* Enviar saiu da nav (catálogo ocupou o espaço) — ícone sempre visível */}
           <Link
             to="/submit"

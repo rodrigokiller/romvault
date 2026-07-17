@@ -1,0 +1,35 @@
+Ayrton Senna's Super Monaco GP II — erro ao salvar: duplicate key value violates unique constraint "games_igdb_id_idx"
+Phantasy Star II: Anne's Adventure [Genesis] — sem match exato no IGDB
+Phantasy Star II: Kinds’s Adventure [Genesis] — sem match exato no IGDB
+Phantasy Star II: Amia's Adventure [Genesis] — sem match exato no IGDB
+Barver Battle Saga: Tai Kong Zhan Shi [Genesis] — sem match exato no IGDB
+The New Zealand Story [Genesis] — sem match exato no IGDB
+Final Zone — erro ao salvar: duplicate key value violates unique constraint "games_igdb_id_idx"
+Caliber.50 [Genesis] — sem match exato no IGDB
+Spider-Man/X-Men - Arcade's Revenge [Genesis] — sem match exato no IGDB
+J-League Pro Striker 2 [Genesis] — sem match exato no IGDB
+Joe & Mac — erro ao salvar: duplicate key value violates unique constraint "games_igdb_id_idx"
+Phantasy Star II: Nei's Adventure [Genesis] — sem match exato no IGDB
+Beauty and the Beast: Belle's Quest [Genesis] — sem match exato no IGDB
+Krusty's Super Fun House [Genesis] — sem match exato no IGDB
+Phantasy Star II: Yushis's Adventure [Genesis] — sem match exato no IGDB
+Shui Hu - Feng Yun Zhuan [Genesis] — sem match exato no IGDB
+Frogger — erro ao salvar: duplicate key value violates unique constraint "games_igdb_id_idx"
+Beavis and Butt-Head [Genesis] — sem match exato no IGDB
+Mega SWIV [Genesis] — sem match exato no IGDB
+Magical Taruruuto-kun [Genesis] — sem match exato no IGDB
+Super Volleyball [Genesis] — sem match exato no IGDB
+Battletech: A Game of Armored Combat [Genesis] — sem match exato no IGDB
+Virtua Fighter 2 — erro ao salvar: duplicate key value violates unique constraint "games_igdb_id_idx"
+Demolition Man — erro ao salvar: duplicate key value violates unique constraint "games_igdb_id_idx"
+Beauty and the Beast: Roar of the Beast [Genesis] — sem match exato no IGDB
+Phantasy Star II: Shilka’s Adventure [Genesis] — sem match exato no IGDB
+The Terminator — erro ao salvar: duplicate key value violates unique constraint "games_igdb_id_idx"
+Splatterhouse Part 3 [Genesis] — sem match exato no IGDB
+Quack Shot Starring Donald Duck [Genesis] — sem match exato no IGDB
+Joe & Mac — erro ao salvar: duplicate key value violates unique constraint "games_igdb_id_idx"
+JuJu Densetsu [Genesis] — sem match exato no IGDB
+Gouketsuji Ichizoku [Genesis] — sem match exato no IGDB
+Chiki Chiki Boys [Genesis] — sem match exato no IGDB
+The Chaos Engine [Genesis] — sem match exato no IGDB
+Uchuu Senkan Gomora [Genesis] — sem match exato no IGDB

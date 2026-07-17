@@ -90,7 +90,16 @@ async function gogGames(username: string): Promise<GogGame[]> {
 // deno-lint-ignore no-explicit-any
 async function syncUser(admin: any, userId: string, username: string, byKey: Map<string, string>) {
   const games = await gogGames(username);
-  if (games.length === 0) throw new Error('Nenhum jogo visível nesse perfil GOG.');
+  if (games.length === 0) {
+    await admin.from('user_accounts')
+      .update({ last_sync: new Date().toISOString() })
+      .eq('user_id', userId).eq('provider', 'gog');
+    return {
+      gog_games: 0, matched: 0, tracks_added: 0, tracks_updated: 0,
+      copies_added: 0, unmatched: 0, sample_misses: [],
+      note: 'Conta vinculada; nenhum jogo visível no perfil ainda.',
+    };
+  }
 
   const matched: { gid: string; g: GogGame }[] = [];
   const misses: string[] = [];

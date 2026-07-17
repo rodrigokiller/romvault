@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Bell, Languages } from 'lucide-react';
+import { Bell, Languages, CheckCircle2 } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
 import { useAuth } from '@/auth/AuthProvider';
@@ -17,6 +17,8 @@ interface Notification {
     game_title?: string | null;
     game_slug?: string | null;
     language?: string | null;
+    label?: string | null;  // report_resolved
+    url?: string | null;    // report_resolved
   };
   created_at: string;
   read_at: string | null;
@@ -100,24 +102,32 @@ export function NotificationsBell() {
           {items.length === 0 ? (
             <span className="bell-empty mono">{t('notif:empty')}</span>
           ) : (
-            items.map((n) => (
-              <Link
-                key={n.id}
-                to={n.payload.game_slug ? `/games/${n.payload.game_slug}` : '/'}
-                className={`share-item bell-item ${n.read_at ? '' : 'is-unread'}`}
-                role="menuitem"
-                onClick={() => setOpen(false)}
-              >
-                <Languages aria-hidden />
-                <span className="bell-item-text">
-                  {t('notif:backlogTranslation', {
+            items.map((n) => {
+              const isReport = n.kind === 'report_resolved';
+              const to = isReport
+                ? (n.payload.url ?? '/')
+                : (n.payload.game_slug ? `/games/${n.payload.game_slug}` : '/');
+              const Icon = isReport ? CheckCircle2 : Languages;
+              const text = isReport
+                ? t('notif:reportResolved', { title: n.payload.label ?? '?' })
+                : t('notif:backlogTranslation', {
                     game: n.payload.game_title ?? '?',
                     lang: n.payload.language ?? '?',
-                  })}
-                </span>
-                <span className="bell-item-date mono">{new Date(n.created_at).toLocaleDateString()}</span>
-              </Link>
-            ))
+                  });
+              return (
+                <Link
+                  key={n.id}
+                  to={to}
+                  className={`share-item bell-item ${n.read_at ? '' : 'is-unread'}`}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                >
+                  <Icon aria-hidden />
+                  <span className="bell-item-text">{text}</span>
+                  <span className="bell-item-date mono">{new Date(n.created_at).toLocaleDateString()}</span>
+                </Link>
+              );
+            })
           )}
         </div>
       )}

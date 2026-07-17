@@ -137,7 +137,16 @@ const sum = (o: Record<string, number> | undefined) =>
 async function syncUser(admin: any, token: string, userId: string, username: string, byKey: Map<string, string>) {
   const accountId = await findAccountId(token, username);
   const titles = await trophyTitles(token, accountId);
-  if (titles.length === 0) throw new Error('Nenhum jogo com troféus nesse perfil.');
+  if (titles.length === 0) {
+    await admin.from('user_accounts')
+      .update({ last_sync: new Date().toISOString() })
+      .eq('user_id', userId).eq('provider', 'psn');
+    return {
+      psn_games: 0, matched: 0, tracks_added: 0, tracks_updated: 0,
+      copies_added: 0, unmatched: 0, sample_misses: [],
+      note: 'Conta vinculada; nenhum troféu visível ainda.',
+    };
+  }
 
   let unmatched = 0;
   const matched: { gid: string; t: PsnTitle; platform: string }[] = [];

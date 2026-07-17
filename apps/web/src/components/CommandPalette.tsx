@@ -34,14 +34,23 @@ interface PaletteItem {
   run: () => void;
 }
 
-/** Até 3 plataformas + "+N" — o nome corta o quanto precisar (flex). */
-function PlatBadges({ platforms }: { platforms?: string[] }) {
+/** Até 3 plataformas + "+N"; o nome corta o quanto precisar (flex). Clicar
+ *  numa badge filtra o Explorar por aquela plataforma. */
+function PlatBadges({ platforms, onPick }: { platforms?: string[]; onPick?: (p: string) => void }) {
   if (!platforms || platforms.length === 0) return null;
   const shown = platforms.slice(0, 3);
   const more = platforms.length - shown.length;
   return (
     <span className="cmdk-badges" aria-label={platforms.join(', ')}>
-      {shown.map((p) => <span key={p} className="cmdk-badge mono">{p}</span>)}
+      {shown.map((p) => (
+        <button
+          key={p} type="button" className="cmdk-badge mono" tabIndex={-1}
+          title={`Explorar ${p}`}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onPick?.(p); }}
+        >
+          {p}
+        </button>
+      ))}
       {more > 0 && <span className="cmdk-badge cmdk-badge-more mono" title={platforms.slice(3).join(', ')}>+{more}</span>}
     </span>
   );
@@ -289,7 +298,10 @@ export function CommandPalette() {
                 >
                   <Icon aria-hidden className="cmdk-item-icon" />
                   <span className="cmdk-item-label">{item.label}</span>
-                  <PlatBadges platforms={item.badges} />
+                  <PlatBadges
+                    platforms={item.badges}
+                    onPick={(p) => go(`/games?platform=${encodeURIComponent(p)}`)}
+                  />
                   {item.hint && <span className="cmdk-item-hint mono">{item.hint}</span>}
                 </button>
               );

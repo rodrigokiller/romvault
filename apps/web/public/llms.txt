@@ -1,11 +1,11 @@
 # ROMVault
 
 > Hub de romhacking em português (pt-BR) e inglês: catálogo de jogos ligado a
-> romhacks, traduções de fãs, documentos técnicos e ferramentas — mais
+> romhacks, traduções de fãs, documentos técnicos e ferramentas, mais o
 > tracking pessoal de biblioteca/coleção com sync de Steam,
 > RetroAchievements, PlayStation, Xbox, GOG e Nintendo.
 
-O diferencial: trackear a EXPERIÊNCIA PATCHEADA — registrar zeradas e cópias
+O diferencial: trackear a EXPERIÊNCIA PATCHEADA. Registrar zeradas e cópias
 informando qual tradução/hack foi usada, ligando a cena de romhacking ao
 tracking pessoal.
 

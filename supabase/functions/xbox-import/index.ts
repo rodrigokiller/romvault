@@ -88,7 +88,16 @@ async function syncUser(admin: any, key: string, userId: string, gamertag: strin
 
   const data = await xbl(`/achievements/player/${xuid}`, key);
   const titles = (data?.titles ?? []) as XblTitle[];
-  if (titles.length === 0) throw new Error('Nenhum jogo no histórico (perfil privado?).');
+  if (titles.length === 0) {
+    await admin.from('user_accounts')
+      .update({ last_sync: new Date().toISOString() })
+      .eq('user_id', userId).eq('provider', 'xbox');
+    return {
+      xbox_games: 0, matched: 0, tracks_added: 0, tracks_updated: 0,
+      copies_added: 0, unmatched: 0, sample_misses: [],
+      note: 'Conta vinculada; histórico vazio (se tiver jogos, confira a privacidade do perfil Xbox).',
+    };
+  }
 
   let unmatched = 0;
   const matched: { gid: string; t: XblTitle; platform: string }[] = [];

@@ -99,7 +99,17 @@ async function syncUser(
     if (!prev || Number(g.NumAwarded) > Number(prev.NumAwarded)) best.set(g.GameID, g);
   }
   const games = [...best.values()].filter((g) => Number(g.NumAwarded) > 0);
-  if (games.length === 0) throw new Error('Nenhum jogo com progresso público nesse usuário.');
+  if (games.length === 0) {
+    // conta válida sem jogos ainda NÃO é erro: vincula e o cron acompanha
+    await admin.from('user_accounts')
+      .update({ last_sync: new Date().toISOString() })
+      .eq('user_id', userId).eq('provider', 'retroachievements');
+    return {
+      ra_games: 0, matched: 0, tracks_added: 0, tracks_updated: 0,
+      copies_added: 0, unmatched: 0, sample_misses: [],
+      note: 'Conta vinculada; nenhum jogo com conquistas ainda (o sync diário acompanha).',
+    };
+  }
 
   // match RA -> catálogo (NUNCA cria jogo)
   let unmatchedConsole = 0;

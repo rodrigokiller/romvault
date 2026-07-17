@@ -101,7 +101,15 @@ export function SearchBox({ variant = 'header' }: { variant?: 'header' | 'page' 
                   </span>
                   {r.platforms.length > 0 && (
                     <span className="cmdk-badges" aria-label={r.platforms.join(', ')}>
-                      {r.platforms.slice(0, 3).map((p) => <span key={p} className="cmdk-badge mono">{p}</span>)}
+                      {r.platforms.slice(0, 3).map((p) => (
+                        <button
+                          key={p} type="button" className="cmdk-badge mono" tabIndex={-1}
+                          title={`Explorar ${p}`}
+                          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); go(`/games?platform=${encodeURIComponent(p)}`); }}
+                        >
+                          {p}
+                        </button>
+                      ))}
                       {r.platforms.length > 3 && (
                         <span className="cmdk-badge cmdk-badge-more mono" title={r.platforms.slice(3).join(', ')}>
                           +{r.platforms.length - 3}
