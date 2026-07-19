@@ -157,7 +157,17 @@
     "communityOwners": "têm na biblioteca",
     "communityPlaying": "jogando agora",
     "communityFinished": "já zeraram",
-    "altTitles": "também conhecido como"
+    "altTitles": "também conhecido como",
+    "type_remake": "Remake",
+    "type_remaster": "Remaster",
+    "type_expanded": "Expandido",
+    "type_expansion": "Expansão",
+    "type_port": "Port",
+    "type_mod": "Mod",
+    "type_version": "Versão",
+    "type_spinoff": "Spin-off",
+    "versionsTitle": "Versões e relacionados",
+    "relBase": "Original"
   },
   "entities": {
     "kindGame": "Jogo",

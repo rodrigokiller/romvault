@@ -207,7 +207,8 @@ Deno.serve(async (req: Request) => {
       'fields name, cover.image_id, screenshots.image_id, summary, first_release_date, ' +
       'platforms, themes.name, genres.name, franchises.name, involved_companies.company.name, involved_companies.developer, ' +
       'alternative_names.name, release_dates.date, release_dates.platform, release_dates.human, ' +
-      'aggregated_rating, aggregated_rating_count, rating, rating_count;';
+      'aggregated_rating, aggregated_rating_count, rating, rating_count, ' +
+      'game_type, collection.name, parent_game, version_parent, remasters, remakes, ports, expanded_games, standalone_expansions;';
     const query = forceId
       ? `${fields} where id = ${forceId};`
       : (game.igdb_id && !customQuery
@@ -319,10 +320,20 @@ Deno.serve(async (req: Request) => {
       if (releases.length > 0) { meta.releases = releases; metaTouched = true; updated.push('releases'); }
     }
     if (hit.alternative_names?.length) {
+      // coluna PESQUISÁVEL (a busca cobre título + alternativos: FF III x FF VI)
       // deno-lint-ignore no-explicit-any
       const alts = (hit.alternative_names as any[]).map((a) => String(a.name)).filter(Boolean).slice(0, 8);
-      if (alts.length > 0) { meta.alt_titles = alts; metaTouched = true; updated.push('alt_titles'); }
+      if (alts.length > 0) { patch.alt_titles = alts; updated.push('alt_titles'); }
     }
+    // tipo do jogo (main/remake/remaster/expanded/port) + série (coleção)
+    const GAME_TYPE: Record<number, string> = {
+      0: 'main', 2: 'expansion', 4: 'expanded', 5: 'mod', 8: 'remake', 9: 'remaster', 10: 'expanded', 11: 'port',
+    };
+    if (hit.game_type !== undefined && GAME_TYPE[hit.game_type as number]) {
+      patch.game_type = GAME_TYPE[hit.game_type as number];
+      updated.push('game_type');
+    }
+    if (!game.series && hit.collection?.name) { patch.series = hit.collection.name; updated.push('series'); }
     if (hit.aggregated_rating || hit.rating) {
       meta.scores = {
         critics: hit.aggregated_rating ? Math.round(hit.aggregated_rating) : null,
@@ -336,10 +347,44 @@ Deno.serve(async (req: Request) => {
     }
     if (metaTouched) patch.metadata = meta;
 
-    if (updated.length === 0) return json({ ok: true, action, updated, note: 'nada novo no IGDB' });
-    const { error } = await admin.from('games').update(patch).eq('id', gameId);
-    if (error) throw error;
-    return json({ ok: true, action, matched: hit.name, updated });
+    /* RELAÇÕES: remaster/remake/port/expanded são jogos SEPARADOS mas ligados.
+       Só liga quem JÁ EXISTE no nosso banco (por igdb_id) — nunca cria jogo aqui. */
+    let linked = 0;
+    const relPairs: { ids: number[]; relation: string; inverted: boolean }[] = [
+      { ids: (hit.remasters ?? []) as number[], relation: 'remaster_of', inverted: true },
+      { ids: (hit.remakes ?? []) as number[], relation: 'remake_of', inverted: true },
+      { ids: (hit.ports ?? []) as number[], relation: 'port_of', inverted: true },
+      { ids: [...((hit.expanded_games ?? []) as number[]), ...((hit.standalone_expansions ?? []) as number[])], relation: 'expanded_of', inverted: true },
+      { ids: [hit.parent_game, hit.version_parent].filter(Boolean) as number[], relation: 'version_of', inverted: false },
+    ];
+    const allRelIds = [...new Set(relPairs.flatMap((p) => p.ids))];
+    if (allRelIds.length > 0) {
+      const { data: relGames } = await admin.from('games').select('id, igdb_id').in('igdb_id', allRelIds);
+      const ourByIgdb = new Map((relGames ?? []).map((r) => [Number(r.igdb_id), r.id as string]));
+      const rows: { game_id: string; related_id: string; relation: string; source: string }[] = [];
+      for (const p of relPairs) {
+        for (const relIgdb of p.ids) {
+          const other = ourByIgdb.get(Number(relIgdb));
+          if (!other || other === gameId) continue;
+          // inverted: o OUTRO jogo é remaster/porte DESTE; senão ESTE é versão do outro
+          rows.push(p.inverted
+            ? { game_id: other, related_id: gameId, relation: p.relation, source: 'igdb' }
+            : { game_id: gameId, related_id: other, relation: p.relation, source: 'igdb' });
+        }
+      }
+      if (rows.length > 0) {
+        const { error: relErr } = await admin.from('game_relations')
+          .upsert(rows, { onConflict: 'game_id,related_id', ignoreDuplicates: true });
+        if (!relErr) linked = rows.length; // tabela ainda não migrada: segue sem travar
+      }
+    }
+
+    if (updated.length === 0 && linked === 0) return json({ ok: true, action, updated, note: 'nada novo no IGDB' });
+    if (Object.keys(patch).length > 0) {
+      const { error } = await admin.from('games').update(patch).eq('id', gameId);
+      if (error) throw error;
+    }
+    return json({ ok: true, action, matched: hit.name, updated, linked });
   } catch (err) {
     return json({ error: errMsg(err) }, 500);
   }

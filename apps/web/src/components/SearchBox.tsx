@@ -96,7 +96,12 @@ export function SearchBox({ variant = 'header' }: { variant?: 'header' | 'page' 
                 >
                   <span className={`searchbox-kind tone-${meta.tone}`}><Icon aria-hidden /></span>
                   <span className="searchbox-item-body">
-                    <span className="searchbox-item-title">{r.title}</span>
+                    <span className="searchbox-item-title">
+                      {r.title}
+                      {r.gameType && r.gameType !== 'main' && (
+                        <span className="type-chip mono">{t(`games:type_${r.gameType}`)}</span>
+                      )}
+                    </span>
                     {r.subtitle && <span className="searchbox-item-sub">{r.subtitle}</span>}
                   </span>
                   {r.platforms.length > 0 && (

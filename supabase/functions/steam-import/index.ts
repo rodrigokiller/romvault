@@ -83,14 +83,17 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'Biblioteca vazia ou perfil privado (detalhes do jogo precisam ser públicos).' }, 404);
     }
 
-    // 4) nosso catálogo: match por external_ids.steam e por título (paginado)
-    const existing = await fetchAll(() => admin.from('games').select('id, title, external_ids'));
+    // 4) nosso catálogo: match por external_ids.steam e por título (paginado).
+    // Fallback por título SÓ casa jogo de PC: o Chrono Trigger de SNES não
+    // pode "capturar" o Chrono Trigger da Steam (versões são jogos ligados,
+    // não o mesmo registro) — sem PC no catálogo, cria a versão de PC.
+    const existing = await fetchAll(() => admin.from('games').select('id, title, external_ids, platforms'));
     const bySteam = new Map<number, string>();
     const byTitle = new Map<string, string>();
     for (const g of existing) {
       const sid = (g.external_ids as Record<string, unknown> | null)?.steam;
       if (sid != null) bySteam.set(Number(sid), g.id);
-      byTitle.set(norm(g.title), g.id);
+      if (((g.platforms ?? []) as string[]).includes('PC')) byTitle.set(norm(g.title), g.id);
     }
 
     // 5) resolve/cria cada jogo (lotes p/ não estourar)

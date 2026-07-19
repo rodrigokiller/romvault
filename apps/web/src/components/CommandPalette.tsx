@@ -205,11 +205,15 @@ export function CommandPalette() {
     const pageHits = [...pages, ...actions].filter((p) => p.label.toLowerCase().includes(term));
     const found = results.map<PaletteItem>((r) => {
       const meta = KIND_META[KIND_OF[r.kind]];
+      // remaster/remake/port aparece no lugar do "Jogo" genérico
+      const typeHint = r.kind === 'game' && r.gameType && r.gameType !== 'main'
+        ? t(`games:type_${r.gameType}`)
+        : null;
       return {
         id: `${r.kind}:${r.id}`,
         label: r.title,
         icon: meta.icon as unknown as LucideIcon,
-        hint: t(meta.kindKey),
+        hint: typeHint ?? t(meta.kindKey),
         badges: r.platforms,
         run: () => go(r.to),
       };

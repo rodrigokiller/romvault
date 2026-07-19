@@ -74,7 +74,12 @@ export function Search() {
                 <Link key={`${r.kind}-${r.id}`} to={r.to} className="search-result">
                   <span className={`searchbox-kind tone-${meta.tone}`}><Icon aria-hidden /></span>
                   <span className="search-result-body">
-                    <span className="search-result-title">{r.title}</span>
+                    <span className="search-result-title">
+                      {r.title}
+                      {r.gameType && r.gameType !== 'main' && (
+                        <span className="type-chip mono">{t(`games:type_${r.gameType}`)}</span>
+                      )}
+                    </span>
                     {r.subtitle && <span className="search-result-sub">{r.subtitle}</span>}
                   </span>
                   <span className="search-result-kind">{t(meta.kindKey)}</span>

@@ -352,6 +352,11 @@ function igdbToGame(g, primaryShort) {
     themes: (g.themes ?? []).map((x) => x.name).filter(Boolean),
     // +18 (tema Erotic do IGDB): escondido do catálogo por padrão
     is_adult: (g.themes ?? []).some((x) => x.name === 'Erotic'),
+    // catálogo v2: tipo (main/remake/remaster/expanded/port), títulos
+    // alternativos pesquisáveis e série (coleção do IGDB)
+    game_type: ({ 0: 'main', 2: 'expansion', 4: 'expanded', 5: 'mod', 8: 'remake', 9: 'remaster', 10: 'expanded', 11: 'port' })[g.game_type] ?? 'main',
+    alt_titles: (g.alternative_names ?? []).map((a) => String(a.name)).filter(Boolean).slice(0, 8),
+    series: g.collection?.name ?? null,
     external_ids: { igdb: g.id },
     data_source: 'igdb',
   };
@@ -400,6 +405,7 @@ async function importIgdb(sb) {
   const fields =
     'fields id,name,summary,first_release_date,slug,cover.url,screenshots.url,genres.name,' +
     'platforms.id,platforms.name,game_modes.name,themes.name,franchises.name,collection.name,' +
+    'game_type,alternative_names.name,' +
     'involved_companies.developer,involved_companies.publisher,involved_companies.company.name;';
 
   for (let page = 0; page < pages; page++) {

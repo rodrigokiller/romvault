@@ -119,6 +119,11 @@ export function GameDetail() {
       >
         {game && (
           <div className="detail-report">
+            {game.data_source && game.data_source !== 'manual' && (
+              <span className="origin-badge mono" title={t('entities:originHint')}>
+                {game.data_source}{game.igdb_id ? ` #${game.igdb_id}` : ''}
+              </span>
+            )}
             <ReportButton subjectType="game" subjectId={game.id} subjectLabel={title} />
           </div>
         )}
@@ -133,7 +138,15 @@ export function GameDetail() {
           {game && <GameSideStats game={game} completion={completion} />}
         </div>
         <div className="detail-info">
-          <span className="kicker">// {t('entities:kindGame')}</span>
+          <span className="kicker">
+            // {t('entities:kindGame')}
+            {(game as (typeof game & { game_type?: string | null }) | undefined)?.game_type &&
+              (game as typeof game & { game_type?: string | null }).game_type !== 'main' && (
+              <span className="type-chip mono">
+                {t(`games:type_${(game as typeof game & { game_type?: string }).game_type}`)}
+              </span>
+            )}
+          </span>
           <h1>{title}</h1>
           {game?.alt_title && <p className="muted-text">{game.alt_title}</p>}
           {game?.description && <p className="page-sub">{game.description}</p>}
@@ -208,6 +221,8 @@ export function GameDetail() {
         {tab === 'romhacks' && <RelatedGrid kind="romhack" query={romhacks} />}
         {tab === 'docs' && <RelatedGrid kind="doc" query={documents} />}
       </div>
+
+      {game && <VersionsSection gameId={game.id} />}
 
       {game && (related.data?.length ?? 0) > 0 && (
         <section className="section">
@@ -301,6 +316,80 @@ function GameSideStats({ game, completion }: {
   );
 }
 
+interface VersionRow {
+  game: { id: string; slug: string; title: string; cover_url: string | null; thumbnail: string | null; platforms: string[] | null };
+  relation: string;
+  /** true = o OUTRO jogo é o derivado (remaster/porte DESTE); false = o outro é o original. */
+  otherIsDerived: boolean;
+}
+
+/**
+ * Versões ligadas (game_relations): Chrono Trigger SNES x PS1 x NDS são jogos
+ * SEPARADOS mas conectados — remaster/remake/port/expanded nunca são fundidos.
+ */
+function useGameVersions(gameId: string | undefined) {
+  return useQuery({
+    queryKey: ['gameVersions', gameId],
+    enabled: Boolean(gameId),
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<VersionRow[]> => {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const { data, error } = await sb.from('game_relations')
+        .select('game_id, related_id, relation')
+        .or(`game_id.eq.${gameId},related_id.eq.${gameId}`);
+      if (error) return []; // tabela ainda não migrada: seção só não aparece
+      const rows = (data ?? []) as { game_id: string; related_id: string; relation: string }[];
+      if (rows.length === 0) return [];
+      const otherIds = [...new Set(rows.map((r) => (r.game_id === gameId ? r.related_id : r.game_id)))];
+      const { data: gs } = await sb.from('games')
+        .select('id, slug, title, cover_url, thumbnail, platforms').in('id', otherIds);
+      const gameOf = new Map((gs ?? []).map((g) => [g.id as string, g]));
+      return rows
+        .map((r) => {
+          const otherId = r.game_id === gameId ? r.related_id : r.game_id;
+          const other = gameOf.get(otherId);
+          if (!other) return null;
+          return {
+            game: other as VersionRow['game'],
+            relation: r.relation,
+            otherIsDerived: r.game_id === otherId,
+          };
+        })
+        .filter(Boolean) as VersionRow[];
+    },
+  });
+}
+
+/** Seção "Versões e relacionados": as outras edições do mesmo jogo. */
+function VersionsSection({ gameId }: { gameId: string }) {
+  const { t } = useTranslation();
+  const { data: versions = [] } = useGameVersions(gameId);
+  if (versions.length === 0) return null;
+  const typeOf = (v: VersionRow) =>
+    v.otherIsDerived ? t(`games:type_${v.relation.replace(/_of$/, '')}`) : t('games:relBase');
+  return (
+    <section className="section">
+      <div className="section-head"><h2>{t('games:versionsTitle')}</h2></div>
+      <div className="versions-row">
+        {versions.map((v) => (
+          <Link key={v.game.id} to={`/games/${v.game.slug}`} className="version-card" title={v.game.title}>
+            <span className="version-cover">
+              {v.game.cover_url || v.game.thumbnail
+                ? <img src={v.game.cover_url ?? v.game.thumbnail ?? ''} alt={v.game.title} loading="lazy" />
+                : <Gamepad2 aria-hidden />}
+            </span>
+            <span className="version-body">
+              <span className="type-chip mono">{typeOf(v)}</span>
+              <span className="version-title">{v.game.title}</span>
+              <span className="version-plats mono">{(v.game.platforms ?? []).slice(0, 3).join(' · ')}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /** Contadores agregados da comunidade (RPC; some em silêncio se não migrado). */
 function useGameCommunity(gameId: string) {
   return useQuery({
@@ -322,7 +411,8 @@ function ReleasesTab({ game }: { game: ReturnType<typeof useGame>['data'] }) {
   const { t } = useTranslation();
   const meta = (game?.metadata ?? {}) as GameMeta;
   const releases = meta.releases ?? [];
-  const alts = meta.alt_titles ?? [];
+  // coluna nova alt_titles (pesquisável); metadata é o fallback pré-migração
+  const alts = ((game as (typeof game & { alt_titles?: string[] }) | undefined)?.alt_titles ?? meta.alt_titles ?? []);
   return (
     <div>
       {releases.length > 0 ? (

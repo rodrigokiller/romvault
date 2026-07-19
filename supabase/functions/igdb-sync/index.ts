@@ -56,6 +56,11 @@ function igdbImage(url: string | undefined, size: string) {
   return url ? 'https:' + url.replace('/t_thumb/', `/t_${size}/`) : null;
 }
 
+/* game_type numérico do IGDB -> nosso texto (versões são jogos LIGADOS, não fundidos) */
+const GAME_TYPE: Record<number, string> = {
+  0: 'main', 2: 'expansion', 4: 'expanded', 5: 'mod', 8: 'remake', 9: 'remaster', 10: 'expanded', 11: 'port',
+};
+
 // pagina de 1000 em 1000 (o PostgREST corta qualquer resposta em 1000)
 // deno-lint-ignore no-explicit-any
 async function fetchAll(query: () => any): Promise<any[]> {
@@ -101,6 +106,10 @@ function igdbToGame(g: any, primaryShort: string) {
     // conteúdo adulto (tema Erotic do IGDB): escondido por padrão no catálogo
     // deno-lint-ignore no-explicit-any
     is_adult: (g.themes ?? []).some((x: any) => x.name === 'Erotic'),
+    game_type: GAME_TYPE[g.game_type as number] ?? 'main',
+    // deno-lint-ignore no-explicit-any
+    alt_titles: (g.alternative_names ?? []).map((a: any) => String(a.name)).filter(Boolean).slice(0, 8),
+    series: g.collection?.name ?? null,
     external_ids: { igdb: g.id },
     data_source: 'igdb',
   };
@@ -159,6 +168,7 @@ Deno.serve(async (req: Request) => {
     const fields =
       'fields id,name,summary,first_release_date,slug,cover.url,screenshots.url,genres.name,' +
       'platforms.id,platforms.name,game_modes.name,themes.name,franchises.name,collection.name,' +
+      'game_type,alternative_names.name,' +
       'involved_companies.developer,involved_companies.publisher,involved_companies.company.name;';
 
     // Auditoria: o loop antigo fazia 2 roundtrips SERIAIS por jogo (até 20k
