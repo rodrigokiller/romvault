@@ -3257,6 +3257,9 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
 
 /* status das integrações (admin) */
 .integ-list { list-style: none; padding: 0; display: grid; gap: 2px; }
+/* min-width:0 nos filhos do grid: sem isso a linha com texto nowrap (famílias)
+   crescia ALÉM do card em vez de cortar com reticências */
+.integ-list > li { min-width: 0; }
 .integ-item {
   display: flex;
   align-items: baseline;
@@ -3264,6 +3267,7 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
   padding: 5px var(--s3);
   background: var(--panel-2);
   font-size: 0.76rem;
+  overflow: hidden;
 }
 .integ-state { min-width: 64px; font-size: 0.66rem; letter-spacing: 0.03em; }
 .integ-ok { color: var(--accent); }
@@ -3935,6 +3939,40 @@ button.heat-cell::after {
 }
 .series-chip:hover { color: var(--accent); border-color: var(--accent); }
 .series-chip svg { width: 11px; height: 11px; flex-shrink: 0; }
+
+/* ── /platforms — índice por família + card temático ────────────────────────── */
+.platform-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--s3);
+}
+.platform-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s3) var(--s4);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--plat-accent, var(--line-bright));
+  transition: border-color var(--t-fast), transform var(--t-fast);
+}
+.platform-card:hover {
+  border-color: var(--plat-accent, var(--accent));
+  transform: translateY(-2px);
+}
+.platform-card-name {
+  color: var(--plat-accent, var(--ink-bright));
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.platform-card-full {
+  color: var(--muted);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.platform-card-count { color: var(--ink); font-size: 0.7rem; margin-top: var(--s1); }
 
 /* ── /series/:name — linha do tempo da série/franquia ───────────────────────── */
 .series-timeline {

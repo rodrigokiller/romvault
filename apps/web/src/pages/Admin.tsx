@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
-import { Trash2, ShieldAlert, Database as DbIcon, DownloadCloud } from 'lucide-react';
+import { Trash2, ShieldAlert, Database as DbIcon, DownloadCloud, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Dialog } from '@/components/ui/Dialog';
 import { Field } from '@/components/ui/Field';
 import { Select } from '@/components/ui/Select';
-import { Input } from '@/components/ui/Input';
+import { Input, Textarea } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { EmptyState, LoadingPage, Spinner } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/Toast';
@@ -359,16 +360,23 @@ function IgdbSyncPanel() {
   const [limit, setLimit] = useState(50);
   const [pages, setPages] = useState(1);
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
+  const stopRef = useRef(false);
+
+  async function invokeOnce(plat: string, lim: number, pgs: number) {
+    const { data, error } = await getSupabase().functions.invoke('igdb-sync', {
+      body: { platform: plat, limit: lim, pages: pgs },
+    });
+    if (error) throw error;
+    const d = data as { imported?: number; enriched?: number; skipped_dupe?: number; skipped?: number; failed?: number; error?: string };
+    if (d?.error) throw new Error(d.error);
+    return d;
+  }
 
   async function run() {
     setRunning(true);
     try {
-      const { data, error } = await getSupabase().functions.invoke('igdb-sync', {
-        body: { platform, limit, pages },
-      });
-      if (error) throw error;
-      const d = data as { imported?: number; enriched?: number; skipped?: number; error?: string };
-      if (d?.error) throw new Error(d.error);
+      const d = await invokeOnce(platform, limit, pages);
       toast.success(t('admin:syncDone', { imported: d?.imported ?? 0, enriched: d?.enriched ?? 0, skipped: d?.skipped ?? 0 }));
       void qc.invalidateQueries();
     } catch (err) {
@@ -378,6 +386,43 @@ function IgdbSyncPanel() {
       toast.error(notDeployed ? t('admin:syncNotDeployed') : (msg || t('forms:submitError')));
     } finally {
       setRunning(false);
+    }
+  }
+
+  /**
+   * FULL de uma plataforma: repete lotes de 500x20 até a API secar (o cursor
+   * fica no sync_state, então cada chamada continua de onde a anterior parou).
+   */
+  async function runPlatformFull(plat: string): Promise<number> {
+    let total = 0;
+    for (let round = 1; round <= 40; round++) {
+      if (stopRef.current) break;
+      setProgress(`${plat}: lote ${round} (${total} importados)…`);
+      const d = await invokeOnce(plat, 500, 20);
+      const moved = (d.imported ?? 0) + (d.skipped_dupe ?? d.skipped ?? 0) + (d.failed ?? 0);
+      total += d.imported ?? 0;
+      if (moved === 0) break; // plataforma esgotada
+    }
+    return total;
+  }
+
+  async function runFull(allPlatforms: boolean) {
+    setRunning(true);
+    stopRef.current = false;
+    try {
+      const plats = allPlatforms ? IGDB_PLATFORMS : [platform];
+      let grand = 0;
+      for (const p of plats) {
+        if (stopRef.current) break;
+        grand += await runPlatformFull(p);
+      }
+      toast.success(t('admin:syncFullDone', { count: grand }));
+      void qc.invalidateQueries();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setRunning(false);
+      setProgress(null);
     }
   }
 
@@ -404,7 +449,19 @@ function IgdbSyncPanel() {
         <Button variant="primary" onClick={() => void run()} disabled={running}>
           {running ? <Spinner /> : <><DownloadCloud /> {t('admin:syncRun')}</>}
         </Button>
+        <Button variant="secondary" onClick={() => void runFull(false)} disabled={running} title={t('admin:syncFullPlatHint')}>
+          {t('admin:syncFullPlat')}
+        </Button>
+        <Button variant="secondary" onClick={() => void runFull(true)} disabled={running} title={t('admin:syncFullAllHint')}>
+          {t('admin:syncFullAll')}
+        </Button>
+        {running && progress && (
+          <Button variant="ghost" size="sm" onClick={() => { stopRef.current = true; }}>
+            {t('admin:syncStop')}
+          </Button>
+        )}
       </div>
+      {progress && <p className="field-hint mono">{progress}</p>}
       <p className="field-hint">{t('admin:syncNote')}</p>
     </Card>
   );
@@ -470,26 +527,26 @@ function CronsPanel() {
     enabled: env.configured && jobs.length > 0,
     staleTime: 60_000,
     queryFn: async () => {
+      // SÓ rodadas de cron: runs da CLI ('igdb (cli)') confundiam o painel
+      // (igdb-backfill aparecia como rodada do igdb-sync-switch)
       const { data, error } = await db()
         .from('job_runs').select('job, ok, finished_at')
+        .eq('mode', 'cron')
         .order('finished_at', { ascending: false }).limit(100);
       if (error) return [] as { job: string; ok: boolean; finished_at: string }[];
       return (data ?? []) as { job: string; ok: boolean; finished_at: string }[];
     },
   });
-  // 'steam-sync' -> última rodada cujo job começa com 'steam'
+  // 'steam-sync' -> última rodada de CRON cujo job começa com 'steam'
   const lastOf = (jobname: string) => {
     const prefix = jobname.split('-')[0];
     return runs.find((r) => r.job.startsWith(prefix)) ?? null;
   };
-  // só estes jobs REGISTRAM job_runs (os SQL-puros como game-relevance não);
-  // ativo + sem registro em 48h = cron MUDO (secret errada, function fora...)
+  // só estes jobs REGISTRAM job_runs (os SQL-puros como game-relevance não).
+  // Nunca rodou = "aguardando 1ª rodada" (âmbar neutro); já rodou e sumiu por
+  // 48h = MUDO (secret errada, function fora...)
   const LOGGING_PREFIXES = ['steam', 'psn', 'xbox', 'gog', 'ra', 'backlog', 'admin', 'nintendo'];
-  const isMute = (j: { jobname: string; active: boolean }) => {
-    if (!j.active || !LOGGING_PREFIXES.includes(j.jobname.split('-')[0])) return false;
-    const last = lastOf(j.jobname);
-    return !last || Date.now() - new Date(last.finished_at).getTime() > 48 * 3_600_000;
-  };
+  const logs = (jobname: string) => LOGGING_PREFIXES.includes(jobname.split('-')[0]);
   if (jobs.length === 0) return null;
   return (
     <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
@@ -499,19 +556,21 @@ function CronsPanel() {
       </div>
       <ul className="integ-list">
         {jobs.map((j) => {
-          const last = lastOf(j.jobname);
-          const mute = isMute(j);
+          const last = logs(j.jobname) ? lastOf(j.jobname) : null;
+          const mute = j.active && logs(j.jobname) && last !== null
+            && Date.now() - new Date(last.finished_at).getTime() > 48 * 3_600_000;
+          const waiting = j.active && logs(j.jobname) && last === null;
           return (
             <li key={j.jobname} className={`integ-item mono ${j.active && !mute ? '' : 'integ-stale'}`}>
-              <span className={`integ-state ${j.active && !mute ? 'integ-ok' : 'integ-stale'}`}>
-                {!j.active ? 'OFF' : mute ? 'MUDO' : 'on'}
+              <span className={`integ-state ${!j.active || mute ? 'integ-stale' : waiting ? 'integ-beta' : 'integ-ok'}`}>
+                {!j.active ? 'OFF' : mute ? 'MUDO' : waiting ? '1ª...' : 'on'}
               </span>
               <span className="integ-name">{j.jobname}</span>
               <span className="integ-meta">{j.schedule}</span>
-              <span className="integ-meta" style={{ flex: 1, textAlign: 'right' }} title={mute ? t('admin:cronMuteHint') : undefined}>
+              <span className="integ-meta" style={{ flex: 1, textAlign: 'right' }} title={mute ? t('admin:cronMuteHint') : waiting ? t('admin:cronWaitingHint') : undefined}>
                 {last
                   ? `${last.ok ? 'ok' : 'ERRO'} · ${new Date(last.finished_at).toLocaleString()}`
-                  : t('admin:cronsNoRun')}
+                  : logs(j.jobname) ? t('admin:cronsWaiting') : t('admin:cronsNoRun')}
               </span>
             </li>
           );
@@ -702,7 +761,10 @@ function LinkQueuePanel() {
         if (upErr) throw upErr;
       }
       toast.success(t('admin:autoLinkDone', { count: rows.length }));
+      // atualiza TUDO que a rodada mexeu (a lista não "congelava" mais)
       void qc.invalidateQueries({ queryKey: ['queueLinkCandidates'] });
+      void qc.invalidateQueries({ queryKey: ['queueNoIgdb'] });
+      void qc.invalidateQueries({ queryKey: ['relationFamilies'] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('forms:submitError'));
     } finally {
@@ -865,34 +927,176 @@ type AdminTable = (typeof TABLES)[number];
 
 interface AdminRow { id: string; title: string; created_at: string }
 
-function useAdminList(table: AdminTable) {
+function useAdminList(table: AdminTable, search: string) {
   return useQuery({
-    queryKey: ['admin', table],
+    queryKey: ['admin', table, search],
     enabled: env.configured,
     queryFn: async (): Promise<AdminRow[]> => {
-      const { data, error } = await db()
+      let q = db()
         .from(table)
         .select('id, title, created_at')
         .order('created_at', { ascending: false })
         .limit(200);
+      if (search.trim()) q = q.ilike('title', `%${search.trim()}%`);
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as AdminRow[];
     },
   });
 }
 
+/** Campos editáveis por tabela (o "edit estilo banco" pedido pelo Killer). */
+const EDIT_FIELDS: Record<AdminTable, { key: string; label: string; kind: 'text' | 'textarea' | 'csv' | 'number' }[]> = {
+  games: [
+    { key: 'title', label: 'title', kind: 'text' },
+    { key: 'slug', label: 'slug', kind: 'text' },
+    { key: 'igdb_id', label: 'igdb_id', kind: 'number' },
+    { key: 'game_type', label: 'game_type', kind: 'text' },
+    { key: 'platforms', label: 'platforms (a,b,c)', kind: 'csv' },
+    { key: 'genres', label: 'genres (a,b,c)', kind: 'csv' },
+    { key: 'series', label: 'series', kind: 'text' },
+    { key: 'franchise', label: 'franchise', kind: 'text' },
+    { key: 'release_date', label: 'release_date (aaaa-mm-dd)', kind: 'text' },
+    { key: 'cover_url', label: 'cover_url', kind: 'text' },
+    { key: 'description', label: 'description', kind: 'textarea' },
+  ],
+  romhacks: [
+    { key: 'title', label: 'title', kind: 'text' },
+    { key: 'version', label: 'version', kind: 'text' },
+    { key: 'file_url', label: 'file_url', kind: 'text' },
+    { key: 'source_url', label: 'source_url', kind: 'text' },
+    { key: 'thumbnail', label: 'thumbnail', kind: 'text' },
+    { key: 'video_url', label: 'video_url', kind: 'text' },
+    { key: 'description', label: 'description', kind: 'textarea' },
+  ],
+  translations: [
+    { key: 'title', label: 'title', kind: 'text' },
+    { key: 'language', label: 'language', kind: 'text' },
+    { key: 'version', label: 'version', kind: 'text' },
+    { key: 'file_url', label: 'file_url', kind: 'text' },
+    { key: 'source_url', label: 'source_url', kind: 'text' },
+    { key: 'thumbnail', label: 'thumbnail', kind: 'text' },
+    { key: 'video_url', label: 'video_url', kind: 'text' },
+    { key: 'description', label: 'description', kind: 'textarea' },
+  ],
+  documents: [
+    { key: 'title', label: 'title', kind: 'text' },
+    { key: 'category', label: 'category', kind: 'text' },
+    { key: 'language', label: 'language', kind: 'text' },
+    { key: 'file_url', label: 'file_url', kind: 'text' },
+    { key: 'source_url', label: 'source_url', kind: 'text' },
+    { key: 'description', label: 'description', kind: 'textarea' },
+  ],
+  tools: [
+    { key: 'title', label: 'title', kind: 'text' },
+    { key: 'category', label: 'category', kind: 'text' },
+    { key: 'version', label: 'version', kind: 'text' },
+    { key: 'file_url', label: 'file_url', kind: 'text' },
+    { key: 'source_code_url', label: 'source_code_url', kind: 'text' },
+    { key: 'thumbnail', label: 'thumbnail', kind: 'text' },
+    { key: 'description', label: 'description', kind: 'textarea' },
+  ],
+  articles: [
+    { key: 'title', label: 'title', kind: 'text' },
+    { key: 'slug', label: 'slug', kind: 'text' },
+    { key: 'excerpt', label: 'excerpt', kind: 'textarea' },
+  ],
+};
+
+/** Modal de edição crua (chave-valor) de uma linha — requer migration 39. */
+function EditRowDialog({ table, rowId, onClose }: { table: AdminTable; rowId: string; onClose: () => void }) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const fields = EDIT_FIELDS[table];
+  const [form, setForm] = useState<Record<string, string> | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const { data: row } = useQuery({
+    queryKey: ['adminEdit', table, rowId],
+    queryFn: async () => {
+      const { data, error } = await db().from(table)
+        .select(fields.map((f) => f.key).join(', ')).eq('id', rowId).maybeSingle();
+      if (error) throw error;
+      return (data ?? {}) as Record<string, unknown>;
+    },
+  });
+  useEffect(() => {
+    if (row && !form) {
+      const init: Record<string, string> = {};
+      for (const f of fields) {
+        const v = row[f.key];
+        init[f.key] = Array.isArray(v) ? v.join(', ') : v == null ? '' : String(v);
+      }
+      setForm(init);
+    }
+  }, [row, form, fields]);
+
+  async function save() {
+    if (!form) return;
+    setSaving(true);
+    try {
+      const patch: Record<string, unknown> = {};
+      for (const f of fields) {
+        const raw = form[f.key].trim();
+        if (f.kind === 'csv') patch[f.key] = raw ? raw.split(',').map((x) => x.trim()).filter(Boolean) : [];
+        else if (f.kind === 'number') patch[f.key] = raw ? Number(raw) : null;
+        else patch[f.key] = raw || null;
+      }
+      const { error } = await db().from(table).update(patch).eq('id', rowId);
+      if (error) throw error;
+      toast.success(t('admin:editSaved'));
+      void qc.invalidateQueries({ queryKey: ['admin', table] });
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open onClose={onClose} title={`${table} · ${t('admin:editTitle')}`}>
+      {!form ? <Spinner /> : (
+        <div style={{ display: 'grid', gap: 'var(--s3)', maxHeight: '60vh', overflowY: 'auto', paddingRight: 4 }}>
+          {fields.map((f) => (
+            <Field key={f.key} label={f.label}>
+              {(id) => f.kind === 'textarea'
+                ? <Textarea id={id} rows={3} value={form[f.key]} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                : <Input id={id} value={form[f.key]} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />}
+            </Field>
+          ))}
+          <div className="submit-actions">
+            <Button variant="primary" size="sm" disabled={saving} onClick={() => void save()}>
+              {saving ? <Spinner /> : t('admin:editSave')}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Dialog>
+  );
+}
+
+/* Guias do admin: a página tinha virado um paredão de 11 painéis empilhados */
+const ADMIN_TABS = ['curadoria', 'catalogo', 'infra', 'dados', 'comunidade'] as const;
+type AdminTab = (typeof ADMIN_TABS)[number];
+
 export function Admin() {
   const { t } = useTranslation();
   const toast = useToast();
   const { isLoading: profileLoading } = useMyProfile();
   const isAdmin = useIsAdmin();
+  const [tab, setTab] = useState<AdminTab>('curadoria');
   const [table, setTable] = useState<AdminTable>('games');
+  const [search, setSearch] = useState('');
   const [visible, setVisible] = useState(20);
-  const list = useAdminList(table);
+  const [editing, setEditing] = useState<string | null>(null);
+  const list = useAdminList(table, search);
   const del = useDeleteEntity();
 
-  // trocar de aba volta pros primeiros 20
-  useEffect(() => { setVisible(20); }, [table]);
+  // trocar de tabela volta pros primeiros 20 e limpa a busca
+  useEffect(() => { setVisible(20); setSearch(''); }, [table]);
+  useEffect(() => { setVisible(20); }, [search]);
 
   if (profileLoading) return <LoadingPage />;
   if (!isAdmin) {
@@ -923,59 +1127,108 @@ export function Admin() {
         <p className="page-sub">{t('admin:subtitle')}</p>
       </header>
 
-      <ArtCoverage />
-      <ReportsPanel />
-      <AddGamePanel />
-      <ArtQueue />
-      <IntegrationsPanel />
-      <CronsPanel />
-      <JobsPanel />
-      <LinkQueuePanel />
-      <FamiliesPanel />
-      <InvitesPanel />
-
-      <IgdbSyncPanel />
-
-      <div className="type-seg" role="tablist" style={{ marginTop: 'var(--s6)' }}>
-        {TABLES.map((tbl) => (
+      <div className="type-seg" role="tablist">
+        {ADMIN_TABS.map((tb) => (
           <button
-            key={tbl}
-            type="button"
-            role="tab"
-            aria-selected={tbl === table}
-            className={`type-seg-btn ${tbl === table ? 'is-active' : ''}`}
-            onClick={() => setTable(tbl)}
+            key={tb} type="button" role="tab" aria-selected={tab === tb}
+            className={`type-seg-btn ${tab === tb ? 'is-active' : ''}`}
+            onClick={() => setTab(tb)}
           >
-            <DbIcon aria-hidden /> {tbl}
+            {t(`admin:tab_${tb}`)}
           </button>
         ))}
       </div>
 
-      {list.isLoading ? (
-        <LoadingPage />
-      ) : rows.length === 0 ? (
-        <EmptyState icon={DbIcon} title={t('browse:emptyTitle')} />
-      ) : (
+      {tab === 'curadoria' && (
         <>
-          {/* mostra 20 por vez: a página não vira um paredão */}
-          <div className="admin-table">
-            {rows.slice(0, visible).map((row) => (
-              <div key={row.id} className="admin-row">
-                <span className="admin-row-title">{row.title}</span>
-                <span className="admin-row-date mono">{new Date(row.created_at).toLocaleDateString()}</span>
-                <Button variant="danger" size="sm" onClick={() => void remove(row)} disabled={del.isPending}>
-                  <Trash2 /> {t('admin:delete')}
-                </Button>
-              </div>
+          <ReportsPanel />
+          <LinkQueuePanel />
+          <FamiliesPanel />
+        </>
+      )}
+
+      {tab === 'catalogo' && (
+        <>
+          <ArtCoverage />
+          <AddGamePanel />
+          <ArtQueue />
+          <IgdbSyncPanel />
+        </>
+      )}
+
+      {tab === 'infra' && (
+        <>
+          <IntegrationsPanel />
+          <CronsPanel />
+          <JobsPanel />
+        </>
+      )}
+
+      {tab === 'comunidade' && <InvitesPanel />}
+
+      {tab === 'dados' && (
+        <>
+          <div className="type-seg" role="tablist" style={{ marginTop: 'var(--s5)' }}>
+            {TABLES.map((tbl) => (
+              <button
+                key={tbl}
+                type="button"
+                role="tab"
+                aria-selected={tbl === table}
+                className={`type-seg-btn ${tbl === table ? 'is-active' : ''}`}
+                onClick={() => setTable(tbl)}
+              >
+                <DbIcon aria-hidden /> {tbl}
+              </button>
             ))}
           </div>
-          {rows.length > visible && (
-            <div style={{ marginTop: 'var(--s3)', textAlign: 'center' }}>
-              <Button variant="secondary" size="sm" onClick={() => setVisible((v) => v + 20)}>
-                {t('browse:loadMore')} ({rows.length - visible})
-              </Button>
-            </div>
+
+          <div className="filter-bar" style={{ marginTop: 'var(--s3)' }}>
+            <Field label={t('browse:searchPlaceholder')}>
+              {(id) => (
+                <Input
+                  id={id} type="search" value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t('admin:dataSearchPh')}
+                />
+              )}
+            </Field>
+            {rows.length > 0 && (
+              <span className="filter-count">{t('browse:results', { count: rows.length })}</span>
+            )}
+          </div>
+
+          {list.isLoading ? (
+            <LoadingPage />
+          ) : rows.length === 0 ? (
+            <EmptyState icon={DbIcon} title={t('browse:emptyTitle')} />
+          ) : (
+            <>
+              {/* mostra 20 por vez: a página não vira um paredão */}
+              <div className="admin-table">
+                {rows.slice(0, visible).map((row) => (
+                  <div key={row.id} className="admin-row">
+                    <span className="admin-row-title">{row.title}</span>
+                    <span className="admin-row-date mono">{new Date(row.created_at).toLocaleDateString()}</span>
+                    <Button variant="secondary" size="sm" onClick={() => setEditing(row.id)}>
+                      <Pencil /> {t('admin:edit')}
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => void remove(row)} disabled={del.isPending}>
+                      <Trash2 /> {t('admin:delete')}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              {rows.length > visible && (
+                <div style={{ marginTop: 'var(--s3)', textAlign: 'center' }}>
+                  <Button variant="secondary" size="sm" onClick={() => setVisible((v) => v + 20)}>
+                    {t('browse:loadMore')} ({rows.length - visible})
+                  </Button>
+                </div>
+              )}
+            </>
           )}
+          {editing && <EditRowDialog table={table} rowId={editing} onClose={() => setEditing(null)} />}
         </>
       )}
     </div>

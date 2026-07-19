@@ -206,7 +206,7 @@ Deno.serve(async (req: Request) => {
     const fields =
       'fields name, cover.image_id, screenshots.image_id, summary, first_release_date, ' +
       'platforms, themes.name, genres.name, franchises.name, involved_companies.company.name, involved_companies.developer, ' +
-      'alternative_names.name, release_dates.date, release_dates.platform, release_dates.human, ' +
+      'alternative_names.name, release_dates.date, release_dates.platform, release_dates.human, release_dates.release_region, ' +
       'aggregated_rating, aggregated_rating_count, rating, rating_count, ' +
       'game_type, collection.name, parent_game, version_parent, remasters, remakes, ports, expanded_games, standalone_expansions;';
     const query = forceId
@@ -287,10 +287,15 @@ Deno.serve(async (req: Request) => {
       updated.push('genres');
     }
     if (!game.franchise && hit.franchises?.length) { patch.franchise = hit.franchises[0].name; updated.push('franchise'); }
-    if (!game.developer && hit.involved_companies?.length) {
+    if (hit.involved_companies?.length) {
       // deno-lint-ignore no-explicit-any
-      const dev = hit.involved_companies.find((c: any) => c.developer)?.company?.name;
-      if (dev) { patch.developer = dev; updated.push('developer'); }
+      const devs = (hit.involved_companies as any[]).filter((c) => c.developer).map((c) => c.company?.name).filter(Boolean);
+      if (!game.developer && devs[0]) { patch.developer = devs[0]; updated.push('developer'); }
+      // plural SEMPRE atualiza (Bird Studio + Square, não só o primeiro)
+      if (devs.length > 0) { patch.developers = devs; updated.push('developers'); }
+      // deno-lint-ignore no-explicit-any
+      const pubs = (hit.involved_companies as any[]).filter((c) => c.publisher).map((c) => c.company?.name).filter(Boolean);
+      if (pubs.length > 0 && !(game.publishers ?? []).length) { patch.publishers = pubs; updated.push('publishers'); }
     }
     // MULTI-PLATAFORMA: mescla (união) as plataformas do IGDB nas nossas —
     // ex.: Chrono Trigger que só tinha PC/PS1/PSP ganha SNES/NDS de volta
@@ -309,13 +314,26 @@ Deno.serve(async (req: Request) => {
     const meta = { ...((game.metadata as Record<string, unknown> | null) ?? {}) };
     let metaTouched = false;
     if (hit.release_dates?.length) {
+      // região do IGDB (id numérico do release_region) -> etiqueta curta;
+      // o "duplicado" na aba era a MESMA plataforma em regiões diferentes
+      const REGION: Record<number, string> = {
+        1: 'EU', 2: 'NA', 3: 'AU', 4: 'NZ', 5: 'JP', 6: 'CN', 7: 'ASIA', 8: 'WW', 9: 'KR', 10: 'BR',
+      };
+      const seenRel = new Set<string>();
       // deno-lint-ignore no-explicit-any
       const releases = (hit.release_dates as any[])
         .map((r) => ({
           platform: PLATFORM_SHORT[r.platform] ?? null,
           date: r.date ? new Date(r.date * 1000).toISOString().slice(0, 10) : (r.human ?? null),
+          region: REGION[r.release_region as number] ?? null,
         }))
-        .filter((r) => r.platform && r.date)
+        .filter((r) => {
+          if (!r.platform || !r.date) return false;
+          const k = `${r.platform}|${r.date}|${r.region ?? ''}`;
+          if (seenRel.has(k)) return false; // dedupe exato
+          seenRel.add(k);
+          return true;
+        })
         .sort((a, b) => String(a.date).localeCompare(String(b.date)));
       if (releases.length > 0) { meta.releases = releases; metaTouched = true; updated.push('releases'); }
     }

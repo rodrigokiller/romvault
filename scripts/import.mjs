@@ -340,6 +340,7 @@ function igdbToGame(g, primaryShort) {
     igdb_id: g.id,
     title: g.name,
     developer: (g.involved_companies ?? []).find((ic) => ic.developer)?.company?.name ?? null,
+    developers: (g.involved_companies ?? []).filter((ic) => ic.developer).map((ic) => ic.company?.name).filter(Boolean),
     publishers: (g.involved_companies ?? []).filter((ic) => ic.publisher).map((ic) => ic.company?.name).filter(Boolean),
     release_date: g.first_release_date ? new Date(g.first_release_date * 1000).toISOString().slice(0, 10) : null,
     genres: (g.genres ?? []).map((x) => x.name).filter(Boolean),
@@ -530,6 +531,55 @@ async function importLangsIgdb(sb) {
     itemLog(stats.preenchidos, `  ${c.green('~')} igdb:${igdbId} ${c.dim(codes.join(' '))}`);
   }
   stats.sem_dados = games.length - stats.preenchidos;
+  return stats;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * MODO REPAIR-IDMAP — remove entradas ORFAS do id_map (romvault_id que nao
+ * existe mais na tabela destino). Materiais deletados em cascata (jogo-base
+ * removido por merge/purge antigo) deixavam o id_map pra tras, e o re-import
+ * PULAVA eles como "ja importados" — o caso dos hacks sumidos do Chrono.
+ *   npm run import -- --source=repair-idmap [--dry]
+ * ═══════════════════════════════════════════════════════════════════════════ */
+async function importRepairIdmap(sb) {
+  step('Reparo do id_map — removendo entradas orfas (destino deletado)');
+  const ENTITY_TABLE = {
+    hack: 'romhacks', 'romhack': 'romhacks', 'romhack:smw': 'romhacks',
+    translation: 'translations', utility: 'tools', document: 'documents',
+  };
+  const stats = { verificadas: 0, orfas: 0, mantidas: 0 };
+  const mapRows = await fetchAll(() => sb.from('id_map').select('romvault_id, source, entity, external_id'));
+
+  // ids existentes por tabela (uma passada por tabela, nao por linha)
+  const existing = {};
+  for (const table of [...new Set(Object.values(ENTITY_TABLE))]) {
+    const rows = await fetchAll(() => sb.from(table).select('id'));
+    existing[table] = new Set(rows.map((r) => r.id));
+  }
+
+  const orphans = [];
+  for (const r of mapRows) {
+    const table = ENTITY_TABLE[r.entity];
+    if (!table) continue; // entidades de jogo (game:<plat>) ficam fora
+    stats.verificadas++;
+    if (existing[table].has(r.romvault_id)) stats.mantidas++;
+    else orphans.push(r);
+  }
+  stats.orfas = orphans.length;
+  log(`  ${stats.verificadas} entradas de material · ${stats.orfas} orfas`);
+
+  if (DRY || orphans.length === 0) {
+    if (DRY) log(c.amber('\n(dry-run — nada removido)'));
+    return stats;
+  }
+  for (let i = 0; i < orphans.length; i += 100) {
+    for (const o of orphans.slice(i, i + 100)) {
+      await sb.from('id_map').delete()
+        .eq('source', o.source).eq('entity', o.entity).eq('external_id', o.external_id);
+    }
+    log(c.dim(`  … ${Math.min(i + 100, orphans.length)}/${orphans.length}`));
+  }
+  log(c.green('\n✓ id_map reparado. Re-rode os imports (rhdn/pobre/smwc): os sumidos voltam.'));
   return stats;
 }
 
@@ -1063,6 +1113,8 @@ async function main() {
     stats = await importIgdbBackfill(sb);
   } else if (SOURCE === 'reset-sync') {
     stats = await importResetSync(sb);
+  } else if (SOURCE === 'repair-idmap') {
+    stats = await importRepairIdmap(sb);
   } else if (SOURCE === 'langs-igdb') {
     stats = await importLangsIgdb(sb);
   } else if (SOURCE === 'covers-libretro' || SOURCE === 'libretro') {
@@ -1091,7 +1143,17 @@ async function main() {
       'dataset.games': s1.games, 'dedupe.fundidos': s2.fundidos,
       'covers.igdb': s3.preenchidos, 'covers.libretro': s4.preenchidos ?? 0,
     };
-  } else stats = await importDataset(sb);
+  } else if (SOURCE === 'dataset') {
+    stats = await importDataset(sb);
+  } else {
+    // source desconhecido caia SILENCIOSAMENTE no dataset (o Killer rodou
+    // reset-sync num checkout sem git pull e reimportou o catalogo sem ver)
+    log(c.red(`✖ source desconhecido: "${SOURCE}" — falta um git pull?`));
+    log('  Conhecidos: dataset, igdb, igdb-backfill, smwc, rhdn, pobre, covers,');
+    log('  covers-libretro, mobygames, screenscraper, langs-igdb, purge-mods,');
+    log('  dedupe, reset-sync, all');
+    process.exit(1);
+  }
 
   step('Resumo');
   for (const [k, v] of Object.entries(stats)) log(`  ${k.padEnd(14)} ${v}`);

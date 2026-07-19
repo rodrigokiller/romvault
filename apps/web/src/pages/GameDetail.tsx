@@ -59,6 +59,13 @@ function humanize(slug: string): string {
   return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+/** Slug no padrão do IGDB (nome slugificado) pro link do selo de origem. */
+function slugifyTitle(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/['’"]/g, '').replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-').replace(/-{2,}/g, '-').replace(/^-+|-+$/g, '');
+}
+
 type Row = Record<string, unknown>;
 
 export function GameDetail() {
@@ -119,11 +126,19 @@ export function GameDetail() {
       >
         {game && (
           <div className="detail-report">
-            {game.data_source && game.data_source !== 'manual' && (
-              <span className="origin-badge mono" title={t('entities:originHint')}>
-                {game.data_source}{game.igdb_id ? ` #${game.igdb_id}` : ''}
-              </span>
-            )}
+            {game.igdb_id ? (
+              // o slug do IGDB = nome slugificado na esmagadora maioria
+              <a
+                className="origin-badge mono"
+                href={`https://www.igdb.com/games/${slugifyTitle(game.title)}`}
+                target="_blank" rel="noopener noreferrer"
+                title={t('entities:originIgdbHint')}
+              >
+                IGDB #{game.igdb_id}
+              </a>
+            ) : game.data_source && game.data_source !== 'manual' ? (
+              <span className="origin-badge mono" title={t('entities:originHint')}>{game.data_source}</span>
+            ) : null}
             <ReportButton subjectType="game" subjectId={game.id} subjectLabel={title} />
           </div>
         )}
@@ -151,7 +166,13 @@ export function GameDetail() {
           {game?.alt_title && <p className="muted-text">{game.alt_title}</p>}
           {game?.description && <p className="page-sub">{game.description}</p>}
           <dl className="meta-grid">
-            <MetaItem label={t('games:developer')} value={game?.developer} />
+            {/* estilo IGDB: main developers (plural) + publishers */}
+            <MetaItem
+              label={t('games:developers')}
+              value={((game as (typeof game & { developers?: string[] }) | undefined)?.developers?.length
+                ? (game as typeof game & { developers?: string[] }).developers!.join(', ')
+                : game?.developer) ?? null}
+            />
             <MetaItem label={t('games:publisher')} value={game?.publishers?.join(', ')} />
             <MetaItem label={t('games:released')} value={game?.release_date} />
             {(() => {
@@ -252,7 +273,7 @@ export function GameDetail() {
 
 interface GameMeta {
   scores?: { critics?: number | null; critics_count?: number | null; users?: number | null; users_count?: number | null };
-  releases?: { platform: string; date: string }[];
+  releases?: { platform: string; date: string; region?: string | null }[];
   alt_titles?: string[];
 }
 
@@ -320,6 +341,12 @@ function GameSideStats({ game, completion }: {
           {hltb.map((x) => (
             <div key={x.label} className="side-row"><span>{x.label}</span><span className="mono">{x.value}</span></div>
           ))}
+        </div>
+      )}
+      {game.age_rating && (
+        <div className="side-card">
+          <span className="side-card-label mono">// {t('games:ageRating')}</span>
+          <div className="side-row"><span className="mono" style={{ color: 'var(--ink-bright)' }}>{game.age_rating}</span></div>
         </div>
       )}
     </div>
@@ -428,8 +455,11 @@ function ReleasesTab({ game }: { game: ReturnType<typeof useGame>['data'] }) {
       {releases.length > 0 ? (
         <div className="releases-list">
           {releases.map((r, i) => (
-            <div key={`${r.platform}-${r.date}-${i}`} className="releases-row">
-              <span className="releases-plat"><Badge tone="accent">{r.platform}</Badge></span>
+            <div key={`${r.platform}-${r.date}-${r.region ?? ''}-${i}`} className="releases-row">
+              <span className="releases-plat">
+                <Badge tone="accent">{r.platform}</Badge>
+                {r.region && <span className="type-chip mono">{r.region}</span>}
+              </span>
               <span className="releases-date mono">{r.date}</span>
             </div>
           ))}

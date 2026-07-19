@@ -1,7 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { Gamepad2, CalendarClock, Languages, Layers } from 'lucide-react';
 import type { Game } from '@romvault/core';
+import { getSupabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/Card';
 import { FadeImg } from '@/components/ui/FadeImg';
 import { Badge } from '@/components/ui/Badge';
@@ -29,8 +31,20 @@ export function GameCard({ game, translationBadges }: { game: Game; translationB
     e.stopPropagation();
     navigate(`/series/${encodeURIComponent(series as string)}`);
   };
+  // prefetch no hover: a página do jogo abre instantânea (mesma chave do useGame)
+  const qc = useQueryClient();
+  const prefetch = () => {
+    void qc.prefetchQuery({
+      queryKey: ['games', 'detail', game.slug],
+      staleTime: 60_000,
+      queryFn: async () => {
+        const { data } = await getSupabase().from('games').select('*').eq('slug', game.slug).maybeSingle();
+        return data;
+      },
+    });
+  };
   return (
-    <Link to={`/games/${game.slug}`} style={{ display: 'block' }}>
+    <Link to={`/games/${game.slug}`} style={{ display: 'block' }} onMouseEnter={prefetch} onFocus={prefetch}>
       <Card interactive padSm>
         <div className="tile">
           <div className={`tile-thumb tile-cover ${adult ? 'adult-blur' : ''}`}>

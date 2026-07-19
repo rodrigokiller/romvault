@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Settings, LogIn, LogOut, User as UserIcon, Shield, Upload, Search, ChevronDown,
   Gamepad2, Languages, Sparkles, Wrench, FileText, Layers, Newspaper,
-  Users, Trophy, BarChart3, Library, Store,
+  Users, Trophy, BarChart3, Library, Store, MonitorPlay,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -97,6 +97,7 @@ export function Header() {
                 { to: '/romhacks', label: t('nav:romhacks'), icon: Sparkles },
                 { to: '/tools', label: t('nav:tools'), icon: Wrench },
                 { to: '/docs', label: t('nav:docs'), icon: FileText },
+                { to: '/platforms', label: t('platforms:title'), icon: MonitorPlay },
                 { to: '/collections', label: t('collections:title'), icon: Layers },
                 { to: '/articles', label: t('nav:articles'), icon: Newspaper },
               ]}

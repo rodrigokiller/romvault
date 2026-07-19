@@ -297,7 +297,14 @@ export async function importPobre(ctx) {
 
       const credits = [mf['autor(es)'] ?? mf['autores'] ?? mf['autor'], entry.group ?? mf['grupo(s)'] ?? mf['grupos']]
         .filter(Boolean).join(' · ') || null;
-      const relYear = String(mf['data de lancamento'] ?? '').match(/\d{4}(-\d{2}(-\d{2})?)?/)?.[0] ?? null;
+      // datas atipicas do site ("2003-2004") viravam "2003-20" e o Postgres
+      // recusava; mes/dia so entram quando sao mes/dia DE VERDADE
+      const rawRel = String(mf['data de lancamento'] ?? '').match(/(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?/);
+      const relYear = rawRel
+        ? (rawRel[2] && Number(rawRel[2]) >= 1 && Number(rawRel[2]) <= 12
+          ? (rawRel[3] ? `${rawRel[1]}-${rawRel[2]}-${rawRel[3]}` : `${rawRel[1]}-${rawRel[2]}`)
+          : rawRel[1])
+        : null;
       const progress = Number(String(mf['progresso'] ?? '').match(/\d+/)?.[0]) || null;
 
       const row = {

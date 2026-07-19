@@ -87,6 +87,9 @@ function igdbToGame(g: any, primaryShort: string) {
     title: g.name,
     // deno-lint-ignore no-explicit-any
     developer: (g.involved_companies ?? []).find((ic: any) => ic.developer)?.company?.name ?? null,
+    // TODOS os devs (Chrono = Bird Studio + Square, não só o primeiro)
+    // deno-lint-ignore no-explicit-any
+    developers: (g.involved_companies ?? []).filter((ic: any) => ic.developer).map((ic: any) => ic.company?.name).filter(Boolean),
     // deno-lint-ignore no-explicit-any
     publishers: (g.involved_companies ?? []).filter((ic: any) => ic.publisher).map((ic: any) => ic.company?.name).filter(Boolean),
     release_date: g.first_release_date ? new Date(g.first_release_date * 1000).toISOString().slice(0, 10) : null,

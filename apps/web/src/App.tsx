@@ -47,6 +47,8 @@ const UserStats = lazy(() => import('./pages/UserStats').then((m) => ({ default:
 const CollectionsList = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionsList })));
 const CollectionDetail = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionDetail })));
 const Series = lazy(() => import('./pages/Series').then((m) => ({ default: m.Series })));
+const PlatformsIndex = lazy(() => import('./pages/Platforms').then((m) => ({ default: m.PlatformsIndex })));
+const PlatformDetail = lazy(() => import('./pages/Platforms').then((m) => ({ default: m.PlatformDetail })));
 
 export function App() {
   return (
@@ -79,6 +81,8 @@ export function App() {
                       <Route path="collections" element={<CollectionsList />} />
                       <Route path="collections/:slug" element={<CollectionDetail />} />
                       <Route path="series/:name" element={<Series />} />
+                      <Route path="platforms" element={<PlatformsIndex />} />
+                      <Route path="platform/:name" element={<PlatformDetail />} />
 
                       <Route path="users" element={<Users />} />
                       <Route path="stats" element={<Stats />} />
