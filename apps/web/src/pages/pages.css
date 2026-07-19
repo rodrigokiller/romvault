@@ -427,6 +427,8 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
   min-width: 34px;
 }
 .side-score-ours { color: var(--accent); }
+.side-score-mc { color: #6c3; } /* o verde clássico do Metacritic */
+.side-score-what a { color: inherit; text-decoration: underline; }
 .side-score-what { color: var(--muted); font-size: 0.7rem; line-height: 1.3; }
 .side-row {
   display: flex;
