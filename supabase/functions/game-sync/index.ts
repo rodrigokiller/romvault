@@ -185,6 +185,124 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, action, updated: Object.keys(patch) });
     }
 
+    const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+    const normTitle = (s: string) => norm(String(s ?? ''));
+
+    /* ── FASE 4a: HowLongToBeat (sem API oficial: descoberta de token no
+       bundle deles, padrão das libs da comunidade) + fallback IGDB ── */
+    if (action === 'hltb') {
+      const fmtH = (secs: number | null | undefined) =>
+        secs && secs > 0 ? `${Math.round((secs / 3600) * 2) / 2}h` : null;
+      let times: { main: string | null; extras: string | null; full: string | null; source: string } | null = null;
+
+      try {
+        // 1) token: home -> _app-*.js -> "/api/xxx/".concat("a").concat("b")
+        const home = await (await fetch('https://howlongtobeat.com/', { headers: { 'User-Agent': UA } })).text();
+        const appJs = home.match(/src="(\/_next\/static\/chunks\/pages\/_app-[^"]+\.js)"/)?.[1];
+        if (appJs) {
+          const js = await (await fetch(`https://howlongtobeat.com${appJs}`, { headers: { 'User-Agent': UA } })).text();
+          const mm = js.match(/"\/api\/([a-z]+)\/"(?:\.concat\("([^"]+)"\))(?:\.concat\("([^"]+)"\))?/);
+          if (mm) {
+            const endpoint = `/api/${mm[1]}/${mm[2] ?? ''}${mm[3] ?? ''}`;
+            const res = await fetch(`https://howlongtobeat.com${endpoint}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json', 'User-Agent': UA,
+                origin: 'https://howlongtobeat.com', referer: 'https://howlongtobeat.com/',
+              },
+              body: JSON.stringify({
+                searchType: 'games',
+                searchTerms: String(game.title).split(/\s+/).filter(Boolean),
+                searchPage: 1,
+                size: 5,
+                searchOptions: {
+                  games: {
+                    userId: 0, platform: '', sortCategory: 'popular', rangeCategory: 'main',
+                    rangeTime: { min: null, max: null },
+                    gameplay: { perspective: '', flow: '', genre: '', difficulty: '' },
+                    rangeYear: { min: '', max: '' }, modifier: '',
+                  },
+                  users: { sortCategory: 'postcount' }, lists: { sortCategory: 'follows' },
+                  filter: '', sort: 0, randomizer: 0,
+                },
+              }),
+            });
+            if (res.ok) {
+              // deno-lint-ignore no-explicit-any
+              const hits = ((await res.json())?.data ?? []) as any[];
+              const best = hits.find((h) => normTitle(h.game_name) === normTitle(game.title)) ?? hits[0];
+              if (best) {
+                times = {
+                  main: fmtH(best.comp_main), extras: fmtH(best.comp_plus), full: fmtH(best.comp_100),
+                  source: 'HowLongToBeat',
+                };
+              }
+            }
+          }
+        }
+      } catch { /* HLTB fora/mudou: cai no IGDB */ }
+
+      // fallback: time_to_beats do IGDB (dados existem mas são mais ralos)
+      const hltbTwitchId = Deno.env.get('TWITCH_CLIENT_ID');
+      const hltbTwitchSecret = Deno.env.get('TWITCH_CLIENT_SECRET');
+      if (!times && game.igdb_id && hltbTwitchId && hltbTwitchSecret) {
+        try {
+          const tok = (await (await fetch(
+            `https://id.twitch.tv/oauth2/token?client_id=${hltbTwitchId}&client_secret=${hltbTwitchSecret}&grant_type=client_credentials`,
+            { method: 'POST' },
+          )).json())?.access_token;
+          const ttb = await fetch('https://api.igdb.com/v4/game_time_to_beats', {
+            method: 'POST',
+            headers: { 'Client-ID': hltbTwitchId, Authorization: `Bearer ${tok}` },
+            body: `fields hastily, normally, completely; where game_id = ${game.igdb_id};`,
+          });
+          // deno-lint-ignore no-explicit-any
+          const [row] = ((await ttb.json()) ?? []) as any[];
+          if (row) {
+            times = { main: fmtH(row.normally), extras: fmtH(row.hastily), full: fmtH(row.completely), source: 'IGDB' };
+          }
+        } catch { /* sem fallback */ }
+      }
+
+      if (!times || (!times.main && !times.full)) {
+        return json({ error: 'Nem o HowLongToBeat nem o IGDB têm tempos pra este jogo.' }, 404);
+      }
+      const { error: htErr } = await admin.from('games').update({
+        completion_times: {
+          main_story: times.main, main_extras: times.extras, completionist: times.full, source: times.source,
+        },
+      }).eq('id', gameId);
+      if (htErr) throw htErr;
+      return json({ ok: true, action, updated: ['completion_times'], note: `Tempos de ${times.source}: ${times.main ?? '?'} / ${times.full ?? '?'}` });
+    }
+
+    /* ── FASE 4b: Metacritic (API do próprio frontend deles, complementar) ── */
+    if (action === 'metacritic') {
+      const mcKey = '1MOZgmNFxvmljaQR1X9KAij9Mo4xAY3u'; // apiKey pública do site
+      const q = encodeURIComponent(String(game.title).slice(0, 60));
+      const res = await fetch(
+        `https://backend.metacritic.com/finder/metacritic/search/${q}/web?apiKey=${mcKey}&offset=0&limit=10&mcoTypeId=13`,
+        { headers: { 'User-Agent': UA } },
+      );
+      if (!res.ok) return json({ error: `Metacritic: HTTP ${res.status}` }, 502);
+      // deno-lint-ignore no-explicit-any
+      const items = (((await res.json()) as any)?.data?.items ?? []) as any[];
+      const gamesOnly = items.filter((i) => i.type === 'game-title' || i.criticScoreSummary);
+      const best = gamesOnly.find((i) => normTitle(i.title) === normTitle(game.title)) ?? gamesOnly[0];
+      const score = best?.criticScoreSummary?.score;
+      if (!best || !score) return json({ error: 'Metacritic não achou este jogo (ou está sem nota).' }, 404);
+
+      const mcMeta = { ...((game.metadata as Record<string, unknown> | null) ?? {}) } as Record<string, unknown>;
+      const prevScores = (mcMeta.scores as Record<string, unknown> | undefined) ?? {};
+      mcMeta.scores = {
+        ...prevScores,
+        metacritic: { score: Number(score), url: `https://www.metacritic.com/game/${best.slug}/`, slug: best.slug },
+      };
+      const { error: mcErr } = await admin.from('games').update({ metadata: mcMeta }).eq('id', gameId);
+      if (mcErr) throw mcErr;
+      return json({ ok: true, action, updated: ['metacritic'], note: `Metacritic ${score} (${best.title})` });
+    }
+
     /* ── re-sync do IGDB ── */
     const twitchId = Deno.env.get('TWITCH_CLIENT_ID');
     const twitchSecret = Deno.env.get('TWITCH_CLIENT_SECRET');

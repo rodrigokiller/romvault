@@ -852,6 +852,8 @@
     "syncFullAllHint": "Percorre TODAS as plataformas até esgotar: pode levar horas e crescer muito o banco",
     "syncFullDone": "Sync completo: {{count}} jogos importados.",
     "syncStop": "Parar após este lote",
+    "hltbHint": "Buscar tempos de conclusão no HowLongToBeat (fallback: IGDB)",
+    "metacriticHint": "Buscar a nota de crítica no Metacritic (complementar)",
     "digestSent_one": "Digest enviado pra {{count}} admin.",
     "digestSent_other": "Digest enviado pra {{count}} admins.",
     "invitesTitle": "Convites do beta",

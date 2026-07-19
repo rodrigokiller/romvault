@@ -272,7 +272,11 @@ export function GameDetail() {
 }
 
 interface GameMeta {
-  scores?: { critics?: number | null; critics_count?: number | null; users?: number | null; users_count?: number | null };
+  scores?: {
+    critics?: number | null; critics_count?: number | null;
+    users?: number | null; users_count?: number | null;
+    metacritic?: { score: number; url?: string } | null;
+  };
   releases?: { platform: string; date: string; region?: string | null }[];
   alt_titles?: string[];
 }
@@ -290,7 +294,7 @@ function GameSideStats({ game, completion }: {
   const { data: community } = useGameCommunity(game.id);
   const meta = (game.metadata ?? {}) as GameMeta;
   const scores = meta.scores;
-  const hasScores = Boolean(scores?.critics || scores?.users || community?.review_avg);
+  const hasScores = Boolean(scores?.critics || scores?.users || scores?.metacritic?.score || community?.review_avg);
   const hasCommunity = Boolean(community && community.owners > 0);
   const hltb = [
     { label: t('games:completionMain'), value: completion?.main_story },
@@ -303,6 +307,16 @@ function GameSideStats({ game, completion }: {
       {hasScores && (
         <div className="side-card">
           <span className="side-card-label mono">// {t('games:scoresTitle')}</span>
+          {scores?.metacritic?.score ? (
+            <div className="side-score">
+              <span className="side-score-num side-score-mc">{scores.metacritic.score}</span>
+              <span className="side-score-what">
+                {scores.metacritic.url
+                  ? <a href={scores.metacritic.url} target="_blank" rel="noopener noreferrer">Metacritic</a>
+                  : 'Metacritic'}
+              </span>
+            </div>
+          ) : null}
           {scores?.critics ? (
             <div className="side-score">
               <span className="side-score-num">{scores.critics}</span>

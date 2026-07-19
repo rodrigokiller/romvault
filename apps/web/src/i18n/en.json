@@ -852,6 +852,8 @@
     "syncFullAllHint": "Walks ALL platforms until exhausted: can take hours and grow the database a lot",
     "syncFullDone": "Full sync: {{count}} games imported.",
     "syncStop": "Stop after this batch",
+    "hltbHint": "Fetch completion times from HowLongToBeat (fallback: IGDB)",
+    "metacriticHint": "Fetch the critic score from Metacritic (complementary)",
     "digestSent_one": "Digest sent to {{count}} admin.",
     "digestSent_other": "Digest sent to {{count}} admins.",
     "invitesTitle": "Beta invites",

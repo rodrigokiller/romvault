@@ -3586,6 +3586,47 @@ button.heat-cell::after {
 }
 .heatmap-years .vitrine-tab { flex-shrink: 0; }
 
+/* ── MOBILE (pedido do Killer: "deixa mobile friendly também") ──────────────── */
+@media (max-width: 720px) {
+  /* página do jogo: coluna lateral vira largura total, capa centrada,
+     cards de notas/comunidade lado a lado */
+  .detail-side { width: 100%; }
+  .detail-side .detail-cover { width: 190px; margin: 0 auto; }
+  .side-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+  .side-stats .side-card { min-width: 0; }
+  /* selo de origem + reportar deixam de flutuar (cobriam o título) */
+  .detail-report {
+    position: static;
+    order: -1;
+    width: 100%;
+    justify-content: flex-end;
+    margin-bottom: var(--s2);
+  }
+  .detail-cover-wide { width: 100%; }
+  /* linhas de admin (aba Dados) quebram em vez de estourar */
+  .admin-row { flex-wrap: wrap; row-gap: var(--s2); }
+  /* versões ligadas e linha do tempo da série em coluna */
+  .versions-row .version-card { width: 100%; }
+  .series-year { flex-direction: column; gap: var(--s2); }
+  .series-year-label {
+    min-width: 0;
+    border-top: none;
+    border-left: 2px solid var(--accent);
+    padding: 0 0 0 var(--s2);
+  }
+  /* heatmap: anos viram fileira horizontal embaixo do título */
+  .heatmap-flex { flex-direction: column; }
+  .heatmap-years {
+    flex-direction: row;
+    width: 100%;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+  }
+  .bulk-bar { bottom: var(--s3); }
+}
+
 /* pular layout/paint fora do viewport nos grids grandes (auditoria: perf) */
 .shelf-item,
 .vitrine-card-wrap,

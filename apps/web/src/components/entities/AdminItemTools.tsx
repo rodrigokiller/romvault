@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { Shield, RefreshCw, ImagePlus, Link2, Search } from 'lucide-react';
+import { Shield, RefreshCw, ImagePlus, Link2, Search, Clock3, Star } from 'lucide-react';
 import { invokeFn } from '@/lib/invokeFn';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -113,6 +113,20 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
             </Button>
             <Button size="sm" variant="secondary" disabled={running} onClick={() => { setResults([]); setLinkOpen(true); }}>
               <Link2 /> {t('admin:linkBtn')}
+            </Button>
+            <Button
+              size="sm" variant="secondary" disabled={running}
+              title={t('admin:hltbHint')}
+              onClick={() => void call({ game_id: gameId, action: 'hltb' }, 'HLTB')}
+            >
+              <Clock3 /> HLTB
+            </Button>
+            <Button
+              size="sm" variant="secondary" disabled={running}
+              title={t('admin:metacriticHint')}
+              onClick={() => void call({ game_id: gameId, action: 'metacritic' }, 'Metacritic')}
+            >
+              <Star /> Metacritic
             </Button>
           </div>
           <span className="admin-tools-hint">{t('admin:itemSyncHint')}</span>
