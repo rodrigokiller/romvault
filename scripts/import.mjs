@@ -56,7 +56,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -75,7 +75,7 @@ const flag = (name, def = undefined) => {
   const next = args[idx + 1];
   return next && !next.startsWith('--') ? next : true;
 };
-const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section', 'verbose', 'backfill', 'enrich', 'images', 'shots', 'force'];
+const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section', 'verbose', 'backfill', 'enrich', 'images', 'shots', 'force', 'provider'];
 const DRY = Boolean(flag('dry', false));
 const SOURCE = String(flag('source', 'dataset'));
 // --dry implica --verbose (dry-run existe pra inspecionar o que seria feito)
@@ -531,6 +531,64 @@ async function importLangsIgdb(sb) {
   }
   stats.sem_dados = games.length - stats.preenchidos;
   return stats;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * MODO RESET-SYNC — desfaz os VINCULOS de um provedor (tracks source=X,
+ * game_sync_data provider=X, copias store=X) SEM tocar em nada manual
+ * (playthroughs, tracks manuais, jogos). Com o matching corrigido, o proximo
+ * sync re-vincula certo. Faz BACKUP em JSON antes de apagar.
+ *   npm run import -- --source=reset-sync --provider=steam --dry
+ *   npm run import -- --source=reset-sync --provider=steam
+ * ═══════════════════════════════════════════════════════════════════════════ */
+const RESET_STORE = {
+  steam: 'Steam', gog: 'GOG', psn: 'PSN', xbox: 'Xbox',
+  retroachievements: 'RetroAchievements', nintendo: 'Nintendo',
+};
+async function importResetSync(sb) {
+  const provider = String(flag('provider', '')).toLowerCase();
+  if (!RESET_STORE[provider]) {
+    log(c.red(`✖ informe o provedor: --provider=${Object.keys(RESET_STORE).join('|')}`));
+    process.exit(1);
+  }
+  const store = RESET_STORE[provider];
+  step(`RESET do sync ${provider} — tracks/sync_data/copias (manuais ficam intactos)`);
+
+  const tracks = await fetchAll(() =>
+    sb.from('game_tracks').select('*').eq('source', provider));
+  const syncRows = await fetchAll(() =>
+    sb.from('game_sync_data').select('*').eq('provider', provider));
+  const copies = await fetchAll(() =>
+    sb.from('game_copies').select('*').eq('store', store));
+  log(`  ${tracks.length} tracks · ${syncRows.length} sync_data · ${copies.length} copias`);
+
+  // aviso: tracks com curadoria (notas/arte custom) que seriam perdidos
+  const curated = tracks.filter((t) => t.notes || t.custom_art);
+  if (curated.length > 0) {
+    log(c.amber(`  ⚠ ${curated.length} track(s) com notas/arte custom serao apagados (estao no backup)`));
+  }
+
+  if (DRY) {
+    log(c.amber('\n(dry-run — nada apagado; rode sem --dry pra executar)'));
+    return { tracks: tracks.length, sync_data: syncRows.length, copias: copies.length, curados: curated.length };
+  }
+
+  // backup JSON ANTES de apagar (gitignored)
+  const backupPath = resolve(ROOT, `reset-sync-backup-${provider}-${Date.now()}.json`);
+  writeFileSync(backupPath, JSON.stringify({ provider, tracks, syncRows, copies }, null, 2));
+  log(`  backup: ${backupPath}`);
+
+  const del = async (table, build) => {
+    const { error } = await build();
+    if (error) throw new Error(`${table}: ${error.message}`);
+  };
+  await del('game_sync_data', () => sb.from('game_sync_data').delete().eq('provider', provider));
+  await del('game_tracks', () => sb.from('game_tracks').delete().eq('source', provider));
+  await del('game_copies', () => sb.from('game_copies').delete().eq('store', store));
+
+  log(c.green('\n✓ Vinculos desfeitos. Agora re-sincroniza nas Configuracoes (ou espera o cron)'));
+  log('  — com o matching por plataforma corrigido, os vinculos voltam certos.');
+  return { tracks: tracks.length, sync_data: syncRows.length, copias: copies.length, backup: backupPath };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1003,6 +1061,8 @@ async function main() {
     stats = await importPurgeMods(sb);
   } else if (SOURCE === 'igdb-backfill') {
     stats = await importIgdbBackfill(sb);
+  } else if (SOURCE === 'reset-sync') {
+    stats = await importResetSync(sb);
   } else if (SOURCE === 'langs-igdb') {
     stats = await importLangsIgdb(sb);
   } else if (SOURCE === 'covers-libretro' || SOURCE === 'libretro') {

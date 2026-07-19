@@ -39,3 +39,5 @@ desktop.ini
 supabase/.branches/
 supabase/.temp/
 fix-matches-suspeitos.txt
+
+reset-sync-backup-*.json

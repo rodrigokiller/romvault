@@ -16,6 +16,7 @@ export default async function handler(req, res) {
   const slug = String(req.query.slug ?? '').slice(0, 200);
   const user = String(req.query.user ?? '').slice(0, 60);
   const year = String(req.query.year ?? '').slice(0, 4);
+  const series = String(req.query.series ?? '').slice(0, 120);
   const base = process.env.SITE_URL ?? 'https://romvault.app';
   const supaUrl = process.env.VITE_SUPABASE_URL;
   const supaKey = process.env.VITE_SUPABASE_ANON_KEY;
@@ -42,6 +43,23 @@ export default async function handler(req, res) {
         image = game.cover_url ?? game.thumbnail ?? null;
       }
     } catch { /* catálogo fora do ar: cai no padrão */ }
+  } else if (series && supaUrl && supaKey) {
+    // LINHA DO TEMPO da série/franquia (link de /series compartilhado)
+    pageUrl = `${base}/series/${encodeURIComponent(series)}`;
+    try {
+      const enc = encodeURIComponent(series);
+      const r = await fetch(
+        `${supaUrl}/rest/v1/games?or=(series.eq.${enc},franchise.eq.${enc})&select=cover_url,thumbnail&order=release_date.asc&limit=1`,
+        { headers: { ...headers, Prefer: 'count=exact' } },
+      );
+      const total = Number((r.headers.get('content-range') ?? '/0').split('/')[1] || 0);
+      const [first] = await r.json();
+      title = `Série ${series}: ROMVault`;
+      description = total > 0
+        ? `${total} ${total === 1 ? 'lançamento' : 'lançamentos'} na linha do tempo da série ${series}.`
+        : `A linha do tempo da série ${series} no ROMVault.`;
+      image = first?.cover_url ?? first?.thumbnail ?? null;
+    } catch { /* catálogo fora do ar: padrão */ }
   } else if (user && year && supaUrl && supaKey) {
     // RETROSPECTIVA anual (compartilhada no Discord aparece bonita)
     pageUrl = `${base}/u/${user}/year/${year}`;

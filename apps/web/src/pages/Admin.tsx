@@ -482,6 +482,14 @@ function CronsPanel() {
     const prefix = jobname.split('-')[0];
     return runs.find((r) => r.job.startsWith(prefix)) ?? null;
   };
+  // só estes jobs REGISTRAM job_runs (os SQL-puros como game-relevance não);
+  // ativo + sem registro em 48h = cron MUDO (secret errada, function fora...)
+  const LOGGING_PREFIXES = ['steam', 'psn', 'xbox', 'gog', 'ra', 'backlog', 'admin', 'nintendo'];
+  const isMute = (j: { jobname: string; active: boolean }) => {
+    if (!j.active || !LOGGING_PREFIXES.includes(j.jobname.split('-')[0])) return false;
+    const last = lastOf(j.jobname);
+    return !last || Date.now() - new Date(last.finished_at).getTime() > 48 * 3_600_000;
+  };
   if (jobs.length === 0) return null;
   return (
     <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
@@ -492,14 +500,15 @@ function CronsPanel() {
       <ul className="integ-list">
         {jobs.map((j) => {
           const last = lastOf(j.jobname);
+          const mute = isMute(j);
           return (
-            <li key={j.jobname} className={`integ-item mono ${j.active ? '' : 'integ-stale'}`}>
-              <span className={`integ-state ${j.active ? 'integ-ok' : 'integ-stale'}`}>
-                {j.active ? 'on' : 'OFF'}
+            <li key={j.jobname} className={`integ-item mono ${j.active && !mute ? '' : 'integ-stale'}`}>
+              <span className={`integ-state ${j.active && !mute ? 'integ-ok' : 'integ-stale'}`}>
+                {!j.active ? 'OFF' : mute ? 'MUDO' : 'on'}
               </span>
               <span className="integ-name">{j.jobname}</span>
               <span className="integ-meta">{j.schedule}</span>
-              <span className="integ-meta" style={{ flex: 1, textAlign: 'right' }}>
+              <span className="integ-meta" style={{ flex: 1, textAlign: 'right' }} title={mute ? t('admin:cronMuteHint') : undefined}>
                 {last
                   ? `${last.ok ? 'ok' : 'ERRO'} · ${new Date(last.finished_at).toLocaleString()}`
                   : t('admin:cronsNoRun')}

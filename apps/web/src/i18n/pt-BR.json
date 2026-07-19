@@ -809,6 +809,7 @@
     "cronsTitle": "Agendamentos",
     "cronsHint": "Os crons vivos do banco (cron.job) com o último resultado de cada um",
     "cronsNoRun": "sem rodada registrada",
+    "cronMuteHint": "Ativo mas sem registro em 48h: confira CRON_SECRET e se a function está no ar",
     "familiesTitle": "Famílias descobertas",
     "familiesHint": "As maiores famílias de versões ligadas: valide por amostragem se os vínculos vieram limpos",
     "familiesCount_one": "{{count}} versão",

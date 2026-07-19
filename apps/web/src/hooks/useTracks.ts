@@ -512,6 +512,52 @@ export function useRemovePlaythrough(gameId: string | undefined) {
   });
 }
 
+/**
+ * Estante da HOME: só jogando + backlog, com jogo MAGRO (6 colunas) e teto de
+ * 80 linhas — a Home não paga a biblioteca inteira (com metadata/screenshots)
+ * pra mostrar meia dúzia de capas.
+ */
+export interface HomeShelfItem {
+  game_id: string;
+  status: TrackStatus;
+  game: { id: string; title: string; slug: string; cover_url: string | null; thumbnail: string | null; platforms: string[] | null };
+}
+export function useHomeShelf(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['homeShelf', userId],
+    staleTime: 5 * 60_000,
+    enabled: env.configured && Boolean(userId),
+    queryFn: async (): Promise<HomeShelfItem[]> => {
+      const { data, error } = await db()
+        .from('game_tracks')
+        .select('game_id, status, game:games(id, title, slug, cover_url, thumbnail, platforms)')
+        .eq('user_id', userId as string)
+        .in('status', ['playing', 'backlog'])
+        .order('updated_at', { ascending: false })
+        .limit(80);
+      if (error) throw error;
+      return ((data ?? []) as unknown as HomeShelfItem[]).filter((t) => t.game);
+    },
+  });
+}
+
+/** Só a CONTAGEM da biblioteca (head request): pro onboarding decidir barato. */
+export function useLibraryCount(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['libraryCount', userId],
+    staleTime: 5 * 60_000,
+    enabled: env.configured && Boolean(userId),
+    queryFn: async (): Promise<number> => {
+      const { count, error } = await db()
+        .from('game_tracks')
+        .select('game_id', { count: 'exact', head: true })
+        .eq('user_id', userId as string);
+      if (error) return 0;
+      return count ?? 0;
+    },
+  });
+}
+
 /** Biblioteca completa de um usuário (com os jogos embutidos). */
 export function useLibrary(userId: string | undefined) {
   return useQuery({

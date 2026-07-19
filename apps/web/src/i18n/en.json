@@ -809,6 +809,7 @@
     "cronsTitle": "Schedules",
     "cronsHint": "Live database crons (cron.job) with each one's latest result",
     "cronsNoRun": "no recorded run",
+    "cronMuteHint": "Active but nothing recorded in 48h: check CRON_SECRET and that the function is deployed",
     "familiesTitle": "Discovered families",
     "familiesHint": "The biggest linked-version families: spot-check that the links came in clean",
     "familiesCount_one": "{{count}} version",

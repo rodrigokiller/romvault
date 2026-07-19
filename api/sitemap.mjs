@@ -27,11 +27,32 @@ export default async function handler(req, res) {
     }
   }
 
+  /** Séries distintas (o PostgREST não agrega): varre a coluna e dedupe. */
+  async function collectSeries(cap) {
+    const seen = new Set();
+    for (let from = 0; seen.size < cap; from += 1000) {
+      const r = await fetch(
+        `${supaUrl}/rest/v1/games?select=series&series=not.is.null&order=series.asc&limit=1000&offset=${from}`,
+        { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` } },
+      );
+      if (!r.ok) break;
+      const rows = await r.json();
+      for (const row of rows) {
+        if (row.series && !seen.has(row.series)) {
+          seen.add(row.series);
+          urls.push(`${base}/series/${encodeURIComponent(row.series)}`);
+        }
+      }
+      if (rows.length < 1000) break;
+    }
+  }
+
   if (supaUrl && supaKey) {
     try {
       await collect('games', 'slug', '/games', 30000);
       await collect('translations', 'id', '/translations', 5000);
       await collect('romhacks', 'id', '/romhacks', 5000);
+      await collectSeries(3000);
     } catch { /* parcial vale mais que erro */ }
   }
 

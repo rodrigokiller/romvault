@@ -27,6 +27,17 @@
       ],
       "destination": "/api/meta?user=:user&year=:year"
     },
+    {
+      "source": "/series/:name",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*([Bb]ot|facebookexternalhit|Discordbot|Twitterbot|Slackbot|TelegramBot|WhatsApp|LinkedInBot|Embedly).*"
+        }
+      ],
+      "destination": "/api/meta?series=:name"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

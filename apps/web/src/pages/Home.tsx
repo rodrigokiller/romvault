@@ -13,7 +13,7 @@ import { useArticles } from '@/hooks/useArticles';
 import { useCollections } from '@/hooks/useCollections';
 import { useGamesPage } from '@/hooks/useGames';
 import { useMyProfile } from '@/hooks/useProfile';
-import { useLibrary } from '@/hooks/useTracks';
+import { useHomeShelf, useLibraryCount } from '@/hooks/useTracks';
 import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
 import { GameCard } from '@/components/entities/GameCard';
 import { KIND_META, type Kind } from '@/components/entities/kinds';
@@ -206,7 +206,8 @@ export function Home() {
 function MyShelfStrip() {
   const { t, i18n } = useTranslation();
   const { data: me } = useMyProfile();
-  const { data: tracks = [] } = useLibrary(me?.id ?? undefined);
+  // query MAGRA e limitada (não a biblioteca inteira com metadata embutida)
+  const { data: tracks = [] } = useHomeShelf(me?.id ?? undefined);
   const gameIds = useMemo(() => tracks.map((x) => x.game_id), [tracks]);
   const { data: langsByGame } = useTranslationLangs(gameIds);
   if (!me?.username || tracks.length === 0) return null;
@@ -270,11 +271,12 @@ function OnboardingCard() {
   const { t } = useTranslation();
   const { session } = useAuth();
   const { data: me } = useMyProfile();
-  const { data: tracks = [] } = useLibrary(me?.id ?? undefined);
+  // head-count barato: não paga a biblioteca inteira pra saber se está vazia
+  const { data: trackCount = 0 } = useLibraryCount(me?.id ?? undefined);
   const { data: accounts = [] } = useMyAccounts();
   const [dismissed, setDismissed] = useState(() => localStorage.getItem('rv:onboarded') === '1');
 
-  if (!session || dismissed || tracks.length > 0 || accounts.length > 0) return null;
+  if (!session || dismissed || trackCount > 0 || accounts.length > 0) return null;
 
   function dismiss() {
     localStorage.setItem('rv:onboarded', '1');
