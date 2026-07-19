@@ -52,6 +52,17 @@ Deno.serve(async (req: Request) => {
     if (stErr) return json({ error: `admin_queue_stats: ${stErr.message} (migration 36 aplicada?)` }, 500);
     const s = stats as QueueStats;
 
+    // TENDÊNCIA: compara com a edição anterior (curadoria vira progresso
+    // visível, "12 -> 8", não só pilha)
+    const { data: prevRun } = await admin.from('job_runs')
+      .select('stats').eq('job', 'admin-digest')
+      .order('finished_at', { ascending: false }).limit(1).maybeSingle();
+    const prev = (prevRun?.stats ?? null) as Partial<QueueStats> | null;
+    const trend = (now: number, before: number | undefined) =>
+      before === undefined || before === now
+        ? `<b>${now}</b>`
+        : `<b>${now}</b> <span style="color:${now < before ? '#1a7f4e' : '#b3541e'}">(antes ${before})</span>`;
+
     const resendKey = Deno.env.get('RESEND_API_KEY');
     if (!resendKey) return json({ ok: true, sent: 0, stats: s, note: 'RESEND_API_KEY ausente: só os números.' });
 
@@ -64,10 +75,10 @@ Deno.serve(async (req: Request) => {
     const html =
       `<h2>Fila de vinculação desta semana</h2>` +
       `<ul>` +
-      `<li><b>${s.sem_igdb}</b> jogos criados por sync sem vínculo IGDB</li>` +
-      `<li><b>${s.candidatos}</b> títulos duplicados sem relação registrada</li>` +
-      `<li><b>${s.aliases}</b> aliases de plataforma/gênero pra cadastrar</li>` +
-      `<li><b>${s.misses_7d}</b> jogos sem match nos syncs dos últimos 7 dias</li>` +
+      `<li>${trend(s.sem_igdb, prev?.sem_igdb)} jogos criados por sync sem vínculo IGDB</li>` +
+      `<li>${trend(s.candidatos, prev?.candidatos)} títulos duplicados sem relação registrada</li>` +
+      `<li>${trend(s.aliases, prev?.aliases)} aliases de plataforma/gênero pra cadastrar</li>` +
+      `<li>${trend(s.misses_7d, prev?.misses_7d)} jogos sem match nos syncs dos últimos 7 dias</li>` +
       `</ul>` +
       (aliasList ? `<h3>Aliases recentes</h3><ul>${aliasList}</ul>` : '') +
       `<p><a href="${siteUrl}/admin">Abrir o painel de admin</a></p>`;

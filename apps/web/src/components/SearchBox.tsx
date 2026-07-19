@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search } from 'lucide-react';
+import { Search, Layers } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useSearch, type SearchKind } from '@/hooks/useSearch';
 import { KIND_META, type Kind } from '@/components/entities/kinds';
@@ -15,6 +15,7 @@ const KIND_OF: Record<SearchKind, Kind> = {
   document: 'doc',
   tool: 'tool',
   article: 'article',
+  series: 'game',
 };
 
 /**
@@ -94,10 +95,13 @@ export function SearchBox({ variant = 'header' }: { variant?: 'header' | 'page' 
                   onMouseEnter={() => setActive(i)}
                   onMouseDown={(e) => { e.preventDefault(); go(r.to); }}
                 >
-                  <span className={`searchbox-kind tone-${meta.tone}`}><Icon aria-hidden /></span>
+                  <span className={`searchbox-kind tone-${meta.tone}`}>
+                    {r.kind === 'series' ? <Layers aria-hidden /> : <Icon aria-hidden />}
+                  </span>
                   <span className="searchbox-item-body">
                     <span className="searchbox-item-title">
                       {r.title}
+                      {r.kind === 'series' && <span className="type-chip mono">{t('search:kindSeries')}</span>}
                       {r.gameType && r.gameType !== 'main' && (
                         <span className="type-chip mono">{t(`games:type_${r.gameType}`)}</span>
                       )}

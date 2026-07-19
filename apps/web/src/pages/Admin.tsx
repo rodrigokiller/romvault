@@ -512,7 +512,9 @@ function LinkQueuePanel() {
   });
 
   const toast = useToast();
+  const qc = useQueryClient();
   const [sendingDigest, setSendingDigest] = useState(false);
+  const [autoLinking, setAutoLinking] = useState(false);
   async function sendDigest() {
     setSendingDigest(true);
     try {
@@ -525,6 +527,47 @@ function LinkQueuePanel() {
     }
   }
 
+  /**
+   * Vincula os candidatos SEM AMBIGUIDADE: grupos de título idêntico onde
+   * exatamente UM jogo tem igdb_id — os outros viram version_of dele.
+   * Sobram na fila só os casos que merecem olho humano.
+   */
+  async function autoLink() {
+    setAutoLinking(true);
+    try {
+      const { data, error } = await db().rpc('link_candidates', { lim: 200 });
+      if (error) throw error;
+      const grupos = (data ?? []) as { title: string; ids: string[] }[];
+      const allIds = [...new Set(grupos.flatMap((g) => g.ids))];
+      const igdbOf = new Map<string, number | null>();
+      for (let i = 0; i < allIds.length; i += 200) {
+        const { data: gs } = await db().from('games').select('id, igdb_id').in('id', allIds.slice(i, i + 200));
+        for (const g of (gs ?? []) as { id: string; igdb_id: number | null }[]) igdbOf.set(g.id, g.igdb_id);
+      }
+      const rows: { game_id: string; related_id: string; relation: string; source: string }[] = [];
+      for (const g of grupos) {
+        const withIgdb = g.ids.filter((id) => igdbOf.get(id) != null);
+        if (withIgdb.length !== 1) continue; // ambíguo (2+ com igdb) ou nenhum: fica pra revisão
+        const canon = withIgdb[0];
+        for (const id of g.ids) {
+          if (id !== canon) rows.push({ game_id: id, related_id: canon, relation: 'version_of', source: 'auto' });
+        }
+      }
+      if (rows.length === 0) { toast.success(t('admin:autoLinkNone')); return; }
+      for (let i = 0; i < rows.length; i += 200) {
+        const { error: upErr } = await db().from('game_relations')
+          .upsert(rows.slice(i, i + 200), { onConflict: 'game_id,related_id', ignoreDuplicates: true });
+        if (upErr) throw upErr;
+      }
+      toast.success(t('admin:autoLinkDone', { count: rows.length }));
+      void qc.invalidateQueries({ queryKey: ['queueLinkCandidates'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setAutoLinking(false);
+    }
+  }
+
   if (noIgdb.length === 0 && candidates.length === 0 && aliases.length === 0 && missRuns.length === 0) return null;
   return (
     <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
@@ -533,9 +576,14 @@ function LinkQueuePanel() {
           <div className="card-title">{t('admin:queueTitle')}</div>
           <div className="card-sub">{t('admin:queueHint')}</div>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => void sendDigest()} disabled={sendingDigest}>
-          {sendingDigest ? <Spinner /> : t('admin:digestNow')}
-        </Button>
+        <span style={{ display: 'flex', gap: 'var(--s2)', flexShrink: 0 }}>
+          <Button variant="secondary" size="sm" onClick={() => void autoLink()} disabled={autoLinking}>
+            {autoLinking ? <Spinner /> : t('admin:autoLinkNow')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void sendDigest()} disabled={sendingDigest}>
+            {sendingDigest ? <Spinner /> : t('admin:digestNow')}
+          </Button>
+        </span>
       </div>
 
       {noIgdb.length > 0 && (

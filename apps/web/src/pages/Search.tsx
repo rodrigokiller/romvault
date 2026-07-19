@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search as SearchIcon } from 'lucide-react';
+import { Search as SearchIcon, Layers } from 'lucide-react';
 import { SearchBox } from '@/components/SearchBox';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 import { useSearch, type SearchKind } from '@/hooks/useSearch';
@@ -9,7 +9,7 @@ import { KIND_META, type Kind } from '@/components/entities/kinds';
 
 const KIND_OF: Record<SearchKind, Kind> = {
   game: 'game', romhack: 'romhack', translation: 'translation',
-  document: 'doc', tool: 'tool', article: 'article',
+  document: 'doc', tool: 'tool', article: 'article', series: 'game',
 };
 
 const FILTERS: (SearchKind | 'all')[] = ['all', 'game', 'romhack', 'translation', 'document', 'tool', 'article'];
@@ -72,7 +72,9 @@ export function Search() {
               const Icon = meta.icon;
               return (
                 <Link key={`${r.kind}-${r.id}`} to={r.to} className="search-result">
-                  <span className={`searchbox-kind tone-${meta.tone}`}><Icon aria-hidden /></span>
+                  <span className={`searchbox-kind tone-${meta.tone}`}>
+                    {r.kind === 'series' ? <Layers aria-hidden /> : <Icon aria-hidden />}
+                  </span>
                   <span className="search-result-body">
                     <span className="search-result-title">
                       {r.title}
@@ -82,7 +84,9 @@ export function Search() {
                     </span>
                     {r.subtitle && <span className="search-result-sub">{r.subtitle}</span>}
                   </span>
-                  <span className="search-result-kind">{t(meta.kindKey)}</span>
+                  <span className="search-result-kind">
+                    {r.kind === 'series' ? t('search:kindSeries') : t(meta.kindKey)}
+                  </span>
                 </Link>
               );
             })}

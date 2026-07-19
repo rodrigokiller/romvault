@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Home, Gamepad2, Languages, Sparkles, Wrench, FileText, Users, BarChart3,
-  Upload, Settings, Shield, User, Library, Store, ArrowLeft, Search, Clock, Trophy,
+  Upload, Settings, Shield, User, Library, Store, ArrowLeft, Search, Clock, Trophy, Layers,
   type LucideIcon,
 } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -22,7 +22,7 @@ export function openPalette() {
 
 const KIND_OF: Record<SearchKind, Kind> = {
   game: 'game', romhack: 'romhack', translation: 'translation',
-  document: 'doc', tool: 'tool', article: 'article',
+  document: 'doc', tool: 'tool', article: 'article', series: 'game',
 };
 
 interface PaletteItem {
@@ -212,8 +212,8 @@ export function CommandPalette() {
       return {
         id: `${r.kind}:${r.id}`,
         label: r.title,
-        icon: meta.icon as unknown as LucideIcon,
-        hint: typeHint ?? t(meta.kindKey),
+        icon: (r.kind === 'series' ? Layers : meta.icon) as unknown as LucideIcon,
+        hint: r.kind === 'series' ? t('search:kindSeries') : (typeHint ?? t(meta.kindKey)),
         badges: r.platforms,
         run: () => go(r.to),
       };

@@ -7,7 +7,7 @@ import { useShowAdult } from '@/hooks/useProfile';
 /** Shim sem tipagem de tabela: a busca varre várias tabelas por nome dinâmico. */
 const db = () => getSupabase() as unknown as SupabaseClient;
 
-export type SearchKind = 'game' | 'romhack' | 'translation' | 'document' | 'tool' | 'article';
+export type SearchKind = 'game' | 'romhack' | 'translation' | 'document' | 'tool' | 'article' | 'series';
 
 export interface SearchResult {
   id: string;
@@ -98,6 +98,27 @@ async function searchSource(src: Source, term: string, perSource: number, hideAd
   });
 }
 
+/** Séries/franquias como resultado: "Chrono" -> linha do tempo /series. */
+async function searchSeries(term: string): Promise<SearchResult[]> {
+  const safe = term.replace(/[,()]/g, ' ').trim();
+  const { data, error } = await db()
+    .from('games')
+    .select('series')
+    .ilike('series', `%${safe}%`)
+    .not('series', 'is', null)
+    .limit(40);
+  if (error) return []; // coluna ainda não migrada: fonte só não aparece
+  const names = [...new Set((data ?? []).map((r) => String((r as { series: string }).series)))].slice(0, 3);
+  return names.map((n) => ({
+    id: `series-${n}`,
+    kind: 'series' as const,
+    title: n,
+    subtitle: null,
+    to: `/series/${encodeURIComponent(n)}`,
+    platforms: [],
+  }));
+}
+
 /**
  * Busca global por título em todas as entidades. Usada tanto pelo dropdown do
  * header (perSource baixo) quanto pela página /search (perSource alto).
@@ -110,7 +131,10 @@ export function useSearch(term: string, perSource = 5) {
     enabled: env.configured && q.length >= 2,
     staleTime: 30_000,
     queryFn: async (): Promise<SearchResult[]> => {
-      const groups = await Promise.all(SOURCES.map((s) => searchSource(s, q, perSource, !showAdult)));
+      const groups = await Promise.all([
+        ...SOURCES.map((s) => searchSource(s, q, perSource, !showAdult)),
+        searchSeries(q),
+      ]);
       // ordena: prefixo exato primeiro; empate resolvido pela RELEVÂNCIA
       // calculada diariamente (jogo main do IGDB vence tradução/rom de teste
       // quando o nome digitado é o mesmo)

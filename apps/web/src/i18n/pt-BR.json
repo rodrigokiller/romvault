@@ -218,7 +218,8 @@
     "noResults": "Nada encontrado para \"{{q}}\".",
     "seeAllFor": "Ver todos os resultados para \"{{q}}\" →",
     "startTitle": "Buscar no ROMVault",
-    "startText": "Digite ao menos 2 caracteres para buscar jogos, romhacks, traduções, docs e ferramentas."
+    "startText": "Digite ao menos 2 caracteres para buscar jogos, romhacks, traduções, docs e ferramentas.",
+    "kindSeries": "Série"
   },
   "forms": {
     "submitTitle": "Enviar material",
@@ -801,6 +802,10 @@
     "queueAliases": "aliases pra cadastrar ({{count}})",
     "queueMisses": "misses recentes dos syncs",
     "digestNow": "Enviar digest agora",
+    "autoLinkNow": "Vincular automáticos",
+    "autoLinkDone_one": "{{count}} vínculo criado (casos sem ambiguidade).",
+    "autoLinkDone_other": "{{count}} vínculos criados (casos sem ambiguidade).",
+    "autoLinkNone": "Nenhum caso sem ambiguidade: o resto pede olho humano.",
     "digestSent_one": "Digest enviado pra {{count}} admin.",
     "digestSent_other": "Digest enviado pra {{count}} admins.",
     "invitesTitle": "Convites do beta",

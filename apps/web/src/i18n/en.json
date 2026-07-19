@@ -218,7 +218,8 @@
     "noResults": "Nothing found for \"{{q}}\".",
     "seeAllFor": "See all results for \"{{q}}\" →",
     "startTitle": "Search ROMVault",
-    "startText": "Type at least 2 characters to search games, romhacks, translations, docs and tools."
+    "startText": "Type at least 2 characters to search games, romhacks, translations, docs and tools.",
+    "kindSeries": "Series"
   },
   "forms": {
     "submitTitle": "Submit material",
@@ -801,6 +802,10 @@
     "queueAliases": "aliases to register ({{count}})",
     "queueMisses": "recent sync misses",
     "digestNow": "Send digest now",
+    "autoLinkNow": "Auto-link",
+    "autoLinkDone_one": "{{count}} link created (unambiguous cases).",
+    "autoLinkDone_other": "{{count}} links created (unambiguous cases).",
+    "autoLinkNone": "No unambiguous cases: the rest needs human eyes.",
     "digestSent_one": "Digest sent to {{count}} admin.",
     "digestSent_other": "Digest sent to {{count}} admins.",
     "invitesTitle": "Beta invites",
