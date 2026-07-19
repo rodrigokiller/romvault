@@ -913,6 +913,8 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
 .trend-body {
   display: flex;
   flex-direction: column;
+  /* a badge abraça o próprio texto (stretch a esticava até a largura do título) */
+  align-items: flex-start;
   gap: var(--s1);
   min-width: 0;
 }

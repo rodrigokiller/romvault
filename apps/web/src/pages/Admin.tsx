@@ -452,6 +452,103 @@ function JobsPanel() {
   );
 }
 
+/** Agendamentos VIVOS (cron.job) + último resultado de cada um (job_runs). */
+function CronsPanel() {
+  const { t } = useTranslation();
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['cronJobs'],
+    enabled: env.configured,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await db().rpc('cron_jobs_admin');
+      if (error) return [] as { jobname: string; schedule: string; active: boolean }[];
+      return (data ?? []) as { jobname: string; schedule: string; active: boolean }[];
+    },
+  });
+  const { data: runs = [] } = useQuery({
+    queryKey: ['cronLastRuns'],
+    enabled: env.configured && jobs.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await db()
+        .from('job_runs').select('job, ok, finished_at')
+        .order('finished_at', { ascending: false }).limit(100);
+      if (error) return [] as { job: string; ok: boolean; finished_at: string }[];
+      return (data ?? []) as { job: string; ok: boolean; finished_at: string }[];
+    },
+  });
+  // 'steam-sync' -> última rodada cujo job começa com 'steam'
+  const lastOf = (jobname: string) => {
+    const prefix = jobname.split('-')[0];
+    return runs.find((r) => r.job.startsWith(prefix)) ?? null;
+  };
+  if (jobs.length === 0) return null;
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('admin:cronsTitle')}</div>
+        <div className="card-sub">{t('admin:cronsHint')}</div>
+      </div>
+      <ul className="integ-list">
+        {jobs.map((j) => {
+          const last = lastOf(j.jobname);
+          return (
+            <li key={j.jobname} className={`integ-item mono ${j.active ? '' : 'integ-stale'}`}>
+              <span className={`integ-state ${j.active ? 'integ-ok' : 'integ-stale'}`}>
+                {j.active ? 'on' : 'OFF'}
+              </span>
+              <span className="integ-name">{j.jobname}</span>
+              <span className="integ-meta">{j.schedule}</span>
+              <span className="integ-meta" style={{ flex: 1, textAlign: 'right' }}>
+                {last
+                  ? `${last.ok ? 'ok' : 'ERRO'} · ${new Date(last.finished_at).toLocaleString()}`
+                  : t('admin:cronsNoRun')}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
+/** Pós-backfill: as maiores FAMÍLIAS de versões ligadas (validação amostral). */
+function FamiliesPanel() {
+  const { t } = useTranslation();
+  const { data: fams = [] } = useQuery({
+    queryKey: ['relationFamilies'],
+    enabled: env.configured,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await db().rpc('relation_families', { lim: 10 });
+      if (error) return [] as { base_id: string; base_title: string; base_slug: string; members: number; sample: { title: string; relation: string }[] }[];
+      return (data ?? []) as { base_id: string; base_title: string; base_slug: string; members: number; sample: { title: string; relation: string }[] }[];
+    },
+  });
+  if (fams.length === 0) return null;
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('admin:familiesTitle')}</div>
+        <div className="card-sub">{t('admin:familiesHint')}</div>
+      </div>
+      <ul className="integ-list">
+        {fams.map((f) => (
+          <li key={f.base_id} className="integ-item mono">
+            <span className="integ-name">
+              <Link to={`/games/${f.base_slug}`} className="section-link">{f.base_title}</Link>
+            </span>
+            <span className="integ-meta">{t('admin:familiesCount', { count: Number(f.members) })}</span>
+            <span className="integ-meta" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {(f.sample ?? []).map((s) => s.title).join(' · ')}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 /**
  * FILA DE VINCULAÇÃO (fase 2 nasce com trabalho listado): jogos criados por
  * sync sem igdb_id (candidatos a vincular/merge), pares de título idêntico em
@@ -497,6 +594,42 @@ function LinkQueuePanel() {
       return (data ?? []) as { source: string; kind: string; external_key: string; context: string | null }[];
     },
   });
+  // canônicos pro cadastro inline de alias (fecha o ciclo sem SQL manual)
+  const { data: platformOpts = [] } = useQuery({
+    queryKey: ['platformsAll'],
+    enabled: env.configured && aliases.some((a) => a.kind === 'platform'),
+    staleTime: 30 * 60_000,
+    queryFn: async () => {
+      const { data } = await db().from('platforms').select('slug, name').order('sort');
+      return (data ?? []) as { slug: string; name: string }[];
+    },
+  });
+  const { data: genreOpts = [] } = useQuery({
+    queryKey: ['genresAll'],
+    enabled: env.configured && aliases.some((a) => a.kind === 'genre'),
+    staleTime: 30 * 60_000,
+    queryFn: async () => {
+      const { data } = await db().from('genres').select('slug, name').order('name');
+      return (data ?? []) as { slug: string; name: string }[];
+    },
+  });
+
+  /** Grava o alias no de->para certo e tira da fila. */
+  async function registerAlias(a: { source: string; kind: string; external_key: string }, canonical: string) {
+    try {
+      const table = a.kind === 'platform' ? 'platform_aliases' : 'genre_aliases';
+      const col = a.kind === 'platform' ? 'platform' : 'genre';
+      const { error } = await db().from(table)
+        .upsert({ source: a.source, external_key: a.external_key, [col]: canonical }, { onConflict: 'source,external_key', ignoreDuplicates: false });
+      if (error) throw error;
+      await db().from('alias_pending').delete()
+        .eq('source', a.source).eq('kind', a.kind).eq('external_key', a.external_key);
+      toast.success(t('admin:aliasSaved', { alias: a.external_key }));
+      void qc.invalidateQueries({ queryKey: ['queueAliases'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    }
+  }
   const { data: missRuns = [] } = useQuery({
     queryKey: ['queueMisses'],
     enabled: env.configured,
@@ -628,6 +761,17 @@ function LinkQueuePanel() {
               <li key={`${a.source}-${a.kind}-${a.external_key}`} className="integ-item mono">
                 <span className="integ-name">{a.external_key}</span>
                 <span className="integ-meta">{a.source} · {a.kind}{a.context ? ` · ${a.context}` : ''}</span>
+                <Select
+                  aria-label={t('admin:aliasPick')}
+                  defaultValue=""
+                  onChange={(e) => { if (e.target.value) void registerAlias(a, e.target.value); }}
+                  style={{ maxWidth: 180 }}
+                >
+                  <option value="">{t('admin:aliasPick')}</option>
+                  {(a.kind === 'platform' ? platformOpts : genreOpts).map((o) => (
+                    <option key={o.slug} value={o.slug}>{o.name}</option>
+                  ))}
+                </Select>
               </li>
             ))}
           </ul>
@@ -775,8 +919,10 @@ export function Admin() {
       <AddGamePanel />
       <ArtQueue />
       <IntegrationsPanel />
+      <CronsPanel />
       <JobsPanel />
       <LinkQueuePanel />
+      <FamiliesPanel />
       <InvitesPanel />
 
       <IgdbSyncPanel />
