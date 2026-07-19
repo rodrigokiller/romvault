@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { Shield, RefreshCw, ImagePlus, Link2, Search, Clock3, Star } from 'lucide-react';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { Shield, RefreshCw, ImagePlus, Link2, Search, Clock3, Star, GitMerge } from 'lucide-react';
+import { getSupabase } from '@/lib/supabase';
 import { invokeFn } from '@/lib/invokeFn';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +21,16 @@ interface IgdbCandidate {
   platforms: string[];
   thumb: string | null;
   summary: string | null;
+}
+
+interface CatalogCandidate {
+  id: string;
+  title: string;
+  slug: string;
+  platforms: string[] | null;
+  igdb_id: number | null;
+  cover_url: string | null;
+  thumbnail: string | null;
 }
 
 /**
@@ -50,7 +63,65 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
   const [results, setResults] = useState<IgdbCandidate[]>([]);
   const [searching, setSearching] = useState(false);
 
+  // modal de MERGE/LIGAR (caso Starbound: página da Steam + registro IGDB)
+  const navigate = useNavigate();
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeTerm, setMergeTerm] = useState(gameTitle ?? '');
+  const [mergeResults, setMergeResults] = useState<CatalogCandidate[]>([]);
+  const [mergeSearching, setMergeSearching] = useState(false);
+
   if (!isAdmin) return null;
+
+  async function searchCatalog() {
+    setMergeSearching(true);
+    try {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const { data } = await sb.from('games')
+        .select('id, title, slug, platforms, igdb_id, cover_url, thumbnail')
+        .ilike('title', `%${mergeTerm.trim()}%`)
+        .neq('id', gameId)
+        .order('relevance', { ascending: false })
+        .limit(8);
+      setMergeResults((data ?? []) as CatalogCandidate[]);
+    } finally {
+      setMergeSearching(false);
+    }
+  }
+
+  /** Funde ESTE jogo dentro do alvo (server-side move tudo) e navega pro alvo. */
+  async function mergeInto(target: CatalogCandidate) {
+    if (!window.confirm(t('admin:mergeConfirm', { target: target.title }))) return;
+    setRunning(true);
+    try {
+      const d = await invokeFn<{ target_slug?: string; moved?: Record<string, number> }>('game-sync', {
+        game_id: gameId, action: 'merge', target_id: target.id,
+      });
+      toast.success(t('admin:mergeDone', { target: target.title }));
+      setMergeOpen(false);
+      if (d?.target_slug) navigate(`/games/${d.target_slug}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  /** Liga como versão (game_relations manual): jogos DISTINTOS que se conectam. */
+  async function linkVersion(target: CatalogCandidate) {
+    try {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const { error } = await sb.from('game_relations')
+        .upsert(
+          { game_id: gameId, related_id: target.id, relation: 'version_of', source: 'manual' },
+          { onConflict: 'game_id,related_id', ignoreDuplicates: true },
+        );
+      if (error) throw error;
+      toast.success(t('admin:linkVersionDone', { target: target.title }));
+      void qc.invalidateQueries({ queryKey: ['gameVersions'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    }
+  }
 
   async function call(body: Record<string, unknown>, okMsg: string) {
     setRunning(true);
@@ -128,6 +199,13 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
             >
               <Star /> Metacritic
             </Button>
+            <Button
+              size="sm" variant="secondary" disabled={running}
+              title={t('admin:mergeHint')}
+              onClick={() => { setMergeResults([]); setMergeOpen(true); }}
+            >
+              <GitMerge /> {t('admin:mergeBtn')}
+            </Button>
           </div>
           <span className="admin-tools-hint">{t('admin:itemSyncHint')}</span>
           <div className="admin-tools-row">
@@ -189,6 +267,53 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
                   <Button size="sm" variant="primary" disabled={running} onClick={() => void linkTo(r)}>
                     <Link2 /> {t('admin:linkPick')}
                   </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Dialog>
+      )}
+
+      {/* modal de MERGE/LIGAR: busca no NOSSO catálogo e escolhe o destino */}
+      {mergeOpen && (
+        <Dialog open={mergeOpen} onClose={() => setMergeOpen(false)} title={t('admin:mergeTitle')}>
+          <p className="page-sub">{t('admin:mergeText')}</p>
+          <div className="admin-tools-row" style={{ marginTop: 'var(--s3)' }}>
+            <Input
+              value={mergeTerm} onChange={(e) => setMergeTerm(e.target.value)}
+              placeholder={t('admin:itemQueryPh')} aria-label={t('admin:itemQueryPh')}
+              onKeyDown={(e) => { if (e.key === 'Enter') void searchCatalog(); }}
+            />
+            <Button size="sm" variant="primary" disabled={mergeSearching || !mergeTerm.trim()} onClick={() => void searchCatalog()}>
+              {mergeSearching ? <Spinner /> : <Search />} {t('admin:addSearch')}
+            </Button>
+          </div>
+          {mergeResults.length > 0 && (
+            <ul className="link-results">
+              {mergeResults.map((r) => (
+                <li key={r.id} className="link-result">
+                  <div className="link-result-thumb">
+                    {r.cover_url || r.thumbnail
+                      ? <img src={r.cover_url ?? r.thumbnail ?? ''} alt="" loading="lazy" />
+                      : <span className="mono">?</span>}
+                  </div>
+                  <div className="link-result-body">
+                    <span className="link-result-title">
+                      {r.title}
+                      {r.igdb_id ? <span className="link-result-id mono"> · igdb {r.igdb_id}</span> : null}
+                    </span>
+                    {(r.platforms ?? []).length > 0 && (
+                      <span className="link-result-plats mono">{(r.platforms ?? []).slice(0, 6).join(' · ')}</span>
+                    )}
+                  </div>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+                    <Button size="sm" variant="primary" disabled={running} onClick={() => void mergeInto(r)}>
+                      <GitMerge /> {t('admin:mergeInto')}
+                    </Button>
+                    <Button size="sm" variant="secondary" disabled={running} onClick={() => void linkVersion(r)}>
+                      <Link2 /> {t('admin:linkVersion')}
+                    </Button>
+                  </span>
                 </li>
               ))}
             </ul>

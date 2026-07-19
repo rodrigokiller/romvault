@@ -188,6 +188,117 @@ Deno.serve(async (req: Request) => {
     const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
     const normTitle = (s: string) => norm(String(s ?? ''));
 
+    /* ── FERRAMENTA VISUAL DE MERGE (analise.txt): funde ESTE jogo dentro de
+       um alvo — filhos re-apontados, lacunas do alvo preenchidas, este some.
+       Caso Starbound: página criada pela Steam + registro IGDB duplicado. ── */
+    if (action === 'merge') {
+      const targetId = String(body.target_id ?? '');
+      if (!targetId || targetId === gameId) return json({ error: 'Informe um jogo ALVO diferente.' }, 400);
+      const { data: target } = await admin.from('games').select('*').eq('id', targetId).maybeSingle();
+      if (!target) return json({ error: 'Jogo alvo não encontrado.' }, 404);
+      // dois igdb_ids DIFERENTES = jogos distintos de verdade (remaster/port):
+      // o caminho certo é LIGAR (game_relations), nunca fundir
+      if (game.igdb_id && target.igdb_id && game.igdb_id !== target.igdb_id) {
+        return json({
+          error: `Os dois têm igdb_id próprios (${game.igdb_id} vs ${target.igdb_id}): são jogos distintos. `
+            + 'Use "Ligar como versão" em vez de fundir.',
+        }, 409);
+      }
+
+      const moved: Record<string, number> = {};
+      const repoint = async (table: string, col = 'game_id') => {
+        const { count } = await admin.from(table).select('*', { count: 'exact', head: true }).eq(col, gameId);
+        if ((count ?? 0) === 0) { moved[table] = 0; return; }
+        const { error } = await admin.from(table).update({ [col]: targetId }).eq(col, gameId);
+        // conflito de unicidade (ex.: game_media mesma url): move linha a linha
+        if (error) {
+          const { data: rows } = await admin.from(table).select('id').eq(col, gameId);
+          let ok = 0;
+          for (const r of (rows ?? []) as { id: string }[]) {
+            const { error: e } = await admin.from(table).update({ [col]: targetId }).eq('id', r.id);
+            if (e) await admin.from(table).delete().eq('id', r.id);
+            else ok++;
+          }
+          moved[table] = ok;
+          return;
+        }
+        moved[table] = count ?? 0;
+      };
+
+      await repoint('romhacks');
+      await repoint('translations');
+      await repoint('documents');
+      await repoint('game_copies');
+      await repoint('game_playthroughs');
+      await repoint('game_media');
+      // tracks/sync: unicidade por usuário — move só quem não conflita; o que
+      // conflitar morre junto do jogo fonte (o usuário já tem linha no alvo)
+      const { data: srcTracks } = await admin.from('game_tracks').select('user_id').eq('game_id', gameId);
+      moved.game_tracks = 0;
+      for (const tr of (srcTracks ?? []) as { user_id: string }[]) {
+        const { count } = await admin.from('game_tracks').select('*', { count: 'exact', head: true })
+          .eq('user_id', tr.user_id).eq('game_id', targetId);
+        if ((count ?? 0) === 0) {
+          await admin.from('game_tracks').update({ game_id: targetId })
+            .eq('user_id', tr.user_id).eq('game_id', gameId);
+          moved.game_tracks++;
+        }
+      }
+      const { data: srcSync } = await admin.from('game_sync_data').select('user_id, provider').eq('game_id', gameId);
+      moved.game_sync_data = 0;
+      for (const s of (srcSync ?? []) as { user_id: string; provider: string }[]) {
+        const { count } = await admin.from('game_sync_data').select('*', { count: 'exact', head: true })
+          .eq('user_id', s.user_id).eq('game_id', targetId).eq('provider', s.provider);
+        if ((count ?? 0) === 0) {
+          await admin.from('game_sync_data').update({ game_id: targetId })
+            .eq('user_id', s.user_id).eq('game_id', gameId).eq('provider', s.provider);
+          moved.game_sync_data++;
+        }
+      }
+      // polimórficos e relações: conflito raro vira delete da linha fonte
+      for (const t of ['favorites', 'reviews']) {
+        const { data: rows } = await admin.from(t).select('user_id').eq('subject_type', 'game').eq('subject_id', gameId);
+        for (const r of (rows ?? []) as { user_id: string }[]) {
+          const { error: e } = await admin.from(t).update({ subject_id: targetId })
+            .eq('user_id', r.user_id).eq('subject_type', 'game').eq('subject_id', gameId);
+          if (e) await admin.from(t).delete().eq('user_id', r.user_id).eq('subject_type', 'game').eq('subject_id', gameId);
+        }
+      }
+      await admin.from('collection_items').update({ subject_id: targetId })
+        .eq('subject_type', 'game').eq('subject_id', gameId)
+        .then(() => {}, () => {});
+      for (const col of ['game_id', 'related_id'] as const) {
+        const { data: rels } = await admin.from('game_relations').select('game_id, related_id').eq(col, gameId);
+        for (const r of (rels ?? []) as { game_id: string; related_id: string }[]) {
+          const ng = col === 'game_id' ? targetId : r.game_id;
+          const nr = col === 'related_id' ? targetId : r.related_id;
+          await admin.from('game_relations').delete().eq('game_id', r.game_id).eq('related_id', r.related_id);
+          if (ng !== nr) {
+            await admin.from('game_relations')
+              .upsert({ game_id: ng, related_id: nr, relation: 'version_of', source: 'manual' }, { onConflict: 'game_id,related_id', ignoreDuplicates: true })
+              .then(() => {}, () => {});
+          }
+        }
+      }
+      await admin.from('id_map').update({ romvault_id: targetId }).eq('romvault_id', gameId);
+
+      // lacunas do alvo preenchidas com o que a fonte tinha (external_ids é o
+      // OURO: o appid da Steam passa pro alvo e o próximo sync casa direto)
+      const fill: Record<string, unknown> = {};
+      const tExt = { ...((game.external_ids as Record<string, unknown> | null) ?? {}), ...((target.external_ids as Record<string, unknown> | null) ?? {}) };
+      if (Object.keys(tExt).length > Object.keys((target.external_ids as Record<string, unknown> | null) ?? {}).length) fill.external_ids = tExt;
+      const platsUnion = [...new Set([...(target.platforms ?? []), ...(game.platforms ?? [])])];
+      if (platsUnion.length > (target.platforms ?? []).length) fill.platforms = platsUnion;
+      if (!target.cover_url && game.cover_url) { fill.cover_url = game.cover_url; fill.thumbnail = game.thumbnail; }
+      if (!target.description && game.description) fill.description = game.description;
+      if (!target.igdb_id && game.igdb_id) fill.igdb_id = game.igdb_id;
+      if (Object.keys(fill).length > 0) await admin.from('games').update(fill).eq('id', targetId);
+
+      const { error: delErr } = await admin.from('games').delete().eq('id', gameId);
+      if (delErr) return json({ error: `Filhos movidos, mas apagar a fonte falhou: ${delErr.message}` }, 500);
+      return json({ ok: true, action, target_slug: target.slug, moved });
+    }
+
     /* ── FASE 4a: HowLongToBeat (sem API oficial: descoberta de token no
        bundle deles, padrão das libs da comunidade) + fallback IGDB ── */
     if (action === 'hltb') {
