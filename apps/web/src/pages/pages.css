@@ -3788,6 +3788,27 @@ button.heat-cell {
 .growth-legend { margin-top: var(--s2); font-size: 0.68rem; }
 .growth-legend-finished { color: var(--accent); }
 
+/* ── retorno do sync: jogos sem vínculo no catálogo ─────────────────────────── */
+.sync-misses {
+  margin-top: var(--s2);
+  font-size: 0.76rem;
+}
+.sync-misses summary {
+  cursor: pointer;
+  color: var(--amber);
+  font-size: 0.72rem;
+}
+.sync-misses ul {
+  list-style: none;
+  padding: var(--s2) 0 0 var(--s3);
+  margin: 0;
+  max-height: 160px;
+  overflow-y: auto;
+  display: grid;
+  gap: 2px;
+}
+.sync-misses li { color: var(--muted); font-size: 0.72rem; }
+
 /* ── tipo de jogo (remaster/remake/port) na busca e no detalhe ─────────────── */
 .type-chip {
   display: inline-flex;

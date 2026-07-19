@@ -89,6 +89,38 @@ por padrão; configurável mais novo/mais antigo) e um contador "3 versões" que
 expande a pilha. Vitrine fica fora (cópias físicas são por release, faz sentido
 ver todas). Implementa na fase 2, depois que as relações povoarem.
 
+## Análise por fonte: como cada uma modela jogo / plataforma / gênero
+
+Pedido do Killer: "cada plataforma tem seu jeito de gravar gêneros, jogos,
+plataformas". O levantamento, fonte a fonte (base: código dos importers + dump
+real do RHDN):
+
+| Fonte | Jogo | Plataforma | Gênero | Nosso de→para |
+|---|---|---|---|---|
+| IGDB | id numérico estável (igdb_id), slug, game_type, parent/remaster/port | id numérico fixo (19=SNES) | lista FIXA de 23 nomes | platform_aliases + genre_aliases (identidade explícita) |
+| RHDN (dump) | gamekey + gametitle + japtitle (vira alt_title) | consoleid numérico -> nome por extenso ("Super Nintendo") | 24 com hierarquia "Action > Fighting" (extraídos do dump) | aliases rhdn seedados nas migrations 33/34 |
+| PO.B.R.E | página por path; título no h1 "Jogo (Grupo)" | campo "Sistema:" em português ("Mega Drive") | campo "Tipo:" em português, separado por " - " | aliases pobre (melhor esforço; completar ao vivo) |
+| SMW Central | id numérico da seção; sempre SMW/SNES | implícita (SNES) | NÃO tem gênero; tem TAGS livres (vão pra romhacks.tags) | não se aplica |
+| Steam | appid numérico (external_ids.steam) | sempre PC | não importamos (a loja tem, API não expõe bem) | vínculo por appid > título dentro de PC |
+| PSN/Xbox | nome do trophy title / título do histórico | família do console (PS4/PS5, Xbox One/Series) | não expõem | título dentro da plataforma |
+| GOG | título do perfil público | sempre PC | não importamos | título dentro de PC |
+| MobyGames | game_id próprio; API tem genres/platforms ricos | platform_id próprio (lista em /platforms) | tem, POR PLATAFORMA, não importamos ainda (fase 4) | aliases moby seedados (plataforma) |
+| ScreenScraper | jeu id próprio; busca por título | systemeid numérico (resolvido ao vivo) | tem, não importamos | resolução ao vivo via systemesListe |
+| libretro | ARQUIVO nomeado padrão No-Intro | pasta por sistema | não tem | aliases libretro (pasta -> canônica) |
+
+Conclusões que viram regra:
+1. IGDB é o EIXO: igdb_id é a identidade universal; todo merge/link converge
+   pra ele. Jogos sem igdb_id são legítimos (manuais/RHDN-only), mas o painel
+   admin (fase 2) os lista como fila de vinculação.
+2. Fontes de MATERIAL (rhdn/pobre/smwc) nunca criam plataforma/gênero novos:
+   passam pelos aliases; alias desconhecido cai em relatório pra cadastrar
+   (nada de "Super Famicom" virando plataforma duplicada de novo).
+3. Fontes de TRACKER (steam/psn/xbox/gog/nintendo) nunca definem metadados do
+   jogo: só vinculam (id externo > título NA plataforma) ou criam casca com
+   plataforma certa pra o IGDB enriquecer depois.
+4. Fontes de MÍDIA (libretro/moby/screenscraper) nunca tocam texto: só
+   game_media (fase 2), com a plataforma que já conhecem.
+
 ## Sincronizadores: regra de vínculo
 
 Vínculo = external_id da fonte (steam appid etc.) OU título dentro da MESMA

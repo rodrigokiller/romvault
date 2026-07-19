@@ -204,13 +204,15 @@ function AccountLinksSection() {
           links: [{ label: 'retroachievements.org', url: 'https://retroachievements.org/' }],
         }}
         invoke={async (id) => {
-          const d = await invokeFn<{ ra_games?: number; matched?: number; tracks_added?: number; note?: string }>(
+          const d = await invokeFn<{ ra_games?: number; matched?: number; tracks_added?: number; note?: string; unmatched?: number; sample_misses?: string[] }>(
             'ra-import', { ra_user: id },
           );
-          if (d?.note) return d.note;
-          return t('settings:raDone', {
-            total: d?.ra_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
-          });
+          return {
+            message: d?.note ?? t('settings:raDone', {
+              total: d?.ra_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
+            }),
+            unmatched: d?.unmatched, misses: d?.sample_misses,
+          };
         }}
       />
       <SyncAccountRow
@@ -225,13 +227,15 @@ function AccountLinksSection() {
           links: [{ label: t('settings:help_psn_privacy'), url: 'https://www.playstation.com/acct/privacy' }],
         }}
         invoke={async (id) => {
-          const d = await invokeFn<{ psn_games?: number; matched?: number; tracks_added?: number; note?: string }>(
+          const d = await invokeFn<{ psn_games?: number; matched?: number; tracks_added?: number; note?: string; unmatched?: number; sample_misses?: string[] }>(
             'psn-import', { psn_user: id },
           );
-          if (d?.note) return d.note;
-          return t('settings:psnDone', {
-            total: d?.psn_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
-          });
+          return {
+            message: d?.note ?? t('settings:psnDone', {
+              total: d?.psn_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
+            }),
+            unmatched: d?.unmatched, misses: d?.sample_misses,
+          };
         }}
       />
       <SyncAccountRow
@@ -246,13 +250,15 @@ function AccountLinksSection() {
           links: [{ label: 'xbox.com', url: 'https://www.xbox.com/' }],
         }}
         invoke={async (id) => {
-          const d = await invokeFn<{ xbox_games?: number; matched?: number; tracks_added?: number; note?: string }>(
+          const d = await invokeFn<{ xbox_games?: number; matched?: number; tracks_added?: number; note?: string; unmatched?: number; sample_misses?: string[] }>(
             'xbox-import', { gamertag: id },
           );
-          if (d?.note) return d.note;
-          return t('settings:xboxDone', {
-            total: d?.xbox_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
-          });
+          return {
+            message: d?.note ?? t('settings:xboxDone', {
+              total: d?.xbox_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
+            }),
+            unmatched: d?.unmatched, misses: d?.sample_misses,
+          };
         }}
       />
       <SyncAccountRow
@@ -267,13 +273,15 @@ function AccountLinksSection() {
           links: [{ label: t('settings:help_gog_privacy'), url: 'https://www.gog.com/account/settings/privacy' }],
         }}
         invoke={async (id) => {
-          const d = await invokeFn<{ gog_games?: number; matched?: number; tracks_added?: number; note?: string }>(
+          const d = await invokeFn<{ gog_games?: number; matched?: number; tracks_added?: number; note?: string; unmatched?: number; sample_misses?: string[] }>(
             'gog-import', { gog_user: id },
           );
-          if (d?.note) return d.note;
-          return t('settings:gogDone', {
-            total: d?.gog_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
-          });
+          return {
+            message: d?.note ?? t('settings:gogDone', {
+              total: d?.gog_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
+            }),
+            unmatched: d?.unmatched, misses: d?.sample_misses,
+          };
         }}
       />
       <SyncAccountRow
@@ -323,8 +331,9 @@ function SyncAccountRow({
   hint: string;
   placeholder: string;
   linked?: LinkedAccount;
-  /** retorna a mensagem de sucesso; accountId opcional sobrepõe o input no vínculo (ex.: nsaId da Nintendo) */
-  invoke: (accountId: string) => Promise<string | { message: string; accountId?: string }>;
+  /** retorna a mensagem de sucesso; accountId opcional sobrepõe o input no
+   *  vínculo (ex.: nsaId da Nintendo); misses = jogos sem vínculo no catálogo */
+  invoke: (accountId: string) => Promise<string | { message: string; accountId?: string; misses?: string[]; unmatched?: number }>;
   beta?: boolean;
   /** tutorial inline (modal): passos + links diretos (estilo PlayTracker) */
   help?: { steps: string[]; links: { label: string; url: string }[] };
@@ -339,6 +348,9 @@ function SyncAccountRow({
   const [touched, setTouched] = useState(false);
   const [running, setRunning] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  // retorno do último sync: jogos que NÃO casaram com o catálogo (visíveis,
+  // não escondidos num toast que some)
+  const [lastMisses, setLastMisses] = useState<{ total: number; sample: string[] } | null>(null);
 
   // contas chegam async: preenche o input quando o vínculo carregar
   useEffect(() => {
@@ -359,6 +371,11 @@ function SyncAccountRow({
       const result = await invoke(id);
       const msg = typeof result === 'string' ? result : result.message;
       const accountId = typeof result === 'string' ? id : (result.accountId ?? id);
+      if (typeof result !== 'string' && (result.unmatched ?? 0) > 0) {
+        setLastMisses({ total: result.unmatched ?? 0, sample: result.misses ?? [] });
+      } else {
+        setLastMisses(null);
+      }
       await link.mutateAsync({ provider, accountId, synced: true });
       toast.success(msg);
     } catch (err) {
@@ -441,6 +458,18 @@ function SyncAccountRow({
       </div>
       {cooling && (
         <span className="field-hint">{t('settings:accountsCooldown', { min: coolMin })}</span>
+      )}
+      {lastMisses && (
+        <details className="sync-misses">
+          <summary className="mono">{t('settings:syncMisses', { count: lastMisses.total })}</summary>
+          <ul>
+            {lastMisses.sample.map((m) => <li key={m} className="mono">{m}</li>)}
+            {lastMisses.total > lastMisses.sample.length && (
+              <li className="mono muted-text">… +{lastMisses.total - lastMisses.sample.length}</li>
+            )}
+          </ul>
+          <p className="field-hint">{t('settings:syncMissesHint')}</p>
+        </details>
       )}
       {helpOpen && help && (
         <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} title={`${title} — ${t('settings:accountsHelp')}`}>

@@ -240,9 +240,18 @@ alter table public.games
   add column if not exists series     text,          -- coleção/série do IGDB (franchise já existe)
   add column if not exists relevance  numeric not null default 0;
 
--- coluna gerada pesquisável: busca cobre título E títulos alternativos
+-- coluna gerada pesquisável: busca cobre título E títulos alternativos.
+-- array_to_string é só STABLE pro planner; o wrapper IMMUTABLE destrava a
+-- generated column (pra text[] o resultado é determinístico de verdade).
+create or replace function public.immutable_array_to_string(text[], text)
+returns text
+language sql
+immutable
+parallel safe
+as $$ select array_to_string($1, $2) $$;
+
 alter table public.games
-  add column if not exists alt_search text generated always as (array_to_string(alt_titles, ' · ')) stored;
+  add column if not exists alt_search text generated always as (public.immutable_array_to_string(alt_titles, ' · ')) stored;
 create index if not exists games_relevance_idx on public.games (relevance desc);
 create index if not exists games_alt_search_trgm on public.games using gin (alt_search gin_trgm_ops);
 
