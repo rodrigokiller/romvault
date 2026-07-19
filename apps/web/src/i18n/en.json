@@ -172,7 +172,9 @@
     "type_spinoff": "Spin-off",
     "versionsTitle": "Versions and related",
     "relBase": "Original",
-    "seriesChipHint": "See the series timeline"
+    "seriesChipHint": "See the series timeline",
+    "mediaCoversTitle": "Covers by region",
+    "mediaHeroesTitle": "Artworks"
   },
   "entities": {
     "kindGame": "Game",
@@ -854,6 +856,9 @@
     "syncStop": "Stop after this batch",
     "hltbHint": "Fetch completion times from HowLongToBeat (fallback: IGDB)",
     "metacriticHint": "Fetch the critic score from Metacritic (complementary)",
+    "igdbMediaBtn": "IGDB media",
+    "igdbMediaHint": "Fetch localized covers, artworks and videos from IGDB (grouped like there)",
+    "igdbMediaDone": "Media imported",
     "mergeBtn": "Merge…",
     "mergeHint": "Merge this game with another catalog record (case: sync-created page duplicating the IGDB game)",
     "mergeTitle": "Merge or link with another game",

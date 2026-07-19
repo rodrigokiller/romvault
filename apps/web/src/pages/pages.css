@@ -3983,6 +3983,27 @@ button.heat-cell::after {
 .series-chip:hover { color: var(--accent); border-color: var(--accent); }
 .series-chip svg { width: 11px; height: 11px; flex-shrink: 0; }
 
+/* ── mídia do IGDB por grupos: capas por região ─────────────────────────────── */
+.media-covers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+.media-cover {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  align-items: center;
+}
+.media-cover img {
+  width: 140px;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+.media-cover figcaption { margin-left: 0; }
+
 /* ── /platforms — índice por família + card temático ────────────────────────── */
 .platform-grid {
   display: grid;

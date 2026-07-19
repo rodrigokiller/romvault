@@ -201,6 +201,13 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
             </Button>
             <Button
               size="sm" variant="secondary" disabled={running}
+              title={t('admin:igdbMediaHint')}
+              onClick={() => void call({ game_id: gameId, action: 'igdb-media' }, t('admin:igdbMediaDone'))}
+            >
+              <ImagePlus /> {t('admin:igdbMediaBtn')}
+            </Button>
+            <Button
+              size="sm" variant="secondary" disabled={running}
               title={t('admin:mergeHint')}
               onClick={() => { setMergeResults([]); setMergeOpen(true); }}
             >

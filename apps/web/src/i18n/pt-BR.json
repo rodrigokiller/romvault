@@ -172,7 +172,9 @@
     "type_spinoff": "Spin-off",
     "versionsTitle": "Versões e relacionados",
     "relBase": "Original",
-    "seriesChipHint": "Ver a linha do tempo da série"
+    "seriesChipHint": "Ver a linha do tempo da série",
+    "mediaCoversTitle": "Capas por região",
+    "mediaHeroesTitle": "Artes"
   },
   "entities": {
     "kindGame": "Jogo",
@@ -854,6 +856,9 @@
     "syncStop": "Parar após este lote",
     "hltbHint": "Buscar tempos de conclusão no HowLongToBeat (fallback: IGDB)",
     "metacriticHint": "Buscar a nota de crítica no Metacritic (complementar)",
+    "igdbMediaBtn": "Mídia IGDB",
+    "igdbMediaHint": "Trazer capas localizadas, artes e vídeos do IGDB (grupos como lá)",
+    "igdbMediaDone": "Mídia importada",
     "mergeBtn": "Fundir…",
     "mergeHint": "Fundir este jogo com outro registro do catálogo (caso: página criada por sync duplicando o jogo do IGDB)",
     "mergeTitle": "Fundir ou ligar com outro jogo",

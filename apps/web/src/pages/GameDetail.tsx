@@ -238,6 +238,7 @@ export function GameDetail() {
         {tab === 'images' && (
           <>
             <BoxScans metadata={game?.metadata} />
+            {game && <GameMediaGroups gameId={game.id} />}
             {screenshots.length > 0 ? (
               <ScreenshotGrid images={screenshots} />
             ) : (
@@ -438,6 +439,53 @@ function VersionsSection({ gameId }: { gameId: string }) {
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * Grupos de mídia (game_media): capas por REGIÃO e artes (heroes) do IGDB —
+ * separados por grupo, como no site deles (pedido do analise.txt).
+ */
+function GameMediaGroups({ gameId }: { gameId: string }) {
+  const { t } = useTranslation();
+  const { data: media = [] } = useQuery({
+    queryKey: ['gameMedia', gameId],
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<{ kind: string; region: string | null; url: string; source: string }[]> => {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const { data, error } = await sb.from('game_media')
+        .select('kind, region, url, source')
+        .eq('game_id', gameId)
+        .order('kind');
+      if (error) return []; // tabela ainda não migrada: seção só não aparece
+      return (data ?? []) as { kind: string; region: string | null; url: string; source: string }[];
+    },
+  });
+  const covers = media.filter((m) => m.kind === 'cover');
+  const heroes = media.filter((m) => m.kind === 'hero');
+  if (covers.length === 0 && heroes.length === 0) return null;
+  return (
+    <>
+      {covers.length > 0 && (
+        <section className="section">
+          <div className="section-head"><h2>{t('games:mediaCoversTitle')}</h2></div>
+          <div className="media-covers">
+            {covers.map((m) => (
+              <figure key={m.url} className="media-cover">
+                <img src={m.url} alt={m.region ?? ''} loading="lazy" />
+                {m.region && <figcaption className="type-chip mono">{m.region}</figcaption>}
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
+      {heroes.length > 0 && (
+        <section className="section">
+          <div className="section-head"><h2>{t('games:mediaHeroesTitle')}</h2></div>
+          <ScreenshotGrid images={heroes.map((m) => m.url)} />
+        </section>
+      )}
+    </>
   );
 }
 

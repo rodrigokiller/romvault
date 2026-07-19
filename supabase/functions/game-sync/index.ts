@@ -414,6 +414,74 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, action, updated: ['metacritic'], note: `Metacritic ${score} (${best.title})` });
     }
 
+    /* ── FASE 2: MÍDIA DO IGDB POR GRUPOS (analise.txt: "trazer tudo, separar
+       por grupo igual o IGDB") — capas localizadas (com região), artes
+       adicionais e vídeos, gravados em game_media/metadata ── */
+    if (action === 'igdb-media') {
+      if (!game.igdb_id) return json({ error: 'Este jogo não tem igdb_id: vincule primeiro.' }, 400);
+      const mTwitchId = Deno.env.get('TWITCH_CLIENT_ID');
+      const mTwitchSecret = Deno.env.get('TWITCH_CLIENT_SECRET');
+      if (!mTwitchId || !mTwitchSecret) return json({ error: 'TWITCH_CLIENT_ID/SECRET não configuradas.' }, 500);
+      const mTok = (await (await fetch(
+        `https://id.twitch.tv/oauth2/token?client_id=${mTwitchId}&client_secret=${mTwitchSecret}&grant_type=client_credentials`,
+        { method: 'POST' },
+      )).json())?.access_token;
+      if (!mTok) return json({ error: 'OAuth Twitch falhou.' }, 502);
+
+      const mRes = await fetch('https://api.igdb.com/v4/games', {
+        method: 'POST',
+        headers: { 'Client-ID': mTwitchId, Authorization: `Bearer ${mTok}` },
+        body: 'fields artworks.image_id, videos.video_id, videos.name, '
+          + 'game_localizations.cover.image_id, game_localizations.name, game_localizations.region.name; '
+          + `where id = ${game.igdb_id};`,
+      });
+      if (!mRes.ok) return json({ error: `IGDB: HTTP ${mRes.status}` }, 502);
+      // deno-lint-ignore no-explicit-any
+      const [mHit] = ((await mRes.json()) ?? []) as any[];
+      if (!mHit) return json({ error: 'Jogo não achado no IGDB.' }, 404);
+
+      const rows: { game_id: string; kind: string; region: string | null; url: string; source: string }[] = [];
+      // deno-lint-ignore no-explicit-any
+      for (const a of (mHit.artworks ?? []) as any[]) {
+        if (a?.image_id) rows.push({ game_id: gameId, kind: 'hero', region: null, url: img(a.image_id, '1080p'), source: 'igdb' });
+      }
+      // deno-lint-ignore no-explicit-any
+      for (const l of (mHit.game_localizations ?? []) as any[]) {
+        if (l?.cover?.image_id) {
+          rows.push({
+            game_id: gameId, kind: 'cover',
+            region: (l.region?.name as string | undefined) ?? (l.name as string | undefined) ?? null,
+            url: img(l.cover.image_id, 'cover_big_2x'), source: 'igdb',
+          });
+        }
+      }
+      let mediaCount = 0;
+      if (rows.length > 0) {
+        const { error: gmErr } = await admin.from('game_media')
+          .upsert(rows, { onConflict: 'game_id,url', ignoreDuplicates: true });
+        if (gmErr) return json({ error: `game_media: ${gmErr.message} (migration 33 aplicada?)` }, 500);
+        mediaCount = rows.length;
+      }
+      // vídeos: o primeiro vira video_url do jogo (se vazio); lista no metadata
+      // deno-lint-ignore no-explicit-any
+      const vids = ((mHit.videos ?? []) as any[])
+        .filter((v) => v?.video_id)
+        .map((v) => ({ name: (v.name as string | null) ?? null, id: String(v.video_id) }))
+        .slice(0, 8);
+      const mPatch: Record<string, unknown> = {};
+      if (vids.length > 0) {
+        const mMeta = { ...((game.metadata as Record<string, unknown> | null) ?? {}) };
+        mMeta.videos = vids;
+        mPatch.metadata = mMeta;
+        if (!game.video_url) mPatch.video_url = `https://www.youtube.com/watch?v=${vids[0].id}`;
+      }
+      if (Object.keys(mPatch).length > 0) await admin.from('games').update(mPatch).eq('id', gameId);
+      return json({
+        ok: true, action,
+        note: `Mídia IGDB: ${mediaCount} imagem(ns) (${rows.filter((r) => r.kind === 'cover').length} capas localizadas) + ${vids.length} vídeo(s).`,
+      });
+    }
+
     /* ── re-sync do IGDB ── */
     const twitchId = Deno.env.get('TWITCH_CLIENT_ID');
     const twitchSecret = Deno.env.get('TWITCH_CLIENT_SECRET');

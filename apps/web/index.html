@@ -10,6 +10,11 @@
       name="description"
       content="ROMVault — hub de romhacking. Jogos, romhacks, traduções, documentos e ferramentas num só lugar."
     />
+    <!-- LCP: aquece DNS+TLS do banco e do CDN de capas antes do JS pedir -->
+    <link rel="preconnect" href="https://gobhxexpqepmoiixsbpo.supabase.co" crossorigin />
+    <link rel="preconnect" href="https://images.igdb.com" crossorigin />
+    <!-- fundo certo ANTES do CSS chegar (sem flash claro no primeiro paint) -->
+    <style>html{background:#0b0e10;color-scheme:dark}</style>
     <title>ROMVault</title>
   </head>
   <body>
