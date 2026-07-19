@@ -76,6 +76,9 @@ const flag = (name, def = undefined) => {
   return next && !next.startsWith('--') ? next : true;
 };
 const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section', 'verbose', 'backfill', 'enrich', 'images', 'shots', 'force', 'provider'];
+// sleep precisa existir ANTES de importRelinkIgdb rodar (main() roda por ultimo,
+// entao a const abaixo ja estara inicializada — mas movemos a definicao pra ca
+// por clareza de que os modos novos dependem dela)
 const DRY = Boolean(flag('dry', false));
 const SOURCE = String(flag('source', 'dataset'));
 // --dry implica --verbose (dry-run existe pra inspecionar o que seria feito)
@@ -145,6 +148,9 @@ async function fetchAll(query) {
 function stripDiacritics(input) {
   return input.normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
+/** Normalizacao pra matching de titulo/plataforma (igual aos importers). */
+const norm = (s) =>
+  String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 function slugifyText(input) {
   return stripDiacritics(input)
     .toLowerCase()
@@ -531,6 +537,129 @@ async function importLangsIgdb(sb) {
     itemLog(stats.preenchidos, `  ${c.green('~')} igdb:${igdbId} ${c.dim(codes.join(' '))}`);
   }
   stats.sem_dados = games.length - stats.preenchidos;
+  return stats;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * MODO RELINK-IGDB — vincula em MASSA os jogos SEM igdb_id (os que a Steam/
+ * Xbox/etc criaram sem match). Busca no IGDB por titulo, casa preferindo a
+ * plataforma, grava igdb_id + enriquece o que falta + CRIA AS RELACOES
+ * (remaster/port/parent) — resolve o "FFVII de PC nao relacionou".
+ *   npm run import -- --source=relink-igdb [--dry] [--limit=N] [--platform=pc]
+ * ═══════════════════════════════════════════════════════════════════════════ */
+async function importRelinkIgdb(sb) {
+  const auth = await igdbToken();
+  const limit = Number(flag('limit', 0)) || 0;
+  const onlyPlat = flag('platform') && flag('platform') !== true ? String(flag('platform')) : null;
+  step('Relink IGDB — jogos sem vinculo (sync criou sem match)');
+
+  // alvos: sem igdb_id, criados por sync (ou dataset/manual)
+  let targets = (await fetchAll(() =>
+    sb.from('games').select('id, title, platforms, data_source, cover_url, description, game_type, alt_titles, series, developer, igdb_id')
+      .is('igdb_id', null)))
+    .filter((g) => g.title && !/^n\/?a$/i.test(g.title));
+  if (onlyPlat) targets = targets.filter((g) => (g.platforms ?? []).some((p) => norm(p) === norm(onlyPlat)));
+  if (limit) targets = targets.slice(0, limit);
+  log(`  ${targets.length} jogos sem igdb_id pra tentar vincular`);
+
+  // indice dos NOSSOS igdb_ids (pra criar relacoes so entre quem existe)
+  const ourByIgdb = new Map();
+  for (const g of await fetchAll(() => sb.from('games').select('id, igdb_id').not('igdb_id', 'is', null))) {
+    ourByIgdb.set(Number(g.igdb_id), g.id);
+  }
+  const usedIgdb = new Set(ourByIgdb.keys());
+
+  const TYPE = { 0: 'main', 2: 'expansion', 4: 'expanded', 5: 'mod', 8: 'remake', 9: 'remaster', 10: 'expanded', 11: 'port' };
+  const REGION = { 1: 'EU', 2: 'NA', 3: 'AU', 4: 'NZ', 5: 'JP', 6: 'CN', 7: 'ASIA', 8: 'WW', 9: 'KR', 10: 'BR' };
+  const fields = 'fields id, name, game_type, platforms, cover.url, screenshots.url, summary, '
+    + 'first_release_date, genres.name, alternative_names.name, collection.name, '
+    + 'involved_companies.developer, involved_companies.publisher, involved_companies.company.name, '
+    + 'franchises.name, parent_game, version_parent, remasters, remakes, ports, expanded_games, standalone_expansions;';
+  const stats = { vinculados: 0, sem_match: 0, relacoes: 0, erros: 0 };
+  const relRows = [];
+
+  for (let i = 0; i < targets.length; i++) {
+    const g = targets[i];
+    if (i > 0 && i % 4 === 0) await sleep(300); // ~4 req/s
+    const term = g.title.replace(/"/g, '');
+    let hits;
+    try {
+      hits = await igdbQuery(auth, 'games', `${fields} search "${term}"; limit 10;`);
+    } catch { stats.erros++; continue; }
+    if (!Array.isArray(hits) || hits.length === 0) { stats.sem_match++; continue; }
+
+    // match: nome exato + plataforma compartilhada > nome exato > 1o que compartilha plat
+    const ourPlats = new Set((g.platforms ?? []).map(norm));
+    const sharesPlat = (h) => (h.platforms ?? []).some((pid) => ourPlats.has(norm(PLATFORM_SHORT[pid] ?? '')));
+    const exact = hits.filter((h) => norm(h.name) === norm(g.title));
+    const hit = exact.find(sharesPlat) ?? exact[0] ?? hits.find(sharesPlat);
+    if (!hit) { stats.sem_match++; continue; }
+    // igdb_id ja usado por outro jogo nosso? entao nao vincula (evita duplicar
+    // o mesmo registro) — candidato a merge, nao a link
+    if (usedIgdb.has(Number(hit.id))) { stats.sem_match++; continue; }
+
+    const patch = { igdb_id: hit.id };
+    if (!g.cover_url && hit.cover?.url) {
+      patch.cover_url = igdbImage(hit.cover.url, 'cover_big_2x');
+      patch.thumbnail = igdbImage(hit.cover.url, 'cover_big');
+    }
+    if (!g.description && hit.summary) patch.description = hit.summary;
+    if (!g.game_type) patch.game_type = TYPE[hit.game_type] ?? 'main';
+    const alts = (hit.alternative_names ?? []).map((a) => String(a.name)).filter(Boolean).slice(0, 8);
+    if ((g.alt_titles ?? []).length === 0 && alts.length > 0) patch.alt_titles = alts;
+    if (!g.series && hit.collection?.name) patch.series = hit.collection.name;
+    const devs = (hit.involved_companies ?? []).filter((ic) => ic.developer).map((ic) => ic.company?.name).filter(Boolean);
+    if (!g.developer && devs[0]) { patch.developer = devs[0]; patch.developers = devs; }
+    // plataformas: uniao (o IGDB sabe mais que a Steam)
+    const mapped = (hit.platforms ?? []).map((pid) => PLATFORM_SHORT[pid]).filter(Boolean);
+    const merged = [...new Set([...(g.platforms ?? []), ...mapped])];
+    if (merged.length > (g.platforms ?? []).length) patch.platforms = merged;
+    // releases por regiao (mesma logica do game-sync)
+    // (releases exigiria outra query; deixamos pro sync do jogo pra nao pesar)
+
+    if (DRY) {
+      stats.vinculados++;
+      itemLog(stats.vinculados, `  ${c.dim('[dry]')} ${g.title} -> igdb ${hit.id} (${hit.name})`);
+    } else {
+      const { error } = await sb.from('games').update(patch).eq('id', g.id);
+      if (error) { stats.erros++; if (stats.erros <= 5) log(c.red(`  ✖ ${g.title}: ${error.message}`)); continue; }
+      ourByIgdb.set(Number(hit.id), g.id);
+      usedIgdb.add(Number(hit.id));
+      stats.vinculados++;
+      itemLog(stats.vinculados, `  ${c.green('+')} ${g.title} ${c.dim(`igdb ${hit.id}`)}`);
+    }
+
+    // relacoes: liga com os jogos que JA existem no nosso banco
+    const rel = (arr, relation, inverted) => {
+      for (const other of arr ?? []) {
+        const oid = ourByIgdb.get(Number(other));
+        if (!oid || oid === g.id) continue;
+        relRows.push(inverted
+          ? { game_id: oid, related_id: g.id, relation, source: 'igdb' }
+          : { game_id: g.id, related_id: oid, relation, source: 'igdb' });
+      }
+    };
+    rel(hit.remasters, 'remaster_of', true);
+    rel(hit.remakes, 'remake_of', true);
+    rel(hit.ports, 'port_of', true);
+    rel([...(hit.expanded_games ?? []), ...(hit.standalone_expansions ?? [])], 'expanded_of', true);
+    rel([hit.parent_game, hit.version_parent].filter(Boolean), 'version_of', false);
+  }
+
+  if (!DRY && relRows.length > 0) {
+    const seen = new Set();
+    const uniq = relRows.filter((r) => {
+      const k = `${r.game_id}|${r.related_id}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    for (let i = 0; i < uniq.length; i += 500) {
+      await sb.from('game_relations').upsert(uniq.slice(i, i + 500), { onConflict: 'game_id,related_id', ignoreDuplicates: true });
+    }
+    stats.relacoes = uniq.length;
+  }
+  if (DRY) log(c.amber('\n(dry-run — nada gravado)'));
   return stats;
 }
 
@@ -1115,6 +1244,8 @@ async function main() {
     stats = await importResetSync(sb);
   } else if (SOURCE === 'repair-idmap') {
     stats = await importRepairIdmap(sb);
+  } else if (SOURCE === 'relink-igdb') {
+    stats = await importRelinkIgdb(sb);
   } else if (SOURCE === 'langs-igdb') {
     stats = await importLangsIgdb(sb);
   } else if (SOURCE === 'covers-libretro' || SOURCE === 'libretro') {
