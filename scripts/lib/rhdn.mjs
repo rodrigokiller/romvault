@@ -409,13 +409,16 @@ export async function importRhdn(ctx) {
   const tSystems = findTable(tables, TABLE_CANDIDATES.systems);
   const tGames = findTable(tables, TABLE_CANDIDATES.games);
 
-  // console: as seções referenciam o CONSOLEID numérico
+  // console: as seções referenciam o CONSOLEID numérico.
+  // Plataforma fora do de->para vira alias_pending (fila de cadastro no admin)
+  const pendingAliases = new Map(); // `kind|key` -> contexto
   const systemName = new Map();
   for (const r of tSystems?.rows ?? []) {
     const full = String(r.description ?? '');
     const abb = String(r.abb ?? '');
-    const short = PLATFORM_ALIAS[norm(full)] ?? PLATFORM_ALIAS[norm(abb)] ?? (abb || full);
-    if (r.consoleid != null) systemName.set(Number(r.consoleid), short);
+    const known = PLATFORM_ALIAS[norm(full)] ?? PLATFORM_ALIAS[norm(abb)];
+    if (!known && (full || abb)) pendingAliases.set(`platform|${full || abb}`, 'console do dump');
+    systemName.set(Number(r.consoleid), known ?? (abb || full));
   }
 
   const langName = lookupMap(findTable(tables, TABLE_CANDIDATES.languages), 'id', 'name');
@@ -616,6 +619,17 @@ export async function importRhdn(ctx) {
         { onConflict: 'source,entity' },
       );
     }
+  }
+
+  // aliases desconhecidos -> fila de cadastro (admin); falha nunca derruba o run
+  if (!DRY && pendingAliases.size > 0) {
+    const rows = [...pendingAliases.entries()].map(([k, context]) => {
+      const [kind, external_key] = [k.slice(0, k.indexOf('|')), k.slice(k.indexOf('|') + 1)];
+      return { source: 'rhdn', kind, external_key, context };
+    });
+    await sb.from('alias_pending')
+      .upsert(rows, { onConflict: 'source,kind,external_key', ignoreDuplicates: true })
+      .then(() => log(`  ${rows.length} alias(es) desconhecido(s) registrados pra cadastro`), () => {});
   }
 
   return stats;

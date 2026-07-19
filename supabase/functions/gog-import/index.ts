@@ -193,6 +193,14 @@ async function syncUser(admin: any, userId: string, username: string, byKey: Map
     .update({ last_sync: new Date().toISOString() })
     .eq('user_id', userId).eq('provider', 'gog');
 
+  // fila de vinculação: misses persistidos pro painel admin (best-effort)
+  if (misses.length > 0) {
+    await admin.from('job_runs').insert({
+      job: 'gog-sync-misses', mode: 'user', ok: true,
+      stats: { user_id: userId, unmatched: misses.length, sample: misses.slice(0, 20) },
+    }).then(() => {}, () => {});
+  }
+
   return {
     gog_games: games.length,
     matched: matched.length,

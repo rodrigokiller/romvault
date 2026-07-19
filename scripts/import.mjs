@@ -28,6 +28,8 @@
  *                                                      # + screenshots -> Storage (--shots=2)
  *   npm run import -- --source=smwc --enrich           # imagens dos hacks do SMWC (API)
  *   npm run import -- --source=pobre --enrich          # downloads/shots que faltaram
+ *   npm run import -- --source=igdb-backfill           # game_type/alts/series/RELACOES
+ *                                                        do acervo inteiro (500/req)
  *   (baixe o romhacking.sql.zip LOGADO no Internet Archive:
  *    https://archive.org/details/romhacking.net-20240801)
  *
@@ -73,7 +75,7 @@ const flag = (name, def = undefined) => {
   const next = args[idx + 1];
   return next && !next.startsWith('--') ? next : true;
 };
-const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section', 'verbose', 'backfill', 'enrich', 'images', 'shots'];
+const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section', 'verbose', 'backfill', 'enrich', 'images', 'shots', 'force'];
 const DRY = Boolean(flag('dry', false));
 const SOURCE = String(flag('source', 'dataset'));
 // --dry implica --verbose (dry-run existe pra inspecionar o que seria feito)
@@ -532,6 +534,118 @@ async function importLangsIgdb(sb) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * MODO IGDB-BACKFILL — classifica o acervo EXISTENTE de uma vez: game_type,
+ * alt_titles, series E as relacoes (remaster/remake/port/expanded/parent)
+ * de todos os jogos com igdb_id. Consulta por lotes de 500 ids (a API aceita).
+ *   npm run import -- --source=igdb-backfill [--dry] [--force]
+ *   (--force: reprocessa tambem quem ja tem game_type)
+ * ═══════════════════════════════════════════════════════════════════════════ */
+async function importIgdbBackfill(sb) {
+  const auth = await igdbToken();
+  const force = Boolean(flag('force', false));
+  step('IGDB backfill — game_type/alt_titles/series/relacoes do acervo');
+
+  const all = await fetchAll(() =>
+    sb.from('games').select('id, igdb_id, game_type, alt_titles, series').not('igdb_id', 'is', null));
+  const ourByIgdb = new Map(all.map((g) => [Number(g.igdb_id), g]));
+  const targets = force ? all : all.filter((g) => !g.game_type);
+  log(`  ${all.length} jogos com igdb_id · ${targets.length} a preencher${force ? ' (--force)' : ''}`);
+
+  const TYPE = { 0: 'main', 2: 'expansion', 4: 'expanded', 5: 'mod', 8: 'remake', 9: 'remaster', 10: 'expanded', 11: 'port' };
+  const stats = { atualizados: 0, relacoes: 0, sem_hit: 0, erros: 0 };
+  const relRows = [];
+  // 90k updates um-a-um nao cabem no relogio: quem so precisa do game_type
+  // vai agrupado num .in() por valor; so alts/series justificam update proprio
+  const typeOnly = new Map(); // game_type -> [ids]
+
+  const ids = targets.map((g) => Number(g.igdb_id));
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    await sleep(300); // IGDB: 4 req/s — folga
+    const hits = await igdbQuery(auth, 'games',
+      'fields id, game_type, alternative_names.name, collection.name, '
+      + 'parent_game, version_parent, remasters, remakes, ports, expanded_games, standalone_expansions; '
+      + `where id = (${chunk.join(',')}); limit 500;`);
+    const hitOf = new Map(hits.map((h) => [Number(h.id), h]));
+
+    const updates = [];
+    for (const igdbId of chunk) {
+      const h = hitOf.get(igdbId);
+      const ours = ourByIgdb.get(igdbId);
+      if (!h || !ours) { stats.sem_hit++; continue; }
+      const patch = {};
+      const wantType = TYPE[h.game_type] ?? 'main';
+      if (ours.game_type !== wantType) patch.game_type = wantType;
+      const alts = (h.alternative_names ?? []).map((a) => String(a.name)).filter(Boolean).slice(0, 8);
+      if (alts.length > 0 && (ours.alt_titles ?? []).length === 0) patch.alt_titles = alts;
+      if (!ours.series && h.collection?.name) patch.series = h.collection.name;
+      if (Object.keys(patch).length === 1 && patch.game_type) {
+        typeOnly.set(patch.game_type, [...(typeOnly.get(patch.game_type) ?? []), ours.id]);
+        stats.atualizados++;
+      } else if (Object.keys(patch).length > 0) updates.push({ id: ours.id, patch });
+
+      // relacoes: so entre jogos que EXISTEM no nosso banco
+      const push = (arr, relation, inverted) => {
+        for (const other of arr ?? []) {
+          const o = ourByIgdb.get(Number(other));
+          if (!o || o.id === ours.id) continue;
+          relRows.push(inverted
+            ? { game_id: o.id, related_id: ours.id, relation, source: 'igdb' }
+            : { game_id: ours.id, related_id: o.id, relation, source: 'igdb' });
+        }
+      };
+      push(h.remasters, 'remaster_of', true);
+      push(h.remakes, 'remake_of', true);
+      push(h.ports, 'port_of', true);
+      push([...(h.expanded_games ?? []), ...(h.standalone_expansions ?? [])], 'expanded_of', true);
+      push([h.parent_game, h.version_parent].filter(Boolean), 'version_of', false);
+    }
+
+    if (DRY) { stats.atualizados += updates.length; }
+    else {
+      for (let j = 0; j < updates.length; j += 12) {
+        await Promise.all(updates.slice(j, j + 12).map(async (u) => {
+          const { error } = await sb.from('games').update(u.patch).eq('id', u.id);
+          if (error) { stats.erros++; if (stats.erros <= 5) log(c.red(`  ✖ ${u.id}: ${error.message}`)); return; }
+          stats.atualizados++;
+        }));
+      }
+    }
+    log(c.dim(`  … ${Math.min(i + 500, ids.length)}/${ids.length} (${stats.atualizados} atualizados, ${relRows.length} relacoes na fila)`));
+    if (DRY && i === 0) { log(c.amber('  (dry-run: parando no primeiro lote)')); break; }
+  }
+
+  // updates de game_type agrupados por valor (chunks de 200 no .in())
+  if (!DRY) {
+    for (const [tp, tids] of typeOnly) {
+      for (let i = 0; i < tids.length; i += 200) {
+        const { error } = await sb.from('games').update({ game_type: tp }).in('id', tids.slice(i, i + 200));
+        if (error) { stats.erros++; if (stats.erros <= 5) log(c.red(`  ✖ type=${tp}: ${error.message}`)); }
+      }
+      log(c.dim(`  game_type=${tp}: ${tids.length} jogos`));
+    }
+  }
+
+  // relacoes em lote (dedupe interno + upsert ignorando existentes)
+  const relKey = new Set();
+  const relUnique = relRows.filter((r) => {
+    const k = `${r.game_id}|${r.related_id}`;
+    if (relKey.has(k)) return false;
+    relKey.add(k);
+    return true;
+  });
+  if (!DRY && relUnique.length > 0) {
+    for (let i = 0; i < relUnique.length; i += 500) {
+      const { error } = await sb.from('game_relations')
+        .upsert(relUnique.slice(i, i + 500), { onConflict: 'game_id,related_id', ignoreDuplicates: true });
+      if (error) { stats.erros++; log(c.red(`  ✖ relacoes: ${error.message}`)); break; }
+    }
+  }
+  stats.relacoes = relUnique.length;
+  return stats;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * MODO PURGE-MODS — remove do catalogo os jogos importados ANTES do filtro de
  * game_type que na verdade sao mods/DLCs/bundles no IGDB (hacks como jogos).
  * So apaga quem NAO tem nada pendurado (hacks/trads/tracks/copias); os demais
@@ -881,6 +995,8 @@ async function main() {
     stats = await importCovers(sb);
   } else if (SOURCE === 'purge-mods') {
     stats = await importPurgeMods(sb);
+  } else if (SOURCE === 'igdb-backfill') {
+    stats = await importIgdbBackfill(sb);
   } else if (SOURCE === 'langs-igdb') {
     stats = await importLangsIgdb(sb);
   } else if (SOURCE === 'covers-libretro' || SOURCE === 'libretro') {

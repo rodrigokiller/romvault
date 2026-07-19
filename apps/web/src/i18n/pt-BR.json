@@ -603,6 +603,13 @@
     "backlogTranslation": "{{game}} do seu backlog ganhou tradução ({{lang}})!",
     "reportResolved": "Seu reporte sobre \"{{title}}\" foi resolvido. Valeu por ajudar!"
   },
+  "series": {
+    "kicker": "// série / franquia",
+    "subtitle_one": "{{count}} lançamento na linha do tempo",
+    "subtitle_other": "{{count}} lançamentos na linha do tempo",
+    "emptyTitle": "Nenhum jogo nesta série",
+    "emptyText": "Os jogos ganham série/franquia pelo sync com o IGDB (ou pelo backfill)."
+  },
   "scene": {
     "kicker": "// a cena em números",
     "title": "Cena",
@@ -782,6 +789,12 @@
     "reportsResolve": "Resolver",
     "jobsTitle": "Jobs e imports",
     "jobsHint": "Últimas rodadas: imports da CLI (capas, moby, igdb), crons de sync e digest",
+    "queueTitle": "Fila de vinculação",
+    "queueHint": "O trabalho da ferramenta de merge/link: jogos de sync sem IGDB, títulos duplicados sem relação, aliases desconhecidos e misses recentes",
+    "queueNoIgdb": "criados por sync sem IGDB ({{count}})",
+    "queueCandidates": "título igual sem relação ({{count}})",
+    "queueAliases": "aliases pra cadastrar ({{count}})",
+    "queueMisses": "misses recentes dos syncs",
     "invitesTitle": "Convites do beta",
     "invitesHint": "Gere códigos e acompanhe os usos; quem resgata mostra \"convidado por você\" no perfil",
     "inviteNew1": "Gerar convite (1 uso)",

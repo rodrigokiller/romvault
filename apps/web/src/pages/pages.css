@@ -3864,6 +3864,32 @@ button.heat-cell {
 }
 .version-plats { color: var(--muted); font-size: 0.66rem; }
 
+/* ── /series/:name — linha do tempo da série/franquia ───────────────────────── */
+.series-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+.series-year {
+  display: flex;
+  gap: var(--s4);
+  align-items: flex-start;
+}
+.series-year-label {
+  min-width: 56px;
+  padding-top: var(--s2);
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-top: 2px solid var(--accent);
+}
+.series-year-games {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
 /* ── badges "biblioteca verificada por sync" no perfil ──────────────────────── */
 .sync-badges {
   display: flex;

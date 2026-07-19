@@ -265,7 +265,16 @@ export async function importPobre(ctx) {
 
       const gf = entry.game ?? {};
       const mf = entry.material ?? {};
-      const platform = PLATFORM_ALIAS[norm(gf['sistema'] ?? '')] ?? (gf['sistema'] ?? null);
+      const rawSistema = gf['sistema'] ?? null;
+      const platform = PLATFORM_ALIAS[norm(rawSistema ?? '')] ?? rawSistema;
+      // sistema fora do de->para: fila de cadastro (não cria plataforma torta)
+      if (rawSistema && !PLATFORM_ALIAS[norm(rawSistema)] && !DRY) {
+        await sb.from('alias_pending')
+          .upsert(
+            { source: 'pobre', kind: 'platform', external_key: rawSistema, context: entry.title },
+            { onConflict: 'source,kind,external_key', ignoreDuplicates: true },
+          ).then(() => {}, () => {});
+      }
       const year = Number(String(gf['data de lancamento'] ?? '').match(/\d{4}/)?.[0]) || null;
       const gameRef = sec.needsGame
         ? {

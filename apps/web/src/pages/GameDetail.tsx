@@ -154,7 +154,17 @@ export function GameDetail() {
             <MetaItem label={t('games:developer')} value={game?.developer} />
             <MetaItem label={t('games:publisher')} value={game?.publishers?.join(', ')} />
             <MetaItem label={t('games:released')} value={game?.release_date} />
-            <MetaItem label={t('games:franchise')} value={game?.franchise} />
+            {(() => {
+              const serie = (game as (typeof game & { series?: string | null }) | undefined)?.series ?? game?.franchise;
+              return serie ? (
+                <div className="meta-item">
+                  <dt>{t('games:franchise')}</dt>
+                  <dd>
+                    <Link to={`/series/${encodeURIComponent(serie)}`} className="section-link">{serie}</Link>
+                  </dd>
+                </div>
+              ) : null;
+            })()}
             <MetaItem label={t('games:genres')} value={game?.genres?.join(', ')} />
             <MetaItem label={t('games:ageRating')} value={game?.age_rating} />
           </dl>

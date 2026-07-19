@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useTranslation } from 'react-i18next';
@@ -451,6 +452,141 @@ function JobsPanel() {
   );
 }
 
+/**
+ * FILA DE VINCULAÇÃO (fase 2 nasce com trabalho listado): jogos criados por
+ * sync sem igdb_id (candidatos a vincular/merge), pares de título idêntico em
+ * plataformas diferentes sem relação (candidatos a link), aliases de
+ * plataforma/gênero desconhecidos e misses recentes dos syncs.
+ */
+function LinkQueuePanel() {
+  const { t } = useTranslation();
+  const { data: noIgdb = [] } = useQuery({
+    queryKey: ['queueNoIgdb'],
+    enabled: env.configured,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await db()
+        .from('games').select('id, title, slug, platforms, data_source')
+        .is('igdb_id', null)
+        .in('data_source', ['steam', 'gog', 'psn', 'xbox', 'nintendo'])
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) return [] as { id: string; title: string; slug: string; platforms: string[] | null; data_source: string }[];
+      return (data ?? []) as { id: string; title: string; slug: string; platforms: string[] | null; data_source: string }[];
+    },
+  });
+  const { data: candidates = [] } = useQuery({
+    queryKey: ['queueLinkCandidates'],
+    enabled: env.configured,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await db().rpc('link_candidates', { lim: 20 });
+      if (error) return [] as { title: string; ids: string[]; slugs: string[]; platforms: string[] }[];
+      return (data ?? []) as { title: string; ids: string[]; slugs: string[]; platforms: string[] }[];
+    },
+  });
+  const { data: aliases = [] } = useQuery({
+    queryKey: ['queueAliases'],
+    enabled: env.configured,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await db()
+        .from('alias_pending').select('source, kind, external_key, context')
+        .order('first_seen', { ascending: false }).limit(20);
+      if (error) return [] as { source: string; kind: string; external_key: string; context: string | null }[];
+      return (data ?? []) as { source: string; kind: string; external_key: string; context: string | null }[];
+    },
+  });
+  const { data: missRuns = [] } = useQuery({
+    queryKey: ['queueMisses'],
+    enabled: env.configured,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await db()
+        .from('job_runs').select('id, job, stats, finished_at')
+        .like('job', '%-sync-misses')
+        .order('finished_at', { ascending: false }).limit(6);
+      if (error) return [] as { id: string; job: string; stats: { unmatched?: number; sample?: string[] }; finished_at: string }[];
+      return (data ?? []) as { id: string; job: string; stats: { unmatched?: number; sample?: string[] }; finished_at: string }[];
+    },
+  });
+
+  if (noIgdb.length === 0 && candidates.length === 0 && aliases.length === 0 && missRuns.length === 0) return null;
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('admin:queueTitle')}</div>
+        <div className="card-sub">{t('admin:queueHint')}</div>
+      </div>
+
+      {noIgdb.length > 0 && (
+        <div>
+          <span className="kicker">// {t('admin:queueNoIgdb', { count: noIgdb.length })}</span>
+          <ul className="integ-list">
+            {noIgdb.map((g) => (
+              <li key={g.id} className="integ-item mono">
+                <span className="integ-name">
+                  <Link to={`/games/${g.slug}`} className="section-link">{g.title}</Link>
+                </span>
+                <span className="integ-meta">{(g.platforms ?? []).join(', ')} · {g.data_source}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {candidates.length > 0 && (
+        <div>
+          <span className="kicker">// {t('admin:queueCandidates', { count: candidates.length })}</span>
+          <ul className="integ-list">
+            {candidates.map((cd) => (
+              <li key={cd.title} className="integ-item mono">
+                <span className="integ-name">{cd.title}</span>
+                <span className="integ-meta" style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap' }}>
+                  {cd.slugs.map((s, i) => (
+                    <Link key={s} to={`/games/${s}`} className="section-link">{cd.platforms[i] ?? '?'}</Link>
+                  ))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {aliases.length > 0 && (
+        <div>
+          <span className="kicker">// {t('admin:queueAliases', { count: aliases.length })}</span>
+          <ul className="integ-list">
+            {aliases.map((a) => (
+              <li key={`${a.source}-${a.kind}-${a.external_key}`} className="integ-item mono">
+                <span className="integ-name">{a.external_key}</span>
+                <span className="integ-meta">{a.source} · {a.kind}{a.context ? ` · ${a.context}` : ''}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {missRuns.length > 0 && (
+        <div>
+          <span className="kicker">// {t('admin:queueMisses')}</span>
+          <ul className="integ-list">
+            {missRuns.map((r) => (
+              <li key={r.id} className="integ-item mono">
+                <span className="integ-name">{r.job.replace('-sync-misses', '')}</span>
+                <span className="integ-meta" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {r.stats.unmatched ?? 0} · {(r.stats.sample ?? []).slice(0, 5).join(' · ')}
+                </span>
+                <span className="integ-meta">{new Date(r.finished_at).toLocaleDateString()}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /** Convites do beta: gerar códigos e acompanhar usos. */
 function InvitesPanel() {
   const { t } = useTranslation();
@@ -573,6 +709,7 @@ export function Admin() {
       <ArtQueue />
       <IntegrationsPanel />
       <JobsPanel />
+      <LinkQueuePanel />
       <InvitesPanel />
 
       <IgdbSyncPanel />

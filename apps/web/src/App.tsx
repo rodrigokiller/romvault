@@ -46,6 +46,7 @@ const Changelog = lazy(() => import('./pages/Changelog').then((m) => ({ default:
 const UserStats = lazy(() => import('./pages/UserStats').then((m) => ({ default: m.UserStats })));
 const CollectionsList = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionsList })));
 const CollectionDetail = lazy(() => import('./pages/Collections').then((m) => ({ default: m.CollectionDetail })));
+const Series = lazy(() => import('./pages/Series').then((m) => ({ default: m.Series })));
 
 export function App() {
   return (
@@ -77,6 +78,7 @@ export function App() {
                       <Route path="articles/:slug" element={<ArticleDetail />} />
                       <Route path="collections" element={<CollectionsList />} />
                       <Route path="collections/:slug" element={<CollectionDetail />} />
+                      <Route path="series/:name" element={<Series />} />
 
                       <Route path="users" element={<Users />} />
                       <Route path="stats" element={<Stats />} />
