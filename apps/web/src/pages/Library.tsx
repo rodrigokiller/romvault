@@ -2,14 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFlip } from '@/hooks/useFlip';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages, RefreshCw, Lock, LockOpen, Check, CheckSquare, X } from 'lucide-react';
+import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages, RefreshCw, Lock, LockOpen, Check, CheckSquare, X, Layers } from 'lucide-react';
 import { GameQuickView } from '@/components/entities/GameQuickView';
 import { useToast } from '@/components/ui/Toast';
 import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
 import { useProfileByUsername } from '@/hooks/useProfile';
 import {
   useLibrary, useLibraryCopies, useUserPlaythroughs, useUserSyncSummary, useUserLastPlayed,
-  useSetGamesPrivacyBulk, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
+  useSetGamesPrivacyBulk, useLibraryRelations, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
 } from '@/hooks/useTracks';
 import { STATUS_ICON } from '@/components/entities/TrackButton';
 import { BatchAdd } from '@/components/entities/BatchAdd';
@@ -78,6 +78,9 @@ export function Library() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const bulkPrivacy = useSetGamesPrivacyBulk();
+  // agrupar VERSÕES ligadas (remaster/remake/port) num card só
+  const [groupVersions, setGroupVersions] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const shelfRef = useRef<HTMLDivElement | null>(null);
 
   const counts = useMemo(() => {
@@ -101,6 +104,31 @@ export function Library() {
 
   // a PONTE hub->tracker: quais jogos da estante têm tradução, e em que idiomas
   const gameIds = useMemo(() => tracks.map((x) => x.game_id), [tracks]);
+  // componentes conexos das versões ligadas (union-find sobre game_relations)
+  const { data: relEdges = [] } = useLibraryRelations(gameIds);
+  const groupOf = useMemo(() => {
+    const parent = new Map<string, string>();
+    const find = (x: string): string => {
+      let r = parent.get(x) ?? x;
+      while (r !== (parent.get(r) ?? r)) r = parent.get(r) ?? r;
+      parent.set(x, r);
+      return r;
+    };
+    for (const e of relEdges) {
+      const ra = find(e.a);
+      const rb = find(e.b);
+      if (ra !== rb) parent.set(ra, rb);
+    }
+    const roots = new Map<string, string>();
+    const sizes = new Map<string, number>();
+    for (const id of gameIds) {
+      const r = find(id);
+      roots.set(id, r);
+      sizes.set(r, (sizes.get(r) ?? 0) + 1);
+    }
+    return { roots, sizes };
+  }, [relEdges, gameIds]);
+  const hasGroups = useMemo(() => [...groupOf.sizes.values()].some((n) => n > 1), [groupOf]);
   const { data: langsByGame } = useTranslationLangs(gameIds);
   const uiCode = uiLangCode(i18n.language || 'pt-BR');
   const playableCount = useMemo(
@@ -108,7 +136,7 @@ export function Library() {
     [tracks, langsByGame, uiCode],
   );
 
-  const shown = useMemo(() => {
+  const shownData = useMemo(() => {
     let list = status === 'all' ? tracks : tracks.filter((x) => x.status === status);
     if (platform) {
       list = list.filter(
@@ -142,11 +170,43 @@ export function Library() {
         return 0;
       });
     }
-    return list;
-  }, [tracks, status, platform, copiesByGame, onlyDupes, onlyPlayable, showPrivate, langsByGame, uiCode, order, lastPlayed]);
+
+    // AGRUPAR VERSÕES: cada componente conexo (via game_relations) vira um
+    // card só — o representante é o último jogado (senão o track mais recente);
+    // clicar no selo ×N expande o grupo inline
+    const groupBadge = new Map<string, { root: string; size: number; expanded: boolean }>();
+    if (groupVersions) {
+      const byRoot = new Map<string, TrackWithGame[]>();
+      for (const tr of list) {
+        const root = groupOf.roots.get(tr.game_id) ?? tr.game_id;
+        byRoot.set(root, [...(byRoot.get(root) ?? []), tr]);
+      }
+      const repOf = new Map<string, string>();
+      for (const [root, members] of byRoot) {
+        if (members.length < 2) continue;
+        const rep = [...members].sort((x, y) => {
+          const lx = lastPlayed?.get(x.game_id) ?? '';
+          const ly = lastPlayed?.get(y.game_id) ?? '';
+          if (lx !== ly) return ly.localeCompare(lx);
+          return y.updated_at.localeCompare(x.updated_at);
+        })[0];
+        repOf.set(root, rep.game_id);
+        groupBadge.set(rep.game_id, { root, size: members.length, expanded: expandedGroups.has(root) });
+      }
+      list = list.filter((tr) => {
+        const root = groupOf.roots.get(tr.game_id) ?? tr.game_id;
+        const rep = repOf.get(root);
+        if (!rep) return true;
+        if (expandedGroups.has(root)) return true;
+        return tr.game_id === rep;
+      });
+    }
+    return { list, groupBadge };
+  }, [tracks, status, platform, copiesByGame, onlyDupes, onlyPlayable, showPrivate, langsByGame, uiCode, order, lastPlayed, groupVersions, groupOf, expandedGroups]);
+  const shown = shownData.list;
 
   // anima a reorganização da estante (filtros/ordenação)
-  useFlip(shelfRef, `${status}|${platform}|${onlyDupes}|${onlyPlayable}|${showPrivate}|${order}|${shown.length}`);
+  useFlip(shelfRef, `${status}|${platform}|${onlyDupes}|${onlyPlayable}|${showPrivate}|${order}|${groupVersions}|${expandedGroups.size}|${shown.length}`);
 
   // atalhos do modo seleção: Esc cancela, Ctrl+A seleciona os visíveis
   useEffect(() => {
@@ -384,6 +444,17 @@ export function Library() {
               {t('library:privateChip', { count: tracks.filter((x) => x.is_private).length })}
             </button>
           )}
+          {hasGroups && (
+            <button
+              type="button"
+              className={`search-chip ${groupVersions ? 'is-active' : ''}`}
+              onClick={() => { setGroupVersions((v) => !v); setExpandedGroups(new Set()); }}
+              title={t('library:groupHint')}
+            >
+              <Layers aria-hidden style={{ width: 12, height: 12, verticalAlign: '-2px', marginRight: 4 }} />
+              {t('library:groupVersions')}
+            </button>
+          )}
           {playableCount > 0 && (
             <button
               type="button"
@@ -427,6 +498,13 @@ export function Library() {
               selecting={selecting}
               isSelected={selected.has(track.game_id)}
               onToggleSelect={() => toggleSelect(track.game_id)}
+              group={shownData.groupBadge.get(track.game_id)}
+              onToggleGroup={(root) => setExpandedGroups((prev) => {
+                const next = new Set(prev);
+                if (next.has(root)) next.delete(root);
+                else next.add(root);
+                return next;
+              })}
             />
           ))}
         </div>
@@ -482,9 +560,12 @@ const CARTON_PLATFORMS = new Set([
   'GBC', 'GBA', 'Virtual Boy', '32X', 'FDS', 'TG-16',
 ]);
 
-function ShelfItem({ track, runs, showcase, artMode, langBadge, selecting = false, isSelected = false, onToggleSelect }: {
+function ShelfItem({ track, runs, showcase, artMode, langBadge, selecting = false, isSelected = false, onToggleSelect, group, onToggleGroup }: {
   track: TrackWithGame; runs: number; showcase: boolean; artMode: 'store' | 'box';
   langBadge?: string | null; selecting?: boolean; isSelected?: boolean; onToggleSelect?: () => void;
+  /** representante de um grupo de versões ligadas (modo "Agrupar versões") */
+  group?: { root: string; size: number; expanded: boolean };
+  onToggleGroup?: (root: string) => void;
 }) {
   const { t } = useTranslation();
   const [viewOpen, setViewOpen] = useState(false);
@@ -540,6 +621,16 @@ function ShelfItem({ track, runs, showcase, artMode, langBadge, selecting = fals
           <span className="shelf-private" title={t('library:privateBadge')}>
             <Lock aria-hidden />
           </span>
+        )}
+        {group && (
+          <button
+            type="button"
+            className={`shelf-group mono ${group.expanded ? 'is-open' : ''}`}
+            title={t('library:groupBadge', { count: group.size })}
+            onClick={(e) => { halt(e); onToggleGroup?.(group.root); }}
+          >
+            <Layers aria-hidden /> ×{group.size}
+          </button>
         )}
         {selecting ? (
           <span className={`shelf-check ${isSelected ? 'is-on' : ''}`} aria-hidden>

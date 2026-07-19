@@ -613,35 +613,41 @@ async function importIgdbBackfill(sb) {
     }
     log(c.dim(`  … ${Math.min(i + 500, ids.length)}/${ids.length} (${stats.atualizados} atualizados, ${relRows.length} relacoes na fila)`));
     if (DRY && i === 0) { log(c.amber('  (dry-run: parando no primeiro lote)')); break; }
+    // flush INCREMENTAL a cada 10 lotes (5k jogos): uma interrupcao perde no
+    // maximo 5k de progresso — o resume pula o que ja tem game_type gravado
+    if (!DRY && ((i / 500) % 10 === 9 || i + 500 >= ids.length)) {
+      await flushTypeOnly();
+      await flushRelations();
+    }
   }
+  if (!DRY) { await flushTypeOnly(); await flushRelations(); }
 
-  // updates de game_type agrupados por valor (chunks de 200 no .in())
-  if (!DRY) {
-    for (const [tp, tids] of typeOnly) {
+  async function flushTypeOnly() {
+    for (const [tp, tids] of [...typeOnly]) {
       for (let i = 0; i < tids.length; i += 200) {
         const { error } = await sb.from('games').update({ game_type: tp }).in('id', tids.slice(i, i + 200));
         if (error) { stats.erros++; if (stats.erros <= 5) log(c.red(`  ✖ type=${tp}: ${error.message}`)); }
       }
-      log(c.dim(`  game_type=${tp}: ${tids.length} jogos`));
+      typeOnly.delete(tp);
     }
   }
 
-  // relacoes em lote (dedupe interno + upsert ignorando existentes)
-  const relKey = new Set();
-  const relUnique = relRows.filter((r) => {
-    const k = `${r.game_id}|${r.related_id}`;
-    if (relKey.has(k)) return false;
-    relKey.add(k);
-    return true;
-  });
-  if (!DRY && relUnique.length > 0) {
+  async function flushRelations() {
+    const relKey = new Set();
+    const relUnique = relRows.filter((r) => {
+      const k = `${r.game_id}|${r.related_id}`;
+      if (relKey.has(k)) return false;
+      relKey.add(k);
+      return true;
+    });
+    relRows.length = 0;
     for (let i = 0; i < relUnique.length; i += 500) {
       const { error } = await sb.from('game_relations')
         .upsert(relUnique.slice(i, i + 500), { onConflict: 'game_id,related_id', ignoreDuplicates: true });
       if (error) { stats.erros++; log(c.red(`  ✖ relacoes: ${error.message}`)); break; }
     }
+    stats.relacoes += relUnique.length;
   }
-  stats.relacoes = relUnique.length;
   return stats;
 }
 

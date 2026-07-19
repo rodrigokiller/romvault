@@ -167,7 +167,8 @@
     "type_version": "Version",
     "type_spinoff": "Spin-off",
     "versionsTitle": "Versions and related",
-    "relBase": "Original"
+    "relBase": "Original",
+    "seriesChipHint": "See the series timeline"
   },
   "entities": {
     "kindGame": "Game",
@@ -502,6 +503,10 @@
     "privateChip": "Private ({{count}})",
     "privateChipHint": "Show/hide the games you marked as private",
     "privateBadge": "Private game: only you can see it",
+    "groupVersions": "Group versions",
+    "groupHint": "Linked versions (remaster, remake, port) collapse into one card: the last played represents the group",
+    "groupBadge_one": "{{count}} linked version: click to expand/collapse",
+    "groupBadge_other": "{{count}} linked versions: click to expand/collapse",
     "selectMode": "Select",
     "selectHint": "Select multiple games for bulk actions",
     "selectedCount_one": "{{count}} selected",
@@ -795,6 +800,9 @@
     "queueCandidates": "same title, no relation ({{count}})",
     "queueAliases": "aliases to register ({{count}})",
     "queueMisses": "recent sync misses",
+    "digestNow": "Send digest now",
+    "digestSent_one": "Digest sent to {{count}} admin.",
+    "digestSent_other": "Digest sent to {{count}} admins.",
     "invitesTitle": "Beta invites",
     "invitesHint": "Generate codes and track uses; redeemers show \"invited by you\" on their profile",
     "inviteNew1": "New invite (1 use)",

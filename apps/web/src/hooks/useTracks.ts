@@ -383,6 +383,36 @@ export function useUserSyncSummary(userId: string | undefined) {
 }
 
 /**
+ * Relações (remaster/remake/port...) ENTRE jogos da biblioteca — pro modo
+ * "Agrupar versões" da estante. Só devolve arestas com as DUAS pontas na
+ * biblioteca; consulta um lado em blocos de 200 e filtra o outro no cliente.
+ */
+export function useLibraryRelations(gameIds: string[]) {
+  const sorted = [...gameIds].sort();
+  return useQuery({
+    // chave barata mas sensível a mudanças reais do conjunto
+    queryKey: ['libRelations', sorted.length, sorted[0] ?? '', sorted[sorted.length - 1] ?? ''],
+    enabled: env.configured && gameIds.length > 0,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<{ a: string; b: string }[]> => {
+      const inLib = new Set(gameIds);
+      const edges: { a: string; b: string }[] = [];
+      for (let i = 0; i < sorted.length; i += 200) {
+        const { data, error } = await db()
+          .from('game_relations')
+          .select('game_id, related_id')
+          .in('game_id', sorted.slice(i, i + 200));
+        if (error) return []; // tabela ainda não migrada: modo simplesmente não liga
+        for (const r of (data ?? []) as { game_id: string; related_id: string }[]) {
+          if (inLib.has(r.related_id)) edges.push({ a: r.game_id, b: r.related_id });
+        }
+      }
+      return edges;
+    },
+  });
+}
+
+/**
  * Mapa game_id -> status do usuário logado — UMA query compartilhada por todos
  * os cards do grid (não uma por card).
  */

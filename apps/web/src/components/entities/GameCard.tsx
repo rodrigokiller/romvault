@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Gamepad2, CalendarClock, Languages } from 'lucide-react';
+import { Gamepad2, CalendarClock, Languages, Layers } from 'lucide-react';
 import type { Game } from '@romvault/core';
 import { Card } from '@/components/ui/Card';
 import { FadeImg } from '@/components/ui/FadeImg';
@@ -16,11 +16,19 @@ import { QuickActions } from './QuickActions';
  */
 export function GameCard({ game, translationBadges }: { game: Game; translationBadges?: string[] }) {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   // selinho SO quando ha traducao no idioma DA INTERFACE (pt-BR -> BR)
   const uiCode = uiLangCode(i18n.language || 'pt-BR');
   const hasUiLang = translationBadges?.includes(uiCode) ?? false;
   // +18: capa borrada até o hover, mesmo pra quem optou por ver adulto
   const adult = Boolean((game as Game & { is_adult?: boolean }).is_adult);
+  // "parte de série": chip discreto linkando pra linha do tempo (/series)
+  const series = (game as Game & { series?: string | null }).series ?? game.franchise;
+  const goSeries = (e: { preventDefault: () => void; stopPropagation: () => void }) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/series/${encodeURIComponent(series as string)}`);
+  };
   return (
     <Link to={`/games/${game.slug}`} style={{ display: 'block' }}>
       <Card interactive padSm>
@@ -61,6 +69,18 @@ export function GameCard({ game, translationBadges }: { game: Game; translationB
                   </Badge>
                 ))}
               </div>
+            )}
+            {series && (
+              <span
+                className="series-chip mono"
+                role="link"
+                tabIndex={0}
+                title={t('games:seriesChipHint')}
+                onClick={goSeries}
+                onKeyDown={(e) => { if (e.key === 'Enter') goSeries(e); }}
+              >
+                <Layers aria-hidden /> {series}
+              </span>
             )}
           </div>
         </div>

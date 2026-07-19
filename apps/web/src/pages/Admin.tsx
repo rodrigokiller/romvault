@@ -511,12 +511,31 @@ function LinkQueuePanel() {
     },
   });
 
+  const toast = useToast();
+  const [sendingDigest, setSendingDigest] = useState(false);
+  async function sendDigest() {
+    setSendingDigest(true);
+    try {
+      const d = await invokeFn<{ sent?: number; note?: string }>('admin-digest', {});
+      toast.success(d?.note ?? t('admin:digestSent', { count: d?.sent ?? 0 }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setSendingDigest(false);
+    }
+  }
+
   if (noIgdb.length === 0 && candidates.length === 0 && aliases.length === 0 && missRuns.length === 0) return null;
   return (
     <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
-      <div>
-        <div className="card-title">{t('admin:queueTitle')}</div>
-        <div className="card-sub">{t('admin:queueHint')}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--s3)' }}>
+        <div>
+          <div className="card-title">{t('admin:queueTitle')}</div>
+          <div className="card-sub">{t('admin:queueHint')}</div>
+        </div>
+        <Button variant="secondary" size="sm" onClick={() => void sendDigest()} disabled={sendingDigest}>
+          {sendingDigest ? <Spinner /> : t('admin:digestNow')}
+        </Button>
       </div>
 
       {noIgdb.length > 0 && (

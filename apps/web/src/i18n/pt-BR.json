@@ -167,7 +167,8 @@
     "type_version": "Versão",
     "type_spinoff": "Spin-off",
     "versionsTitle": "Versões e relacionados",
-    "relBase": "Original"
+    "relBase": "Original",
+    "seriesChipHint": "Ver a linha do tempo da série"
   },
   "entities": {
     "kindGame": "Jogo",
@@ -502,6 +503,10 @@
     "privateChip": "Privados ({{count}})",
     "privateChipHint": "Mostrar/esconder os jogos que você marcou como privados",
     "privateBadge": "Jogo privado: só você vê",
+    "groupVersions": "Agrupar versões",
+    "groupHint": "Versões ligadas (remaster, remake, port) viram um card só: o último jogado representa o grupo",
+    "groupBadge_one": "{{count}} versão ligada: clique pra expandir/recolher",
+    "groupBadge_other": "{{count}} versões ligadas: clique pra expandir/recolher",
     "selectMode": "Selecionar",
     "selectHint": "Selecionar vários jogos pra ações em massa",
     "selectedCount_one": "{{count}} selecionado",
@@ -795,6 +800,9 @@
     "queueCandidates": "título igual sem relação ({{count}})",
     "queueAliases": "aliases pra cadastrar ({{count}})",
     "queueMisses": "misses recentes dos syncs",
+    "digestNow": "Enviar digest agora",
+    "digestSent_one": "Digest enviado pra {{count}} admin.",
+    "digestSent_other": "Digest enviado pra {{count}} admins.",
     "invitesTitle": "Convites do beta",
     "invitesHint": "Gere códigos e acompanhe os usos; quem resgata mostra \"convidado por você\" no perfil",
     "inviteNew1": "Gerar convite (1 uso)",

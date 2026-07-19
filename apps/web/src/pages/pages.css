@@ -3702,6 +3702,29 @@ button.heat-cell {
 }
 .shelf-check svg { width: 15px; height: 15px; }
 
+/* selo de GRUPO de versões (modo "Agrupar versões"): expande/recolhe */
+.shelf-group {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(11, 14, 16, 0.88);
+  border: 1px solid var(--blue);
+  color: var(--blue);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.shelf-group:hover, .shelf-group.is-open {
+  background: var(--blue);
+  color: #06111c;
+}
+.shelf-group svg { width: 12px; height: 12px; }
+
 /* selo "privado" no card (visível quando o dono liga "ver privados") */
 .shelf-private {
   position: absolute;
@@ -3863,6 +3886,25 @@ button.heat-cell {
   white-space: nowrap;
 }
 .version-plats { color: var(--muted); font-size: 0.66rem; }
+
+/* chip "parte de série" no card do jogo (navega pra /series) */
+.series-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--s2);
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.66rem;
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.series-chip:hover { color: var(--accent); border-color: var(--accent); }
+.series-chip svg { width: 11px; height: 11px; flex-shrink: 0; }
 
 /* ── /series/:name — linha do tempo da série/franquia ───────────────────────── */
 .series-timeline {
