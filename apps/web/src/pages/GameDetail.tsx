@@ -66,6 +66,14 @@ function slugifyTitle(s: string): string {
     .replace(/[^a-z0-9]+/g, '-').replace(/-{2,}/g, '-').replace(/^-+|-+$/g, '');
 }
 
+/** Títulos alternativos: coluna nova alt_titles, com metadata como fallback. */
+function altTitlesOf(game: ReturnType<typeof useGame>['data']): string[] {
+  const col = (game as (typeof game & { alt_titles?: string[] }) | undefined)?.alt_titles;
+  const meta = ((game?.metadata ?? {}) as { alt_titles?: string[] }).alt_titles;
+  const list = (col?.length ? col : meta) ?? [];
+  return [...new Set(list.filter((a) => a && a !== game?.alt_title))];
+}
+
 type Row = Record<string, unknown>;
 
 export function GameDetail() {
@@ -188,11 +196,22 @@ export function GameDetail() {
             })()}
             <MetaItem label={t('games:genres')} value={game?.genres?.join(', ')} />
             <MetaItem label={t('games:ageRating')} value={game?.age_rating} />
+            {/* "também conhecido como" abaixo do título, no estilo dos demais
+                campos (era só na aba Releases) — só aparece quando existe */}
+            {(() => {
+              const alts = altTitlesOf(game);
+              return alts.length > 0 ? (
+                <MetaItem label={t('games:altTitles')} value={alts.join(' · ')} />
+              ) : null;
+            })()}
           </dl>
           {game?.platforms && game.platforms.length > 0 && (
             <div className="tile-badges" style={{ marginTop: 'var(--s4)' }}>
+              {/* plataformas CLICÁVEIS -> página da plataforma (design igual) */}
               {game.platforms.map((p) => (
-                <Badge key={p} tone="accent">{p}</Badge>
+                <Link key={p} to={`/platform/${encodeURIComponent(p)}`} className="badge-link">
+                  <Badge tone="accent">{p}</Badge>
+                </Link>
               ))}
             </div>
           )}
@@ -310,7 +329,10 @@ function GameSideStats({ game, completion }: {
           <span className="side-card-label mono">// {t('games:scoresTitle')}</span>
           {scores?.metacritic?.score ? (
             <div className="side-score">
-              <span className="side-score-num side-score-mc">{scores.metacritic.score}</span>
+              {/* caixinha de nota estilo Metacritic (verde/amarelo/vermelho) */}
+              <span className={`mc-box ${scores.metacritic.score >= 75 ? 'mc-good' : scores.metacritic.score >= 50 ? 'mc-mid' : 'mc-bad'}`}>
+                {scores.metacritic.score}
+              </span>
               <span className="side-score-what">
                 {scores.metacritic.url
                   ? <a href={scores.metacritic.url} target="_blank" rel="noopener noreferrer">Metacritic</a>
@@ -321,7 +343,7 @@ function GameSideStats({ game, completion }: {
           {scores?.critics ? (
             <div className="side-score">
               <span className="side-score-num">{scores.critics}</span>
-              <span className="side-score-what">{t('games:scoreCritics', { count: scores.critics_count ?? 0 })}</span>
+              <span className="side-score-what">{t('games:scoreCritics', { count: scores.critics_count ?? 0 })} <span className="source-badge source-badge-sm mono">IGDB</span></span>
             </div>
           ) : null}
           {scores?.users ? (
@@ -356,6 +378,10 @@ function GameSideStats({ game, completion }: {
           {hltb.map((x) => (
             <div key={x.label} className="side-row"><span>{x.label}</span><span className="mono">{x.value}</span></div>
           ))}
+          {/* de onde vieram os tempos: HowLongToBeat ou IGDB (fallback) */}
+          {completion?.source && (
+            <span className="source-badge mono" data-src={completion.source}>{completion.source}</span>
+          )}
         </div>
       )}
       {game.age_rating && (
@@ -509,9 +535,15 @@ function useGameCommunity(gameId: string) {
 function ReleasesTab({ game }: { game: ReturnType<typeof useGame>['data'] }) {
   const { t } = useTranslation();
   const meta = (game?.metadata ?? {}) as GameMeta;
-  const releases = meta.releases ?? [];
-  // coluna nova alt_titles (pesquisável); metadata é o fallback pré-migração
-  const alts = ((game as (typeof game & { alt_titles?: string[] }) | undefined)?.alt_titles ?? meta.alt_titles ?? []);
+  // dedupe no display: só mantém linha duplicada quando a REGIÃO difere (o
+  // que dava "WII 2011-05-20" repetido eram entradas sem região distinta)
+  const seen = new Set<string>();
+  const releases = (meta.releases ?? []).filter((r) => {
+    const k = `${r.platform}|${r.date}|${r.region ?? ''}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
   return (
     <div>
       {releases.length > 0 ? (
@@ -520,6 +552,7 @@ function ReleasesTab({ game }: { game: ReturnType<typeof useGame>['data'] }) {
             <div key={`${r.platform}-${r.date}-${r.region ?? ''}-${i}`} className="releases-row">
               <span className="releases-plat">
                 <Badge tone="accent">{r.platform}</Badge>
+                {/* país junto: fica menos estranho quando há linhas por região */}
                 {r.region && <span className="type-chip mono">{r.region}</span>}
               </span>
               <span className="releases-date mono">{r.date}</span>
@@ -531,15 +564,6 @@ function ReleasesTab({ game }: { game: ReturnType<typeof useGame>['data'] }) {
           <MetaItem label={t('games:released')} value={game?.release_date} />
           <MetaItem label={t('games:platforms')} value={game?.platforms?.join(', ')} />
         </dl>
-      )}
-      {(alts.length > 0 || game?.alt_title) && (
-        <div style={{ marginTop: 'var(--s5)' }}>
-          <span className="kicker">// {t('games:altTitles')}</span>
-          <ul className="alt-titles">
-            {game?.alt_title && <li>{game.alt_title}</li>}
-            {alts.filter((a) => a !== game?.alt_title).map((a) => <li key={a}>{a}</li>)}
-          </ul>
-        </div>
       )}
       {game?.regional_titles && (
         <dl className="meta-grid" style={{ marginTop: 'var(--s4)' }}>

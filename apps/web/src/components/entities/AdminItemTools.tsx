@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Shield, RefreshCw, ImagePlus, Link2, Search, Clock3, Star, GitMerge } from 'lucide-react';
+import { Shield, RefreshCw, ImagePlus, Link2, Search, Clock3, Star, Combine, Zap } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { invokeFn } from '@/lib/invokeFn';
 import { Dialog } from '@/components/ui/Dialog';
@@ -69,19 +69,52 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
   const [mergeTerm, setMergeTerm] = useState(gameTitle ?? '');
   const [mergeResults, setMergeResults] = useState<CatalogCandidate[]>([]);
   const [mergeSearching, setMergeSearching] = useState(false);
+  // "Sincronizar tudo": passo atual mostrado no botão
+  const [syncStep, setSyncStep] = useState<string | null>(null);
 
   if (!isAdmin) return null;
+
+  // "Sincronizar tudo": um clique roda IGDB + capas/mídia + HLTB + Metacritic
+  // em sequência (funções separadas por baixo; UX de um botão só)
+  async function syncAll() {
+    setRunning(true);
+    const done: string[] = [];
+    const steps: [string, Record<string, unknown>][] = [
+      ['IGDB', { game_id: gameId, action: 'igdb' }],
+      [t('admin:igdbMediaBtn'), { game_id: gameId, action: 'igdb-media' }],
+      ['HowLongToBeat', { game_id: gameId, action: 'hltb' }],
+      ['Metacritic', { game_id: gameId, action: 'metacritic' }],
+    ];
+    for (const [label, body] of steps) {
+      setSyncStep(label);
+      try {
+        await invokeFn('game-sync', body);
+        done.push(label);
+      } catch { /* uma fonte sem dado não derruba as outras */ }
+    }
+    setSyncStep(null);
+    setRunning(false);
+    void qc.invalidateQueries({ queryKey: ['game'] });
+    void qc.invalidateQueries({ queryKey: ['games'] });
+    void qc.invalidateQueries({ queryKey: ['gameMedia'] });
+    void qc.invalidateQueries({ queryKey: ['gameVersions'] });
+    if (done.length > 0) toast.success(t('admin:syncAllDone', { list: done.join(', ') }));
+    else toast.error(t('forms:submitError'));
+  }
 
   async function searchCatalog() {
     setMergeSearching(true);
     try {
       const sb = getSupabase() as unknown as SupabaseClient;
+      // busca por TÍTULO ou TÍTULO ALTERNATIVO (o FF VI não aparecia porque
+      // no catálogo o título é "Final Fantasy III" e o VI é um alt_title)
+      const safe = mergeTerm.trim().replace(/[,()]/g, ' ');
       const { data } = await sb.from('games')
         .select('id, title, slug, platforms, igdb_id, cover_url, thumbnail')
-        .ilike('title', `%${mergeTerm.trim()}%`)
+        .or(`title.ilike.%${safe}%,alt_search.ilike.%${safe}%`)
         .neq('id', gameId)
         .order('relevance', { ascending: false })
-        .limit(8);
+        .limit(10);
       setMergeResults((data ?? []) as CatalogCandidate[]);
     } finally {
       setMergeSearching(false);
@@ -176,44 +209,54 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
             {updatedAt ? ` · ${t('admin:itemUpdated')} ${new Date(updatedAt).toLocaleDateString()}` : ''}
           </span>
           <div className="admin-tools-row">
+            {/* UM botão faz todo o sync (IGDB + mídia + HLTB + Metacritic) */}
             <Button
-              size="sm" variant="secondary" disabled={running}
-              onClick={() => void call({ game_id: gameId, action: 'igdb' }, t('admin:itemSynced'))}
+              variant="primary" disabled={running}
+              onClick={() => void syncAll()}
             >
-              {running ? <Spinner /> : <RefreshCw />} {t('admin:itemSyncIgdb')}
+              {running && syncStep ? <><Spinner /> {syncStep}…</> : <><Zap /> {t('admin:syncAllBtn')}</>}
             </Button>
             <Button size="sm" variant="secondary" disabled={running} onClick={() => { setResults([]); setLinkOpen(true); }}>
               <Link2 /> {t('admin:linkBtn')}
             </Button>
             <Button
               size="sm" variant="secondary" disabled={running}
-              title={t('admin:hltbHint')}
-              onClick={() => void call({ game_id: gameId, action: 'hltb' }, 'HLTB')}
-            >
-              <Clock3 /> HLTB
-            </Button>
-            <Button
-              size="sm" variant="secondary" disabled={running}
-              title={t('admin:metacriticHint')}
-              onClick={() => void call({ game_id: gameId, action: 'metacritic' }, 'Metacritic')}
-            >
-              <Star /> Metacritic
-            </Button>
-            <Button
-              size="sm" variant="secondary" disabled={running}
-              title={t('admin:igdbMediaHint')}
-              onClick={() => void call({ game_id: gameId, action: 'igdb-media' }, t('admin:igdbMediaDone'))}
-            >
-              <ImagePlus /> {t('admin:igdbMediaBtn')}
-            </Button>
-            <Button
-              size="sm" variant="secondary" disabled={running}
               title={t('admin:mergeHint')}
               onClick={() => { setMergeResults([]); setMergeOpen(true); }}
             >
-              <GitMerge /> {t('admin:mergeBtn')}
+              <Combine /> {t('admin:mergeBtn')}
             </Button>
           </div>
+          {/* individuais: pra rodar uma fonte só quando precisa */}
+          <details className="admin-tools-adv">
+            <summary className="mono">{t('admin:advSources')}</summary>
+            <div className="admin-tools-row">
+              <Button
+                size="sm" variant="ghost" disabled={running}
+                onClick={() => void call({ game_id: gameId, action: 'igdb' }, t('admin:itemSynced'))}
+              >
+                <RefreshCw /> IGDB
+              </Button>
+              <Button
+                size="sm" variant="ghost" disabled={running} title={t('admin:igdbMediaHint')}
+                onClick={() => void call({ game_id: gameId, action: 'igdb-media' }, t('admin:igdbMediaDone'))}
+              >
+                <ImagePlus /> {t('admin:igdbMediaBtn')}
+              </Button>
+              <Button
+                size="sm" variant="ghost" disabled={running} title={t('admin:hltbHint')}
+                onClick={() => void call({ game_id: gameId, action: 'hltb' }, 'HLTB')}
+              >
+                <Clock3 /> HLTB
+              </Button>
+              <Button
+                size="sm" variant="ghost" disabled={running} title={t('admin:metacriticHint')}
+                onClick={() => void call({ game_id: gameId, action: 'metacritic' }, 'Metacritic')}
+              >
+                <Star /> Metacritic
+              </Button>
+            </div>
+          </details>
           <span className="admin-tools-hint">{t('admin:itemSyncHint')}</span>
           <div className="admin-tools-row">
             <Select value={target} onChange={(e) => setTarget(e.target.value as typeof target)} aria-label={t('admin:itemArtTarget')}>
@@ -285,6 +328,10 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
       {mergeOpen && (
         <Dialog open={mergeOpen} onClose={() => setMergeOpen(false)} title={t('admin:mergeTitle')}>
           <p className="page-sub">{t('admin:mergeText')}</p>
+          <ul className="merge-legend">
+            <li><Combine aria-hidden /> <b>{t('admin:mergeInto')}</b>: {t('admin:mergeLegendMerge')}</li>
+            <li><Link2 aria-hidden /> <b>{t('admin:linkVersion')}</b>: {t('admin:mergeLegendLink')}</li>
+          </ul>
           <div className="admin-tools-row" style={{ marginTop: 'var(--s3)' }}>
             <Input
               value={mergeTerm} onChange={(e) => setMergeTerm(e.target.value)}
@@ -315,7 +362,7 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
                   </div>
                   <span style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
                     <Button size="sm" variant="primary" disabled={running} onClick={() => void mergeInto(r)}>
-                      <GitMerge /> {t('admin:mergeInto')}
+                      <Combine /> {t('admin:mergeInto')}
                     </Button>
                     <Button size="sm" variant="secondary" disabled={running} onClick={() => void linkVersion(r)}>
                       <Link2 /> {t('admin:linkVersion')}

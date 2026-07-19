@@ -427,8 +427,67 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
   min-width: 34px;
 }
 .side-score-ours { color: var(--accent); }
-.side-score-mc { color: #6c3; } /* o verde clássico do Metacritic */
 .side-score-what a { color: inherit; text-decoration: underline; }
+
+/* caixinha de nota estilo Metacritic (verde >=75, amarelo 50-74, vermelho <50) */
+.mc-box {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 30px;
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 1rem;
+  color: #fff;
+  border-radius: 3px;
+}
+.mc-good { background: #00ce7a; }
+.mc-mid { background: #ffbd3f; color: #1a1a1a; }
+.mc-bad { background: #ff6874; }
+
+/* etiqueta de FONTE do dado (HowLongToBeat / IGDB / Metacritic) */
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--s2);
+  padding: 1px 7px;
+  border: 1px solid var(--line-bright);
+  color: var(--muted);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.source-badge-sm { margin-top: 0; margin-left: 4px; padding: 0 5px; font-size: 0.56rem; vertical-align: 1px; }
+.source-badge[data-src="HowLongToBeat"] { border-color: #2a9d8f; color: #4fd1c0; }
+.source-badge[data-src="Metacritic"] { border-color: #00ce7a; color: #00ce7a; }
+
+/* plataforma clicável: o Badge não muda de visual, só ganha o link ao redor */
+.badge-link { display: inline-flex; text-decoration: none; }
+
+/* legenda do modal fundir/ligar: explica os dois botões */
+.merge-legend {
+  list-style: none;
+  padding: var(--s3);
+  margin: var(--s3) 0 0;
+  display: grid;
+  gap: var(--s2);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  font-size: 0.76rem;
+}
+.merge-legend li { display: flex; align-items: flex-start; gap: var(--s2); color: var(--muted); }
+.merge-legend svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: var(--accent); }
+.merge-legend b { color: var(--ink-bright); }
+
+/* fontes individuais (avançado) escondidas por padrão na caixa de admin */
+.admin-tools-adv { margin-top: var(--s2); }
+.admin-tools-adv summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.admin-tools-adv[open] summary { margin-bottom: var(--s2); }
 .side-score-what { color: var(--muted); font-size: 0.7rem; line-height: 1.3; }
 .side-row {
   display: flex;
@@ -3590,21 +3649,29 @@ button.heat-cell::after {
 
 /* ── MOBILE (pedido do Killer: "deixa mobile friendly também") ──────────────── */
 @media (max-width: 720px) {
-  /* página do jogo: coluna lateral vira largura total, capa centrada,
-     cards de notas/comunidade lado a lado */
+  /* página do jogo: cabeçalho em coluna (capa em cima, infos embaixo),
+     sem estouro de largura no topo (queixa do Killer) */
+  .detail-head { flex-direction: column; gap: var(--s4); }
+  .detail-info { width: 100%; min-width: 0; }
+  .detail-info h1 { font-size: 1.5rem; word-break: break-word; }
   .detail-side { width: 100%; }
-  .detail-side .detail-cover { width: 190px; margin: 0 auto; }
+  .detail-side .detail-cover { width: 160px; margin: 0 auto; }
   .side-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
   .side-stats .side-card { min-width: 0; }
+  /* meta-grid em 2 colunas fixas (auto-fit criava colunas largas demais) */
+  .meta-grid { grid-template-columns: 1fr 1fr; gap: var(--s2) var(--s3); }
   /* selo de origem + reportar deixam de flutuar (cobriam o título) */
   .detail-report {
     position: static;
     order: -1;
     width: 100%;
     justify-content: flex-end;
-    margin-bottom: var(--s2);
+    margin-bottom: 0;
   }
   .detail-cover-wide { width: 100%; }
+  /* fileira de ações e tabs rolam em vez de estourar */
+  .detail-actions { width: 100%; }
+  .tabs { overflow-x: auto; }
   /* linhas de admin (aba Dados) quebram em vez de estourar */
   .admin-row { flex-wrap: wrap; row-gap: var(--s2); }
   /* versões ligadas e linha do tempo da série em coluna */
