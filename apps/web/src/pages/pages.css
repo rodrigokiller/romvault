@@ -1370,6 +1370,11 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
   padding: 0;
   cursor: pointer;
   line-height: 0;
+  /* alvo de toque >= 24px mesmo com estrela de 13px (a11y do polish) */
+  min-width: 24px;
+  min-height: 24px;
+  display: inline-grid;
+  place-items: center;
 }
 .reviews {
   border-top: 1px solid var(--line);
@@ -2089,11 +2094,15 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
   justify-content: center;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.12), transparent 40%),
+    linear-gradient(0deg, rgba(0,0,0,0.35), rgba(0,0,0,0.35)),
     var(--case-accent, #3a3a42);
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.52rem;
+  /* accents claros (SNES cinza) derrubavam o contraste do texto minúsculo:
+     camada escura + sombra garantem legibilidade em qualquer accent */
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  font-size: 0.6rem;
   font-weight: 700;
-  letter-spacing: 0.28em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   border-bottom: 1px solid rgba(0,0,0,0.5);
 }
@@ -2250,8 +2259,8 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
 .copies-remove {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   background: none;
   border: 1px solid transparent;
   color: var(--muted);
@@ -2896,6 +2905,7 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
 }
 .my-strip-covers {
   display: flex;
+  flex-wrap: wrap; /* 6 capas estouravam a largura no mobile (scroll na página) */
   gap: var(--s2);
 }
 .my-strip-covers a {
@@ -3061,6 +3071,7 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 24px;
   padding: 4px 10px;
   background: transparent;
   border: 1px dashed var(--line-bright);
@@ -3265,6 +3276,8 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
 .account-help {
   display: inline-grid;
   place-items: center;
+  min-width: 24px;
+  min-height: 24px;
   margin-left: var(--s2);
   padding: 0;
   background: transparent;
@@ -3468,11 +3481,18 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
 .heat-2 { background: color-mix(in srgb, var(--accent) 50%, var(--panel-2)); }
 .heat-3 { background: color-mix(in srgb, var(--accent) 75%, var(--panel-2)); }
 .heat-4 { background: var(--accent); }
-/* dia com atividade: clicável (abre o modal do dia) */
+/* dia com atividade: clicável (abre o modal do dia); o hit-target invisível
+   de -7px leva a célula de ~10px pra perto de 24px sem mudar o visual */
 button.heat-cell {
   padding: 0;
   cursor: pointer;
   appearance: none;
+  position: relative;
+}
+button.heat-cell::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
 }
 .heat-click:hover { outline: 1px solid var(--accent); outline-offset: 1px; }
 
@@ -3713,6 +3733,7 @@ button.heat-cell {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-height: 24px;
   padding: 2px 8px;
   background: rgba(11, 14, 16, 0.88);
   border: 1px solid var(--blue);
@@ -3765,6 +3786,13 @@ button.heat-cell {
 .bulk-bar .search-chip svg { width: 12px; height: 12px; }
 .bulk-bar .search-chip:disabled { opacity: 0.4; pointer-events: none; }
 .bulk-chip-private:not(:disabled) { color: var(--amber); border-color: var(--amber); }
+
+/* vão hero -> primeira seção igualado ao vão entre seções (polish) */
+.container > .section:first-child,
+.container > .onboard:first-child,
+.container > .my-strip:first-child {
+  margin-top: 0;
+}
 
 /* ── retrospectiva: jogados agrupados por mês ───────────────────────────────── */
 .wrapped-month-group { margin-bottom: var(--s4); }

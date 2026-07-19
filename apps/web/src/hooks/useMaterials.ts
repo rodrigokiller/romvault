@@ -55,8 +55,21 @@ const CATEGORY_COL: Record<MaterialKind, string | null> = {
   tools: 'category',
 };
 
+/**
+ * Colunas do MaterialCard + filtros derivados, POR TABELA (os schemas diferem:
+ * documents não tem version/video_url; tools não tem video_url) — o '*' fica
+ * só no detalhe. Era o select('*') trazendo changelog/compatibility/etc. em
+ * cada card (achado do polish).
+ */
+const CARD_COLS: Record<MaterialKind, string> = {
+  romhacks: 'id, title, description, thumbnail, downloads, rating, version, difficulty, categories, file_url, video_url, created_at',
+  translations: 'id, title, description, thumbnail, downloads, rating, version, language, completion_percentage, categories, file_url, video_url, created_at',
+  documents: 'id, title, description, thumbnail, downloads, rating, language, category, file_format, file_url, created_at',
+  tools: 'id, title, description, thumbnail, downloads, rating, version, category, license, file_url, created_at',
+};
+
 function buildList(kind: MaterialKind, filters: MaterialFilters) {
-  let q = db().from(kind).select('*');
+  let q = db().from(kind).select(CARD_COLS[kind]);
   if (kind !== 'tools') q = q.eq('is_public', true);
   if (filters.search) q = q.ilike('title', `%${filters.search}%`);
   if (filters.language && (kind === 'translations' || kind === 'documents')) {

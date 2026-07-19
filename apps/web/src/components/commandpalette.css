@@ -33,7 +33,9 @@
   font-size: 0.95rem;
   caret-color: var(--accent);
 }
+/* o outline sai do input mas o FOCO segue visível na borda da linha */
 .cmdk-input:focus { outline: none; }
+.cmdk-input-row:focus-within { border-bottom-color: var(--accent); }
 .cmdk-input::placeholder { color: var(--muted); }
 
 .cmdk-list {

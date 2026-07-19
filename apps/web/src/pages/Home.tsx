@@ -34,6 +34,7 @@ const KIND_OF: Record<string, Kind> = {
 
 export function Home() {
   const { t } = useTranslation();
+  const { session } = useAuth();
   const { data: stats } = useStats();
   const { data: trending = [], isLoading: trendingLoading } = useTrending(8);
   const { data: articles = [], isLoading: articlesLoading } = useArticles(3);
@@ -53,8 +54,11 @@ export function Home() {
             <Link to="/games">
               <Button variant="primary">{t('home:heroBrowse')} <ArrowRight /></Button>
             </Link>
-            <Link to="/submit">
-              <Button variant="secondary"><Upload /> {t('home:heroSubmit')}</Button>
+            {/* anônimo clicava em Enviar e caía numa parede de login sem aviso */}
+            <Link to={session ? '/submit' : '/login'}>
+              <Button variant="secondary">
+                <Upload /> {session ? t('home:heroSubmit') : t('home:heroSubmitLogin')}
+              </Button>
             </Link>
           </div>
 
@@ -82,16 +86,17 @@ export function Home() {
               <span className="kicker">{t('home:trendingKicker')}</span>
               <h2>{t('home:trendingTitle')}</h2>
             </div>
-            <Link to="/romhacks" className="section-link">{t('common:viewAll')}</Link>
+            {/* a lista mistura tipos: o "ver tudo" honesto é a /scene (em alta da semana) */}
+            <Link to="/scene" className="section-link">{t('common:viewAll')}</Link>
           </div>
           {trendingLoading ? (
             <div className="card-grid card-grid-tight">
-              {Array.from({ length: 4 }).map((_, i) => (
+              {Array.from({ length: 8 }).map((_, i) => (
                 <Card key={i} padSm><Skeleton h={72} /></Card>
               ))}
             </div>
           ) : trending.length === 0 ? (
-            <EmptyState icon={TrendingUp} title={t('home:trendingTitle')} text={t('home:trendingEmpty')} />
+            <EmptyState icon={TrendingUp} title={t('home:emptyHereTitle')} text={t('home:trendingEmpty')} />
           ) : (
             <div className="card-grid card-grid-tight">
               {trending.map((item) => {
@@ -179,7 +184,7 @@ export function Home() {
               ))}
             </div>
           ) : articles.length === 0 ? (
-            <EmptyState icon={Newspaper} title={t('home:latestTitle')} text={t('home:latestEmpty')} />
+            <EmptyState icon={Newspaper} title={t('home:emptyHereTitle')} text={t('home:latestEmpty')} />
           ) : (
             <div className="article-list">
               {articles.map((a) => (
@@ -221,7 +226,10 @@ function MyShelfStrip() {
   return (
     <section className="section my-strip">
       <div className="section-head">
-        <h2>{t('home:myShelfTitle')}</h2>
+        <div>
+          <span className="kicker">{t('home:myShelfKicker')}</span>
+          <h2>{t('home:myShelfTitle')}</h2>
+        </div>
         <Link to={`/u/${me.username}/library`} className="section-link">
           {t('library:viewLibrary')} <ArrowRight aria-hidden style={{ width: 14, height: 14, verticalAlign: '-2px' }} />
         </Link>

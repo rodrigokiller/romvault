@@ -558,7 +558,15 @@ export function useLibraryCount(userId: string | undefined) {
   });
 }
 
-/** Biblioteca completa de um usuário (com os jogos embutidos). */
+/**
+ * Colunas do jogo que a estante/vitrine/quick-view realmente usam — o embed
+ * games(*) trazia screenshots/completion_times/external_ids etc. em CADA linha
+ * (achado do polish: a maior gordura de payload do app).
+ */
+const GAME_EMBED_COLS =
+  'id, title, slug, cover_url, thumbnail, platforms, genres, release_date, developer, description, metadata, is_adult';
+
+/** Biblioteca completa de um usuário (com os jogos embutidos MAGROS). */
 export function useLibrary(userId: string | undefined) {
   return useQuery({
     queryKey: ['library', userId],
@@ -567,11 +575,32 @@ export function useLibrary(userId: string | undefined) {
     queryFn: async (): Promise<TrackWithGame[]> => {
       const { data, error } = await db()
         .from('game_tracks')
-        .select('*, game:games(*)')
+        .select(`*, game:games(${GAME_EMBED_COLS})`)
         .eq('user_id', userId as string)
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return ((data ?? []) as unknown as TrackWithGame[]).filter((t) => t.game);
+    },
+  });
+}
+
+/**
+ * Pulso da biblioteca SEM jogos embutidos (status + updated_at): o suficiente
+ * pro perfil calcular atividade da semana e progresso de backlog.
+ */
+export function useTrackPulse(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['trackPulse', userId],
+    staleTime: 5 * 60_000,
+    enabled: env.configured && Boolean(userId),
+    queryFn: async (): Promise<{ status: TrackStatus; updated_at: string }[]> => {
+      const { data, error } = await db()
+        .from('game_tracks')
+        .select('status, updated_at')
+        .eq('user_id', userId as string)
+        .range(0, 9999);
+      if (error) throw error;
+      return (data ?? []) as { status: TrackStatus; updated_at: string }[];
     },
   });
 }

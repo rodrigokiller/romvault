@@ -33,6 +33,13 @@ export const gamesKeys = {
 };
 
 /**
+ * Colunas que o GameCard/quick-view usam — select('*') nas listas trazia
+ * screenshots/metadata/completion_times de 24-60 jogos por página (polish).
+ */
+const GAME_CARD_COLS =
+  'id, title, slug, cover_url, thumbnail, platforms, genres, release_date, developer, description, franchise, series, is_adult, game_type';
+
+/**
  * Hook de exemplo (padrão react-query): lista de jogos.
  * `enabled` só dispara quando o Supabase está configurado — sem env, devolve
  * uma lista vazia e a página mostra o estado vazio elegante.
@@ -45,7 +52,7 @@ export function useGames(filters: GamesFilter = {}) {
     queryFn: async (): Promise<Game[]> => {
       // Filtros ANTES de order/limit (métodos de filtro só existem no
       // FilterBuilder; order/limit devolvem um TransformBuilder).
-      let query = db().from('games').select('*');
+      let query = db().from('games').select(GAME_CARD_COLS);
       if (filters.platform) query = query.contains('platforms', [filters.platform]);
       if (filters.genre) query = query.contains('genres', [filters.genre]);
       if (filters.search) query = query.ilike('title', `%${filters.search}%`);
@@ -53,7 +60,7 @@ export function useGames(filters: GamesFilter = {}) {
 
       const { data, error } = await query.order('title', { ascending: true }).limit(60);
       if (error) throw error;
-      return (data ?? []) as Game[];
+      return (data ?? []) as unknown as Game[];
     },
   });
 }
@@ -66,7 +73,7 @@ export function useInfiniteGames(filters: GamesFilter = {}) {
     enabled: env.configured,
     initialPageParam: 0,
     queryFn: async ({ pageParam }): Promise<Game[]> => {
-      let query = db().from('games').select('*');
+      let query = db().from('games').select(GAME_CARD_COLS);
       if (filters.platform) query = query.contains('platforms', [filters.platform]);
       if (filters.genre) query = query.contains('genres', [filters.genre]);
       if (filters.search) query = query.ilike('title', `%${filters.search}%`);
@@ -76,7 +83,7 @@ export function useInfiniteGames(filters: GamesFilter = {}) {
         .order('title', { ascending: true })
         .range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
-      return (data ?? []) as Game[];
+      return (data ?? []) as unknown as Game[];
     },
     getNextPageParam: (lastPage, pages) => (lastPage.length === PAGE_SIZE ? pages.length : undefined),
   });
@@ -93,7 +100,7 @@ export function useGamesPage(filters: GamesFilter, page: number, pageSize = PAGE
     enabled: env.configured,
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<{ games: Game[]; total: number }> => {
-      let q = db().from('games').select('*', { count: 'exact' });
+      let q = db().from('games').select(GAME_CARD_COLS, { count: 'exact' });
       if (!showAdult) q = q.eq('is_adult', false);
       if (filters.platform) q = q.contains('platforms', [filters.platform]);
       if (filters.genre) q = q.contains('genres', [filters.genre]);
@@ -176,19 +183,20 @@ export function useRelatedGames(game: Game | null | undefined) {
   return useQuery({
     queryKey: ['games', 'related', game?.id],
     enabled: env.configured && Boolean(game?.id),
+    staleTime: 5 * 60_000, // relacionados quase não mudam (polish)
     queryFn: async (): Promise<Game[]> => {
       const g = game as Game;
       if (g.franchise) {
-        const { data } = await getSupabase()
-          .from('games').select('*')
+        const { data } = await db()
+          .from('games').select(GAME_CARD_COLS)
           .eq('franchise', g.franchise).neq('id', g.id).limit(6);
-        if (data && data.length) return data;
+        if (data && data.length) return data as unknown as Game[];
       }
       if (g.genres && g.genres.length) {
-        const { data } = await getSupabase()
-          .from('games').select('*')
+        const { data } = await db()
+          .from('games').select(GAME_CARD_COLS)
           .overlaps('genres', g.genres).neq('id', g.id).limit(6);
-        return data ?? [];
+        return (data ?? []) as unknown as Game[];
       }
       return [];
     },

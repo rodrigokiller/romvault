@@ -17,7 +17,7 @@ import {
   useProfileByUsername, useMyProfile, useContributions, useUpdateProfile,
 } from '@/hooks/useProfile';
 import { useMyFavorites } from '@/hooks/useFavorites';
-import { useLibrary, useUserPlaythroughs, useLibraryCopies } from '@/hooks/useTracks';
+import { useTrackPulse, useUserPlaythroughs, useLibraryCopies, type GameCopy } from '@/hooks/useTracks';
 import { useIsFollowing, useToggleFollow, useFollowCounts, useFriendsFeed } from '@/hooks/useFollows';
 import { useAuth } from '@/auth/AuthProvider';
 import type { Kind } from '@/components/entities/kinds';
@@ -32,7 +32,8 @@ export function Profile() {
   const { data: me } = useMyProfile();
   const { data: contrib } = useContributions(profile?.id);
   const { data: favorites = [] } = useMyFavorites(profile?.id);
-  const { data: libTracks = [] } = useLibrary(profile?.id);
+  // pulso magro (status+updated_at): o perfil não precisa dos jogos embutidos
+  const { data: libTracks = [] } = useTrackPulse(profile?.id);
   const { data: playthroughs = [] } = useUserPlaythroughs(profile?.id);
   const { data: copies = [] } = useLibraryCopies(profile?.id);
   const { data: followCounts } = useFollowCounts(profile?.id);
@@ -106,7 +107,7 @@ export function Profile() {
 
       <ActivityStrip tracks={libTracks} playthroughs={playthroughs} copies={copies} />
 
-      <VitrineTeaser userId={profile.id} username={profile.username ?? username ?? ''} />
+      <VitrineTeaser userId={profile.id} username={profile.username ?? username ?? ''} copies={copies} />
 
       {isMe && <FriendsFeed />}
 
@@ -185,23 +186,27 @@ function ActivityStrip({ tracks, playthroughs, copies }: {
  * Cartão-vitrine do perfil: as últimas aquisições em mini-prateleira +
  * contadores — a porta de entrada visual pra /vitrine.
  */
-function VitrineTeaser({ userId, username }: { userId: string; username: string }) {
+function VitrineTeaser({ userId, username, copies }: { userId: string; username: string; copies: GameCopy[] }) {
   const { t } = useTranslation();
-  const { data } = useVitrineTeaser(userId);
-  if (!data || data.games === 0) return null;
+  // contadores derivados das cópias que a página JÁ carregou (era um fetch
+  // duplicado da tabela inteira — achado do polish); só as capas têm query
+  const games = new Set(copies.map((c) => c.game_id)).size;
+  const platforms = new Set(copies.map((c) => c.platform)).size;
+  const { data: covers = [] } = useVitrineTeaserCovers(games > 0 ? userId : undefined);
+  if (games === 0) return null;
   return (
     <Link to={`/u/${username}/vitrine`} className="vt-teaser">
       <span className="vt-teaser-covers" aria-hidden>
-        {data.covers.map((src, i) => (
-          <img key={src} src={src} alt="" style={{ zIndex: data.covers.length - i }} loading="lazy" />
+        {covers.map((src, i) => (
+          <img key={src} src={src} alt="" style={{ zIndex: covers.length - i }} loading="lazy" />
         ))}
       </span>
       <span className="vt-teaser-info">
         <span className="kicker">// {t('vitrine:teaserKicker')}</span>
         <span className="vt-teaser-count">
-          {t('vitrine:subtitle', { count: data.games })}
+          {t('vitrine:subtitle', { count: games })}
           {' · '}
-          {t('vitrine:teaserPlatforms', { count: data.platforms })}
+          {t('vitrine:teaserPlatforms', { count: platforms })}
         </span>
         <span className="vt-teaser-cta mono">{t('vitrine:viewVitrine')} {'->'}</span>
       </span>
@@ -209,24 +214,19 @@ function VitrineTeaser({ userId, username }: { userId: string; username: string 
   );
 }
 
-/** Últimas aquisições + contadores pra o cartão-vitrine do perfil. */
-function useVitrineTeaser(userId: string | undefined) {
+/** Só as 5 capas mais recentes pro cartão-vitrine (contadores vêm da página). */
+function useVitrineTeaserCovers(userId: string | undefined) {
   return useQuery({
-    queryKey: ['vitrineTeaser', userId],
+    queryKey: ['vitrineTeaserCovers', userId],
     enabled: Boolean(userId),
-    queryFn: async () => {
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<string[]> => {
       const sb = getSupabase() as unknown as SupabaseClient;
-      const [{ data: recent }, { data: all }] = await Promise.all([
-        sb.from('game_copies')
-          .select('game_id, game:games(cover_url, thumbnail)')
-          .eq('user_id', userId as string)
-          .order('created_at', { ascending: false })
-          .limit(14),
-        sb.from('game_copies')
-          .select('game_id, platform')
-          .eq('user_id', userId as string)
-          .range(0, 4999),
-      ]);
+      const { data: recent } = await sb.from('game_copies')
+        .select('game_id, game:games(cover_url, thumbnail)')
+        .eq('user_id', userId as string)
+        .order('created_at', { ascending: false })
+        .limit(14);
       const covers: string[] = [];
       const seen = new Set<string>();
       for (const r of (recent ?? []) as unknown as { game_id: string; game: { cover_url: string | null; thumbnail: string | null } | null }[]) {
@@ -236,11 +236,7 @@ function useVitrineTeaser(userId: string | undefined) {
         if (src) covers.push(src);
         if (covers.length >= 5) break;
       }
-      return {
-        covers,
-        games: new Set((all ?? []).map((r) => r.game_id as string)).size,
-        platforms: new Set((all ?? []).map((r) => r.platform as string)).size,
-      };
+      return covers;
     },
   });
 }

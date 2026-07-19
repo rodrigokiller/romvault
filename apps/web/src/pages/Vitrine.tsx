@@ -40,7 +40,7 @@ function useOwnedGames(userId: string | undefined) {
     queryFn: async (): Promise<OwnedGame[]> => {
       const [{ data: copies }, { data: arts }] = await Promise.all([
         db().from('game_copies')
-          .select('game_id, platform, created_at, is_private, game:games(*)')
+          .select('game_id, platform, created_at, is_private, game:games(id, title, slug, cover_url, thumbnail, platforms, genres, release_date, developer, description, metadata, is_adult)')
           .eq('user_id', userId as string)
           .order('created_at', { ascending: true })
           .range(0, 4999),

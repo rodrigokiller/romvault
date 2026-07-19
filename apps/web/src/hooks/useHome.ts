@@ -136,6 +136,7 @@ export function useTrending(limit = 8) {
   return useQuery({
     queryKey: ['trending', limit],
     enabled: env.configured,
+    staleTime: 5 * 60_000, // agregado SEMANAL: refazer a cada 30s era desperdício
     queryFn: async (): Promise<TrendingItem[]> => {
       const weekly = await trendingWeek(limit);
       return weekly.length ? weekly : trendingByDownloads(limit);
