@@ -3900,6 +3900,7 @@ button.heat-cell::after {
 .bulk-bar .search-chip svg { width: 12px; height: 12px; }
 .bulk-bar .search-chip:disabled { opacity: 0.4; pointer-events: none; }
 .bulk-chip-private:not(:disabled) { color: var(--amber); border-color: var(--amber); }
+.bulk-chip-remove:not(:disabled) { color: var(--red); border-color: var(--red); }
 
 /* vão hero -> primeira seção igualado ao vão entre seções (polish) */
 .container > .section:first-child,

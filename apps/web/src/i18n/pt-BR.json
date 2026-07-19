@@ -524,7 +524,13 @@
     "bulkPrivate": "Tornar privados",
     "bulkPublic": "Tornar públicos",
     "bulkDone_one": "{{count}} jogo atualizado",
-    "bulkDone_other": "{{count}} jogos atualizados"
+    "bulkDone_other": "{{count}} jogos atualizados",
+    "bulkRemove": "Remover da biblioteca",
+    "bulkRemoveHint": "Tira os selecionados da estante e some com as cópias deles (zeradas e reviews ficam)",
+    "bulkRemoveConfirm_one": "Remover {{count}} jogo da biblioteca (e suas cópias)?",
+    "bulkRemoveConfirm_other": "Remover {{count}} jogos da biblioteca (e suas cópias)?",
+    "bulkRemoved_one": "{{count}} jogo removido da biblioteca",
+    "bulkRemoved_other": "{{count}} jogos removidos da biblioteca"
   },
   "ustats": {
     "kicker": "painel do jogador",

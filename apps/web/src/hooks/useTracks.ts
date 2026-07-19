@@ -187,6 +187,38 @@ export function useSetGamePrivacy() {
 }
 
 /**
+ * REMOVE em massa da biblioteca: apaga tracks E cópias dos jogos escolhidos
+ * (não toca em zeradas/reviews — só o "tenho na estante"). Blocos de 200.
+ */
+export function useRemoveGamesBulk() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (gameIds: string[]) => {
+      const uid = user?.id;
+      if (!uid) throw new Error('Não autenticado.');
+      for (let i = 0; i < gameIds.length; i += 200) {
+        const chunk = gameIds.slice(i, i + 200);
+        const { error: e1 } = await db().from('game_copies').delete().eq('user_id', uid).in('game_id', chunk);
+        if (e1) throw e1;
+        const { error: e2 } = await db().from('game_tracks').delete().eq('user_id', uid).in('game_id', chunk);
+        if (e2) throw e2;
+        // dados de sync do provedor também saem (senão o rollup os traz de volta)
+        await db().from('game_sync_data').delete().eq('user_id', uid).in('game_id', chunk);
+      }
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['library'] });
+      void qc.invalidateQueries({ queryKey: ['libraryCopies'] });
+      void qc.invalidateQueries({ queryKey: ['ownedGames'] });
+      void qc.invalidateQueries({ queryKey: ['trackPulse'] });
+      void qc.invalidateQueries({ queryKey: ['homeShelf'] });
+      void qc.invalidateQueries({ queryKey: ['libraryCount'] });
+    },
+  });
+}
+
+/**
  * Privacidade EM MASSA (modo seleção da Library): mesmo interruptor do
  * useSetGamePrivacy, mas pra N jogos de uma vez — ids em blocos de 200 pra
  * não estourar o limite de URL do PostgREST.

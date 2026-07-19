@@ -14,6 +14,9 @@ export function useFlip(containerRef: RefObject<HTMLElement | null>, depsKey: st
     if (!container) return;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const nodes = container.querySelectorAll<HTMLElement>('[data-flip]');
+    // acima de ~120 itens, medir getBoundingClientRect de todos e animar trava
+    // a UI — bibliotecas grandes trocam de filtro sem animação (só re-render)
+    if (nodes.length > 120) { positions.current = new Map(); return; }
     const next = new Map<string, DOMRect>();
 
     nodes.forEach((node) => {

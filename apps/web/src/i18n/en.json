@@ -524,7 +524,13 @@
     "bulkPrivate": "Make private",
     "bulkPublic": "Make public",
     "bulkDone_one": "{{count}} game updated",
-    "bulkDone_other": "{{count}} games updated"
+    "bulkDone_other": "{{count}} games updated",
+    "bulkRemove": "Remove from library",
+    "bulkRemoveHint": "Takes the selected off the shelf and deletes their copies (playthroughs and reviews stay)",
+    "bulkRemoveConfirm_one": "Remove {{count}} game from the library (and its copies)?",
+    "bulkRemoveConfirm_other": "Remove {{count}} games from the library (and their copies)?",
+    "bulkRemoved_one": "{{count}} game removed from the library",
+    "bulkRemoved_other": "{{count}} games removed from the library"
   },
   "ustats": {
     "kicker": "player dashboard",

@@ -2,14 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFlip } from '@/hooks/useFlip';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages, RefreshCw, Lock, LockOpen, Check, CheckSquare, X, Layers } from 'lucide-react';
+import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages, RefreshCw, Lock, LockOpen, Check, CheckSquare, X, Layers, Trash2 } from 'lucide-react';
 import { GameQuickView } from '@/components/entities/GameQuickView';
 import { useToast } from '@/components/ui/Toast';
 import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
 import { useProfileByUsername } from '@/hooks/useProfile';
 import {
   useLibrary, useLibraryCopies, useUserPlaythroughs, useUserSyncSummary, useUserLastPlayed,
-  useSetGamesPrivacyBulk, useLibraryRelations, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
+  useSetGamesPrivacyBulk, useRemoveGamesBulk, useLibraryRelations, TRACK_STATUSES, type TrackStatus, type TrackWithGame,
 } from '@/hooks/useTracks';
 import { STATUS_ICON } from '@/components/entities/TrackButton';
 import { BatchAdd } from '@/components/entities/BatchAdd';
@@ -78,6 +78,7 @@ export function Library() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const bulkPrivacy = useSetGamesPrivacyBulk();
+  const bulkRemove = useRemoveGamesBulk();
   // agrupar VERSÕES ligadas (remaster/remake/port) num card só
   const [groupVersions, setGroupVersions] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -273,6 +274,19 @@ export function Library() {
     try {
       await bulkPrivacy.mutateAsync({ gameIds: ids, isPrivate });
       toast.success(t('library:bulkDone', { count: ids.length }));
+      setSelecting(false);
+      setSelected(new Set());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    }
+  }
+
+  async function removeBulk() {
+    const ids = [...selected];
+    if (!window.confirm(t('library:bulkRemoveConfirm', { count: ids.length }))) return;
+    try {
+      await bulkRemove.mutateAsync(ids);
+      toast.success(t('library:bulkRemoved', { count: ids.length }));
       setSelecting(false);
       setSelected(new Set());
     } catch (err) {
@@ -540,6 +554,16 @@ export function Library() {
           >
             <LockOpen aria-hidden /> {t('library:bulkPublic')}
           </button>
+          {isMe && (
+            <button
+              type="button" className="search-chip bulk-chip-remove"
+              disabled={selected.size === 0 || bulkRemove.isPending}
+              onClick={() => void removeBulk()}
+              title={t('library:bulkRemoveHint')}
+            >
+              <Trash2 aria-hidden /> {t('library:bulkRemove')}
+            </button>
+          )}
           <button
             type="button" className="search-chip"
             onClick={() => { setSelecting(false); setSelected(new Set()); }}
