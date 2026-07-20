@@ -4220,8 +4220,10 @@ button.heat-cell::after {
 }
 .platform-card {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
   padding: var(--s3) var(--s4);
   background: var(--panel-2);
   border: 1px solid var(--line);
@@ -4232,6 +4234,7 @@ button.heat-cell::after {
   border-color: var(--plat-accent, var(--accent));
   transform: translateY(-2px);
 }
+.platform-card-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .platform-card-name {
   color: var(--plat-accent, var(--ink-bright));
   font-size: 0.95rem;
@@ -4245,6 +4248,58 @@ button.heat-cell::after {
   white-space: nowrap;
 }
 .platform-card-count { color: var(--ink); font-size: 0.7rem; margin-top: var(--s1); }
+/* placeholder do ícone do console (64x64) — recebe a arte real depois */
+.platform-card-icon {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--plat-accent, var(--muted));
+  background: color-mix(in oklab, var(--plat-accent, var(--line)) 10%, transparent);
+  border: 1px solid color-mix(in oklab, var(--plat-accent, var(--line)) 40%, var(--line));
+}
+/* editor de aliases da plataforma (public read, admin edita) */
+.alias-list {
+  list-style: none;
+  margin: 0 0 var(--s3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.alias-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  font-size: 0.82rem;
+}
+.alias-key { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.alias-del {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.alias-del:hover { color: var(--danger, #e5484d); border-color: var(--danger, #e5484d); }
+.alias-del:disabled { opacity: 0.5; cursor: default; }
+.alias-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  align-items: center;
+}
 
 /* ── /series/:name — linha do tempo da série/franquia ───────────────────────── */
 .series-timeline {

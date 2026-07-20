@@ -1,16 +1,24 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { MonitorPlay, Gamepad2 } from 'lucide-react';
+import { MonitorPlay, Gamepad2, Trash2 } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
+import { useIsAdmin } from '@/hooks/useProfile';
+import { useToast } from '@/components/ui/Toast';
 import { useGamesPage } from '@/hooks/useGames';
 import { GameCard } from '@/components/entities/GameCard';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Pagination } from '@/components/ui/Pagination';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 import { PLATFORM_THEMES } from '@/lib/platformThemes';
+
+/** fontes que usam alias de plataforma (de→para do importer) */
+const ALIAS_SOURCES = ['igdb', 'rhdn', 'mobygames', 'screenscraper', 'libretro', 'smwcentral', 'pobre', 'steam', 'gog', 'psn', 'xbox', 'nintendo'];
 
 const db = () => getSupabase() as unknown as SupabaseClient;
 
@@ -43,6 +51,111 @@ function usePlatformCounts() {
         .map((r) => [r.platform, Number(r.total)]));
     },
   });
+}
+
+/** Uma plataforma pelo NOME curto da URL (pra pegar o slug e os metadados). */
+function usePlatformByName(name: string) {
+  return useQuery({
+    queryKey: ['platformByName', name],
+    enabled: env.configured && !!name,
+    staleTime: 30 * 60_000,
+    queryFn: async (): Promise<PlatformRow | null> => {
+      const { data } = await db().from('platforms').select('*').eq('name', name).maybeSingle();
+      return (data ?? null) as PlatformRow | null;
+    },
+  });
+}
+
+interface PlatformAlias { source: string; external_key: string }
+
+/**
+ * Aliases de→para da plataforma (public read; admin edita). Fecha o pedido do
+ * Killer: ver a lista de todo mundo, corrigir os vínculos errados sem SQL.
+ */
+function AliasEditor({ slug }: { slug: string }) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const isAdmin = useIsAdmin();
+  const [source, setSource] = useState('igdb');
+  const [key, setKey] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const { data: aliases = [] } = useQuery({
+    queryKey: ['platformAliases', slug],
+    enabled: env.configured && !!slug,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<PlatformAlias[]> => {
+      const { data, error } = await db().from('platform_aliases')
+        .select('source, external_key').eq('platform', slug).order('source');
+      if (error) return [];
+      return (data ?? []) as PlatformAlias[];
+    },
+  });
+
+  async function add() {
+    if (!key.trim()) return;
+    setBusy(true);
+    try {
+      const { error } = await db().from('platform_aliases')
+        .upsert({ source, external_key: key.trim(), platform: slug }, { onConflict: 'source,external_key', ignoreDuplicates: false });
+      if (error) throw error;
+      setKey('');
+      toast.success(t('platforms:aliasAdded'));
+      void qc.invalidateQueries({ queryKey: ['platformAliases', slug] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally { setBusy(false); }
+  }
+  async function remove(a: PlatformAlias) {
+    setBusy(true);
+    try {
+      const { error } = await db().from('platform_aliases')
+        .delete().eq('source', a.source).eq('external_key', a.external_key);
+      if (error) throw error;
+      toast.success(t('platforms:aliasRemoved'));
+      void qc.invalidateQueries({ queryKey: ['platformAliases', slug] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <section className="section">
+      <div className="section-head"><h2>{t('platforms:aliasesTitle')}</h2></div>
+      <p className="page-sub">{t('platforms:aliasesHint')}</p>
+      {aliases.length === 0 ? (
+        <p className="page-sub mono" style={{ fontSize: '0.8rem' }}>{t('platforms:aliasesEmpty')}</p>
+      ) : (
+        <ul className="alias-list">
+          {aliases.map((a) => (
+            <li key={`${a.source}-${a.external_key}`} className="alias-row mono">
+              <span className="type-chip mono">{a.source}</span>
+              <span className="alias-key">{a.external_key}</span>
+              {isAdmin && (
+                <button type="button" className="alias-del" title={t('platforms:aliasRemove')}
+                  disabled={busy} onClick={() => void remove(a)}>
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {isAdmin && (
+        <div className="alias-add">
+          <Select aria-label={t('platforms:aliasSource')} value={source} onChange={(e) => setSource(e.target.value)} style={{ maxWidth: 160 }}>
+            {ALIAS_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </Select>
+          <Input aria-label={t('platforms:aliasKey')} placeholder={t('platforms:aliasKeyPh')}
+            value={key} onChange={(e) => setKey(e.target.value)} style={{ maxWidth: 240 }} />
+          <Button variant="secondary" size="sm" disabled={busy || !key.trim()} onClick={() => void add()}>
+            {t('platforms:aliasAdd')}
+          </Button>
+        </div>
+      )}
+    </section>
+  );
 }
 
 const FAMILY_LABEL: Record<string, string> = {
@@ -83,11 +196,15 @@ export function PlatformsIndex() {
                     ? ({ '--plat-accent': PLATFORM_THEMES[p.name] } as React.CSSProperties)
                     : undefined}
                 >
-                  <span className="platform-card-name mono">{p.name}</span>
-                  <span className="platform-card-full">{p.full_name ?? p.name}</span>
-                  <span className="platform-card-count mono">
-                    {t('platforms:gamesCount', { count: counts?.get(p.name) ?? 0 })}
+                  <span className="platform-card-body">
+                    <span className="platform-card-name mono">{p.name}</span>
+                    <span className="platform-card-full">{p.full_name ?? p.name}</span>
+                    <span className="platform-card-count mono">
+                      {t('platforms:gamesCount', { count: counts?.get(p.name) ?? 0 })}
+                    </span>
                   </span>
+                  {/* placeholder 64x64 — Killer troca por ícone de cada console depois */}
+                  <span className="platform-card-icon" aria-hidden="true"><Gamepad2 size={26} /></span>
                 </Link>
               ))}
             </div>
@@ -104,6 +221,7 @@ export function PlatformDetail() {
   const { name = '' } = useParams<{ name: string }>();
   const [page, setPage] = useState(0);
   const { data, isLoading } = useGamesPage({ platform: name }, page, 24);
+  const { data: platform } = usePlatformByName(name);
   const accent = PLATFORM_THEMES[name];
 
   if (isLoading && !data) return <LoadingPage />;
@@ -137,6 +255,8 @@ export function PlatformDetail() {
           <Pagination page={page} totalPages={Math.ceil(total / 24)} onPage={setPage} />
         </>
       )}
+
+      {platform && <AliasEditor slug={platform.slug} />}
     </div>
   );
 }

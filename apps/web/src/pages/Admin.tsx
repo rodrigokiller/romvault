@@ -716,6 +716,115 @@ function LinkQueuePanel() {
   const qc = useQueryClient();
   const [sendingDigest, setSendingDigest] = useState(false);
   const [autoLinking, setAutoLinking] = useState(false);
+  // valor escolhido em cada select de alias — só vincula no clique do botão
+  // (antes vinculava no onChange e dava pra errar sem querer)
+  const [aliasPick, setAliasPick] = useState<Record<string, string>>({});
+  const [bulkSync, setBulkSync] = useState<{ done: number; total: number } | null>(null);
+  const [merging, setMerging] = useState(false);
+
+  /**
+   * "Sincronizar IGDB da fila": pega os jogos de sync SEM igdb_id e roda o
+   * mesmo casamento do botão da página do jogo (game-sync action 'igdb') em
+   * cada um — o que o Killer fazia clicando um por um. Cap por clique pra não
+   * estourar a IGDB; informa quantos sobraram.
+   */
+  async function bulkSyncIgdb() {
+    try {
+      const { data, error } = await db()
+        .from('games').select('id, title')
+        .is('igdb_id', null)
+        .in('data_source', ['steam', 'gog', 'psn', 'xbox', 'nintendo'])
+        .order('created_at', { ascending: false })
+        .limit(40);
+      if (error) throw error;
+      const list = (data ?? []) as { id: string; title: string }[];
+      if (list.length === 0) { toast.success(t('admin:bulkSyncNone')); return; }
+      setBulkSync({ done: 0, total: list.length });
+      let matched = 0;
+      for (let i = 0; i < list.length; i++) {
+        try {
+          await invokeFn('game-sync', { game_id: list[i].id, action: 'igdb' });
+          matched++;
+        } catch { /* um sem match não derruba os outros */ }
+        setBulkSync({ done: i + 1, total: list.length });
+      }
+      toast.success(t('admin:bulkSyncDone', { matched, total: list.length }));
+      void qc.invalidateQueries({ queryKey: ['queueNoIgdb'] });
+      void qc.invalidateQueries({ queryKey: ['queueLinkCandidates'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setBulkSync(null);
+    }
+  }
+
+  /**
+   * "Fundir idênticos": dentro de cada grupo de título igual, funde jogos que
+   * dividem a MESMA plataforma quando é seguro — só um tem igdb (ou os dois têm
+   * o mesmo), e as datas não brigam (>~18 meses de diferença = deixa pra humano).
+   * Reusa o merge do servidor (move filhos, preenche lacunas, apaga a fonte).
+   */
+  async function autoMergeIdentical() {
+    setMerging(true);
+    try {
+      const { data, error } = await db().rpc('link_candidates', { lim: 200 });
+      if (error) throw error;
+      const grupos = (data ?? []) as { title: string; ids: string[]; platforms: string[] }[];
+      const allIds = [...new Set(grupos.flatMap((g) => g.ids))];
+      const info = new Map<string, { igdb: number | null; date: string | null; source: string | null }>();
+      for (let i = 0; i < allIds.length; i += 200) {
+        const { data: gs } = await db().from('games')
+          .select('id, igdb_id, release_date, data_source').in('id', allIds.slice(i, i + 200));
+        for (const g of (gs ?? []) as { id: string; igdb_id: number | null; release_date: string | null; data_source: string | null }[]) {
+          info.set(g.id, { igdb: g.igdb_id, date: g.release_date, source: g.data_source });
+        }
+      }
+      const yearsApart = (a: string | null, b: string | null) => {
+        if (!a || !b) return 0; // uma data faltando não é conflito
+        return Math.abs(new Date(a).getTime() - new Date(b).getTime()) / (365.25 * 864e5);
+      };
+      // monta pares (fonte -> alvo) seguros
+      const pairs: { src: string; dst: string }[] = [];
+      for (const g of grupos) {
+        const byPlat = new Map<string, string[]>();
+        g.ids.forEach((id, i) => {
+          const p = g.platforms[i] ?? '?';
+          byPlat.set(p, [...(byPlat.get(p) ?? []), id]);
+        });
+        for (const [, ids] of byPlat) {
+          if (ids.length < 2) continue;
+          const withIgdb = ids.filter((id) => info.get(id)?.igdb != null);
+          const distinct = new Set(withIgdb.map((id) => info.get(id)!.igdb));
+          if (distinct.size > 1) continue; // 2 igdb diferentes = jogos distintos
+          // alvo: o que tem igdb; senão o mais "de catálogo" (não-sync); senão o 1º
+          const keeper = withIgdb[0]
+            ?? ids.find((id) => !['steam', 'gog', 'psn', 'xbox', 'nintendo'].includes(info.get(id)?.source ?? ''))
+            ?? ids[0];
+          for (const id of ids) {
+            if (id === keeper) continue;
+            if (yearsApart(info.get(id)?.date ?? null, info.get(keeper)?.date ?? null) > 1.5) continue;
+            pairs.push({ src: id, dst: keeper });
+          }
+        }
+      }
+      if (pairs.length === 0) { toast.success(t('admin:mergeIdenticalNone')); return; }
+      let fused = 0;
+      for (const p of pairs.slice(0, 40)) {
+        try {
+          await invokeFn('game-sync', { game_id: p.src, target_id: p.dst, action: 'merge' });
+          fused++;
+        } catch { /* conflito pontual não derruba o lote */ }
+      }
+      toast.success(t('admin:mergeIdenticalDone', { count: fused }));
+      void qc.invalidateQueries({ queryKey: ['queueLinkCandidates'] });
+      void qc.invalidateQueries({ queryKey: ['relationFamilies'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setMerging(false);
+    }
+  }
+
   async function sendDigest() {
     setSendingDigest(true);
     try {
@@ -780,7 +889,13 @@ function LinkQueuePanel() {
           <div className="card-title">{t('admin:queueTitle')}</div>
           <div className="card-sub">{t('admin:queueHint')}</div>
         </div>
-        <span style={{ display: 'flex', gap: 'var(--s2)', flexShrink: 0 }}>
+        <span style={{ display: 'flex', gap: 'var(--s2)', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Button variant="primary" size="sm" onClick={() => void bulkSyncIgdb()} disabled={bulkSync !== null}>
+            {bulkSync ? `${bulkSync.done}/${bulkSync.total}` : t('admin:bulkSyncNow')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void autoMergeIdentical()} disabled={merging}>
+            {merging ? <Spinner /> : t('admin:mergeIdenticalNow')}
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => void autoLink()} disabled={autoLinking}>
             {autoLinking ? <Spinner /> : t('admin:autoLinkNow')}
           </Button>
@@ -827,24 +942,37 @@ function LinkQueuePanel() {
       {aliases.length > 0 && (
         <div>
           <span className="kicker">// {t('admin:queueAliases', { count: aliases.length })}</span>
+          {' '}<Link to="/platforms" className="section-link">{t('admin:aliasManageByPlatform')}</Link>
           <ul className="integ-list">
-            {aliases.map((a) => (
-              <li key={`${a.source}-${a.kind}-${a.external_key}`} className="integ-item mono">
-                <span className="integ-name">{a.external_key}</span>
-                <span className="integ-meta">{a.source} · {a.kind}{a.context ? ` · ${a.context}` : ''}</span>
-                <Select
-                  aria-label={t('admin:aliasPick')}
-                  defaultValue=""
-                  onChange={(e) => { if (e.target.value) void registerAlias(a, e.target.value); }}
-                  style={{ maxWidth: 180 }}
-                >
-                  <option value="">{t('admin:aliasPick')}</option>
-                  {(a.kind === 'platform' ? platformOpts : genreOpts).map((o) => (
-                    <option key={o.slug} value={o.slug}>{o.name}</option>
-                  ))}
-                </Select>
-              </li>
-            ))}
+            {aliases.map((a) => {
+              const key = `${a.source}-${a.kind}-${a.external_key}`;
+              return (
+                <li key={key} className="integ-item mono">
+                  <span className="integ-name">{a.external_key}</span>
+                  <span className="integ-meta">{a.source} · {a.kind}{a.context ? ` · ${a.context}` : ''}</span>
+                  <span style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
+                    <Select
+                      aria-label={t('admin:aliasPick')}
+                      value={aliasPick[key] ?? ''}
+                      onChange={(e) => setAliasPick((m) => ({ ...m, [key]: e.target.value }))}
+                      style={{ maxWidth: 180 }}
+                    >
+                      <option value="">{t('admin:aliasPick')}</option>
+                      {(a.kind === 'platform' ? platformOpts : genreOpts).map((o) => (
+                        <option key={o.slug} value={o.slug}>{o.name}</option>
+                      ))}
+                    </Select>
+                    <Button
+                      variant="secondary" size="sm"
+                      disabled={!aliasPick[key]}
+                      onClick={() => { const v = aliasPick[key]; if (v) void registerAlias(a, v); }}
+                    >
+                      {t('admin:aliasLinkBtn')}
+                    </Button>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
