@@ -1274,6 +1274,9 @@ async function main() {
   } else if (SOURCE === 'enrich') {
     const { importEnrich } = await import('./lib/enrich.mjs');
     stats = await importEnrich({ sb, flag, DRY, log, c, step, itemLog, fetchAll });
+  } else if (SOURCE === 'platform-wiki' || SOURCE === 'platforms') {
+    const { importPlatformWiki } = await import('./lib/platform-wiki.mjs');
+    stats = await importPlatformWiki({ sb, flag, DRY, log, c, step, itemLog, fetchAll });
   } else if (SOURCE === 'all') {
     // pipeline de primeira carga: dataset -> dedupe -> capas IGDB -> box art
     // libretro -> enrich (Metacritic + HowLongToBeat). O enrich respeita --limit
@@ -1302,7 +1305,7 @@ async function main() {
     log(c.red(`✖ source desconhecido: "${SOURCE}" — falta um git pull?`));
     log('  Conhecidos: dataset, igdb, igdb-backfill, smwc, rhdn, pobre, covers,');
     log('  covers-libretro, mobygames, screenscraper, langs-igdb, purge-mods,');
-    log('  dedupe, enrich, reset-sync, all');
+    log('  dedupe, enrich, platform-wiki, reset-sync, all');
     process.exit(1);
   }
 

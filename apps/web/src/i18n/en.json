@@ -180,6 +180,7 @@
     "mediaSetCover": "Set as main cover",
     "mediaUsedInShelf": "Cover applied to your shelf.",
     "mediaCoverSet": "Main cover updated.",
+    "countdownHint": "Time until release",
     "logPlay": "Played today",
     "logPlayHint": "Logs a session for today (retro, emulator, physical) in your history",
     "logPlayDone": "Today's session logged to your history."
@@ -658,7 +659,21 @@
     "aliasAdd": "Link",
     "aliasAdded": "Alias registered.",
     "aliasRemove": "Remove",
-    "aliasRemoved": "Alias removed."
+    "aliasRemoved": "Alias removed.",
+    "infoManufacturer": "Manufacturer",
+    "infoGeneration": "Generation",
+    "infoMedia": "Media",
+    "infoUnitsSold": "Units sold",
+    "infoDiscontinued": "Discontinued",
+    "infoReleases": "Release by region",
+    "infoWiki": "Source: Wikipedia →",
+    "editBtn": "Edit platform",
+    "editDescription": "Description",
+    "editImage": "Console image (URL)",
+    "editWiki": "Wikipedia (URL)",
+    "editSaved": "Platform updated.",
+    "editSave": "Save",
+    "editCancel": "Cancel"
   },
   "series": {
     "kicker": "// series / franchise",

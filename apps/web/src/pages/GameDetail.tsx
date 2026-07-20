@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Gamepad2, Languages as LanguagesIcon, CalendarCheck, ChevronDown, Star, LibrarySquare } from 'lucide-react';
+import { Gamepad2, Languages as LanguagesIcon, CalendarCheck, ChevronDown, Star, LibrarySquare, Clock3 } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/auth/AuthProvider';
@@ -139,6 +139,7 @@ export function GameDetail() {
       >
         {game && (
           <div className="detail-report">
+            <ReleaseCountdown date={game.release_date} />
             {game.igdb_id ? (
               // o slug do IGDB = nome slugificado na esmagadora maioria
               <a
@@ -471,6 +472,34 @@ function VersionsSection({ gameId }: { gameId: string }) {
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * Contador regressivo pra jogos com lançamento no futuro. Longe: "Xd Yh".
+ * A ≤72h do lançamento vira "Xh Ym" (o detalhezinho pedido). Some no passado.
+ */
+function ReleaseCountdown({ date }: { date: string | null | undefined }) {
+  const { t } = useTranslation();
+  const target = date ? new Date(date).getTime() : NaN;
+  const [now, setNow] = useState(() => Date.now());
+  const future = Number.isFinite(target) && target > now;
+  useEffect(() => {
+    if (!future) return undefined;
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, [future]);
+  if (!future) return null;
+  const totalMin = Math.floor((target - now) / 60_000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const mins = totalMin % 60;
+  const near = target - now <= 72 * 3600_000;
+  const label = near ? `${days * 24 + hours}h ${mins}m` : `${days}d ${hours}h`;
+  return (
+    <span className="release-countdown mono" title={t('games:countdownHint')}>
+      <Clock3 size={13} aria-hidden /> {label}
+    </span>
   );
 }
 

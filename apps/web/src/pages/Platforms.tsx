@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { MonitorPlay, Gamepad2, Trash2 } from 'lucide-react';
+import { MonitorPlay, Gamepad2, Trash2, SquarePen } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
 import { useIsAdmin } from '@/hooks/useProfile';
@@ -11,7 +11,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useGamesPage } from '@/hooks/useGames';
 import { GameCard } from '@/components/entities/GameCard';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Input, Textarea } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Pagination } from '@/components/ui/Pagination';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
@@ -22,7 +22,13 @@ const ALIAS_SOURCES = ['igdb', 'rhdn', 'mobygames', 'screenscraper', 'libretro',
 
 const db = () => getSupabase() as unknown as SupabaseClient;
 
-interface PlatformRow { slug: string; name: string; full_name: string | null; family: string | null; sort: number }
+interface PlatformRow {
+  slug: string; name: string; full_name: string | null; family: string | null; sort: number;
+  description?: string | null; image_url?: string | null; wikipedia_url?: string | null;
+  manufacturer?: string | null; generation?: string | null; media?: string | null;
+  units_sold?: string | null; discontinued?: string | null;
+  releases?: Record<string, string> | null; specs?: Record<string, string> | null;
+}
 
 /** Plataformas canônicas (migration 33), agrupadas por família. */
 function usePlatforms() {
@@ -64,6 +70,157 @@ function usePlatformByName(name: string) {
       return (data ?? null) as PlatformRow | null;
     },
   });
+}
+
+const REGION_LABEL: Record<string, string> = { na: 'NA', jp: 'JP', eu: 'EU', br: 'BR', au: 'AU', kr: 'KR', ww: 'WW' };
+
+/** Bloco de dados técnicos da plataforma (carga da Wikipedia; admin ajusta). */
+function PlatformInfo({ p }: { p: PlatformRow }) {
+  const { t } = useTranslation();
+  const releases = p.releases ?? {};
+  const specs = p.specs ?? {};
+  const rows: [string, string | null | undefined][] = [
+    [t('platforms:infoManufacturer'), p.manufacturer],
+    [t('platforms:infoGeneration'), p.generation],
+    [t('platforms:infoMedia'), p.media],
+    [t('platforms:infoUnitsSold'), p.units_sold],
+    [t('platforms:infoDiscontinued'), p.discontinued],
+  ];
+  const specRows = Object.entries(specs);
+  const relRows = Object.entries(releases);
+  const hasAny = p.description || p.image_url || rows.some(([, v]) => v) || specRows.length || relRows.length;
+  if (!hasAny) return null;
+  return (
+    <section className="section platform-info">
+      <div className="platform-info-grid">
+        {p.image_url && (
+          <figure className="platform-info-img"><img src={p.image_url} alt={p.name} loading="lazy" /></figure>
+        )}
+        <div className="platform-info-body">
+          {p.description && <p className="platform-info-desc">{p.description}</p>}
+          {relRows.length > 0 && (
+            <div className="platform-rel">
+              <span className="platform-specs-h mono">{t('platforms:infoReleases')}</span>
+              <div className="platform-rel-chips">
+                {relRows.map(([r, d]) => (
+                  <span key={r} className="type-chip mono"><b>{REGION_LABEL[r] ?? r.toUpperCase()}</b> {String(d)}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {(rows.some(([, v]) => v) || specRows.length > 0) && (
+            <dl className="platform-specs">
+              {rows.filter(([, v]) => v).map(([k, v]) => (
+                <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+              ))}
+              {specRows.map(([k, v]) => (
+                <div key={k}><dt className="mono">{k}</dt><dd>{String(v)}</dd></div>
+              ))}
+            </dl>
+          )}
+          {p.wikipedia_url && (
+            <a href={p.wikipedia_url} target="_blank" rel="noreferrer" className="section-link mono">
+              {t('platforms:infoWiki')}
+            </a>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Editor admin dos dados da plataforma (a leitura é pública; só admin edita). */
+function PlatformEditor({ p }: { p: PlatformRow }) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const isAdmin = useIsAdmin();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const rel = p.releases ?? {};
+  const [form, setForm] = useState({
+    description: p.description ?? '', image_url: p.image_url ?? '', wikipedia_url: p.wikipedia_url ?? '',
+    manufacturer: p.manufacturer ?? '', generation: p.generation ?? '', media: p.media ?? '',
+    units_sold: p.units_sold ?? '', discontinued: p.discontinued ?? '',
+    rel_na: rel.na ?? '', rel_jp: rel.jp ?? '', rel_eu: rel.eu ?? '', rel_br: rel.br ?? '',
+  });
+  if (!isAdmin) return null;
+
+  async function save() {
+    setSaving(true);
+    try {
+      // preserva regiões extras (au/kr/ww) e edita as 4 principais
+      const releases: Record<string, string> = { ...(p.releases ?? {}) };
+      for (const [k, v] of [['na', form.rel_na], ['jp', form.rel_jp], ['eu', form.rel_eu], ['br', form.rel_br]]) {
+        if (v.trim()) releases[k] = v.trim(); else delete releases[k];
+      }
+      const upd = {
+        description: form.description.trim() || null,
+        image_url: form.image_url.trim() || null,
+        wikipedia_url: form.wikipedia_url.trim() || null,
+        manufacturer: form.manufacturer.trim() || null,
+        generation: form.generation.trim() || null,
+        media: form.media.trim() || null,
+        units_sold: form.units_sold.trim() || null,
+        discontinued: form.discontinued.trim() || null,
+        releases,
+      };
+      const { error } = await db().from('platforms').update(upd).eq('slug', p.slug);
+      if (error) throw error;
+      toast.success(t('platforms:editSaved'));
+      setOpen(false);
+      void qc.invalidateQueries({ queryKey: ['platformByName'] });
+      void qc.invalidateQueries({ queryKey: ['platformsIndex'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally { setSaving(false); }
+  }
+
+  const field = (key: keyof typeof form, label: string, textarea = false) => (
+    <label className="admin-edit-field">
+      <span className="mono">{label}</span>
+      {textarea
+        ? <Textarea rows={4} value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} />
+        : <Input value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} />}
+    </label>
+  );
+
+  return (
+    <section className="section">
+      <Button variant="secondary" size="sm" onClick={() => setOpen((o) => !o)}>
+        <SquarePen size={14} /> {t('platforms:editBtn')}
+      </Button>
+      {open && (
+        <div className="admin-edit" style={{ marginTop: 'var(--s3)' }}>
+          {field('description', t('platforms:editDescription'), true)}
+          <div className="admin-edit-row2">
+            {field('image_url', t('platforms:editImage'))}
+            {field('wikipedia_url', t('platforms:editWiki'))}
+          </div>
+          <div className="admin-edit-row2">
+            {field('manufacturer', t('platforms:infoManufacturer'))}
+            {field('generation', t('platforms:infoGeneration'))}
+          </div>
+          <div className="admin-edit-row2">
+            {field('media', t('platforms:infoMedia'))}
+            {field('units_sold', t('platforms:infoUnitsSold'))}
+          </div>
+          {field('discontinued', t('platforms:infoDiscontinued'))}
+          <span className="platform-specs-h mono">{t('platforms:infoReleases')}</span>
+          <div className="admin-edit-row2">
+            {field('rel_na', 'NA')}
+            {field('rel_jp', 'JP')}
+            {field('rel_eu', 'EU')}
+            {field('rel_br', 'BR')}
+          </div>
+          <div className="admin-tools-row" style={{ justifyContent: 'flex-end' }}>
+            <Button variant="ghost" disabled={saving} onClick={() => setOpen(false)}>{t('platforms:editCancel')}</Button>
+            <Button variant="primary" disabled={saving} onClick={() => void save()}>{t('platforms:editSave')}</Button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
 }
 
 interface PlatformAlias { source: string; external_key: string }
@@ -245,6 +402,8 @@ export function PlatformDetail() {
         </div>
       </header>
 
+      {platform && <PlatformInfo p={platform} />}
+
       {games.length === 0 ? (
         <EmptyState icon={Gamepad2} title={t('browse:emptyTitle')} />
       ) : (
@@ -256,6 +415,7 @@ export function PlatformDetail() {
         </>
       )}
 
+      {platform && <PlatformEditor p={platform} />}
       {platform && <AliasEditor slug={platform.slug} />}
     </div>
   );

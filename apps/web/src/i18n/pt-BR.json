@@ -180,6 +180,7 @@
     "mediaSetCover": "Definir como capa principal",
     "mediaUsedInShelf": "Capa aplicada na sua estante.",
     "mediaCoverSet": "Capa principal atualizada.",
+    "countdownHint": "Tempo até o lançamento",
     "logPlay": "Joguei hoje",
     "logPlayHint": "Registra uma sessão de hoje (retrô, emulador, físico) no seu histórico",
     "logPlayDone": "Sessão de hoje registrada no histórico."
@@ -658,7 +659,21 @@
     "aliasAdd": "Vincular",
     "aliasAdded": "Alias cadastrado.",
     "aliasRemove": "Remover",
-    "aliasRemoved": "Alias removido."
+    "aliasRemoved": "Alias removido.",
+    "infoManufacturer": "Fabricante",
+    "infoGeneration": "Geração",
+    "infoMedia": "Mídia",
+    "infoUnitsSold": "Unidades vendidas",
+    "infoDiscontinued": "Descontinuado",
+    "infoReleases": "Lançamento por região",
+    "infoWiki": "Fonte: Wikipedia →",
+    "editBtn": "Editar plataforma",
+    "editDescription": "Descrição",
+    "editImage": "Imagem do console (URL)",
+    "editWiki": "Wikipedia (URL)",
+    "editSaved": "Plataforma atualizada.",
+    "editSave": "Salvar",
+    "editCancel": "Cancelar"
   },
   "series": {
     "kicker": "// série / franquia",
