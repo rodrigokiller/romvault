@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Gamepad2, Languages as LanguagesIcon, CalendarCheck, ChevronDown } from 'lucide-react';
+import { Gamepad2, Languages as LanguagesIcon, CalendarCheck, ChevronDown, Star, LibrarySquare } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/auth/AuthProvider';
-import { useLogPlay } from '@/hooks/useTracks';
+import { useIsAdmin } from '@/hooks/useProfile';
+import { useLogPlay, useSetCustomArt } from '@/hooks/useTracks';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useGame, useRelatedGames } from '@/hooks/useGames';
@@ -473,41 +474,121 @@ function VersionsSection({ gameId }: { gameId: string }) {
   );
 }
 
+type MediaRow = { kind: string; region: string | null; url: string; source: string; platform: string | null };
+
+/** ordem dos scans físicos dentro da seção "scans e mídia" */
+const SCAN_KINDS = ['boxart', 'box3d', 'back', 'cart', 'disc', 'media', 'logo', 'title'];
+
+/** Uma miniatura de mídia com chips (plataforma/região/fonte) e ações no hover. */
+function MediaThumb({ m, canUse, isAdmin, busy, onUse, onCover }: {
+  m: MediaRow; canUse: boolean; isAdmin: boolean; busy: string | null;
+  onUse: (url: string) => void; onCover: (url: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <figure className="media-cover">
+      <img src={m.url} alt={m.region ?? m.kind} loading="lazy" />
+      <figcaption className="media-cap">
+        {m.platform && <span className="type-chip mono">{m.platform}</span>}
+        {m.region && <span className="type-chip mono">{m.region}</span>}
+        <span className="type-chip mono dim">{m.source}</span>
+      </figcaption>
+      {(canUse || isAdmin) && (
+        <div className="media-acts">
+          {canUse && (
+            <button type="button" className="media-act" title={t('games:mediaUseInShelf')}
+              disabled={busy === m.url} onClick={() => onUse(m.url)}>
+              <LibrarySquare size={14} />
+            </button>
+          )}
+          {isAdmin && (
+            <button type="button" className="media-act" title={t('games:mediaSetCover')}
+              disabled={busy === m.url} onClick={() => onCover(m.url)}>
+              <Star size={14} />
+            </button>
+          )}
+        </div>
+      )}
+    </figure>
+  );
+}
+
 /**
- * Grupos de mídia (game_media): capas por REGIÃO e artes (heroes) do IGDB —
- * separados por grupo, como no site deles (pedido do analise.txt).
+ * Grupos de mídia (game_media): capas por REGIÃO, scans físicos (moby/screenscraper/
+ * libretro por plataforma) e artes (heroes) — separados por grupo, como no site
+ * deles (pedido do analise.txt). O dono aplica uma capa na estante; o admin define
+ * a capa principal do jogo.
  */
 function GameMediaGroups({ gameId }: { gameId: string }) {
   const { t } = useTranslation();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const isAdmin = useIsAdmin();
+  const { user } = useAuth();
+  const setArt = useSetCustomArt();
+  const [busy, setBusy] = useState<string | null>(null);
+
   const { data: media = [] } = useQuery({
     queryKey: ['gameMedia', gameId],
     staleTime: 5 * 60_000,
-    queryFn: async (): Promise<{ kind: string; region: string | null; url: string; source: string }[]> => {
+    queryFn: async (): Promise<MediaRow[]> => {
       const sb = getSupabase() as unknown as SupabaseClient;
       const { data, error } = await sb.from('game_media')
-        .select('kind, region, url, source')
+        .select('kind, region, url, source, platform')
         .eq('game_id', gameId)
         .order('kind');
       if (error) return []; // tabela ainda não migrada: seção só não aparece
-      return (data ?? []) as { kind: string; region: string | null; url: string; source: string }[];
+      return (data ?? []) as MediaRow[];
     },
   });
+
   const covers = media.filter((m) => m.kind === 'cover');
-  const heroes = media.filter((m) => m.kind === 'hero');
-  if (covers.length === 0 && heroes.length === 0) return null;
+  const scans = SCAN_KINDS.flatMap((k) => media.filter((m) => m.kind === k));
+  const heroes = media.filter((m) => m.kind === 'hero' || m.kind === 'screenshot');
+  if (covers.length === 0 && scans.length === 0 && heroes.length === 0) return null;
+
+  /** Dono: usa esta imagem como capa na SUA estante (custom art do track). */
+  async function applyToShelf(url: string) {
+    setBusy(url);
+    try {
+      await setArt.mutateAsync({ gameId, url });
+      toast.success(t('games:mediaUsedInShelf'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally { setBusy(null); }
+  }
+  /** Admin: define a capa principal do jogo (games.cover_url). */
+  async function setMainCover(url: string) {
+    setBusy(url);
+    try {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const { error } = await sb.from('games').update({ cover_url: url, thumbnail: url }).eq('id', gameId);
+      if (error) throw error;
+      toast.success(t('games:mediaCoverSet'));
+      void qc.invalidateQueries({ queryKey: ['game', gameId] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally { setBusy(null); }
+  }
+
+  const canUse = Boolean(user);
+  const thumb = (m: MediaRow) => (
+    <MediaThumb key={m.url} m={m} canUse={canUse} isAdmin={isAdmin} busy={busy}
+      onUse={(u) => void applyToShelf(u)} onCover={(u) => void setMainCover(u)} />
+  );
+
   return (
     <>
       {covers.length > 0 && (
         <section className="section">
           <div className="section-head"><h2>{t('games:mediaCoversTitle')}</h2></div>
-          <div className="media-covers">
-            {covers.map((m) => (
-              <figure key={m.url} className="media-cover">
-                <img src={m.url} alt={m.region ?? ''} loading="lazy" />
-                {m.region && <figcaption className="type-chip mono">{m.region}</figcaption>}
-              </figure>
-            ))}
-          </div>
+          <div className="media-covers">{covers.map(thumb)}</div>
+        </section>
+      )}
+      {scans.length > 0 && (
+        <section className="section">
+          <div className="section-head"><h2>{t('games:mediaScansTitle')}</h2></div>
+          <div className="media-covers">{scans.map(thumb)}</div>
         </section>
       )}
       {heroes.length > 0 && (

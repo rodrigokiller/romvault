@@ -174,7 +174,12 @@
     "relBase": "Original",
     "seriesChipHint": "Ver a linha do tempo da série",
     "mediaCoversTitle": "Capas por região",
+    "mediaScansTitle": "Scans e mídia física",
     "mediaHeroesTitle": "Artes",
+    "mediaUseInShelf": "Usar na minha estante",
+    "mediaSetCover": "Definir como capa principal",
+    "mediaUsedInShelf": "Capa aplicada na sua estante.",
+    "mediaCoverSet": "Capa principal atualizada.",
     "logPlay": "Joguei hoje",
     "logPlayHint": "Registra uma sessão de hoje (retrô, emulador, físico) no seu histórico",
     "logPlayDone": "Sessão de hoje registrada no histórico."

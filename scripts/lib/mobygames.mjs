@@ -15,6 +15,8 @@
  * Storage) e usa a frente como boxart/capa quando faltarem.
  */
 
+import { upsertMedia, regionOf } from './game-media.mjs';
+
 const API = 'https://api.mobygames.com/v1';
 
 const norm = (s) =>
@@ -137,6 +139,13 @@ export async function importMobygames(ctx) {
       if (!g.metadata?.boxart && moby.front) patch.metadata.boxart = moby.front;
       if (!g.cover_url && moby.front) { patch.cover_url = moby.front; patch.thumbnail = moby.front; }
       await sb.from('games').update(patch).eq('id', g.id);
+      // fase 2: cada scan vira uma linha em game_media COM plataforma+região
+      const region = regionOf(pick.countries);
+      await upsertMedia(sb, [
+        moby.front && { game_id: g.id, platform: platKey, kind: 'boxart', region, url: moby.front, source: 'mobygames' },
+        moby.back && { game_id: g.id, platform: platKey, kind: 'back', region, url: moby.back, source: 'mobygames' },
+        moby.media && { game_id: g.id, platform: platKey, kind: 'media', region, url: moby.media, source: 'mobygames' },
+      ].filter(Boolean));
       stats.com_scans++;
       itemLog(stats.com_scans, `  ${c.green('~')} ${g.title}`);
     } catch (err) {

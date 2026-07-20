@@ -15,6 +15,8 @@
  * Mídia é COPIADA pro nosso Storage. Quota: ~20k req/dia, 1 thread — pausa 1.2s.
  */
 
+import { upsertMedia } from './game-media.mjs';
+
 const API = 'https://api.screenscraper.fr/api2';
 
 const norm = (s) =>
@@ -71,6 +73,7 @@ async function resolveSystemId(auth, ourPlatform, log, c) {
   return null;
 }
 
+/** Retorna a MÍDIA escolhida (objeto com .url e .region), não só a url. */
 function pickMedia(medias, type, region) {
   const list = (medias ?? []).filter((m) => m?.type === type);
   if (list.length === 0) return null;
@@ -78,10 +81,12 @@ function pickMedia(medias, type, region) {
   const start = region ? [region, ...ranked] : ranked;
   for (const r of start) {
     const hit = list.find((m) => m.region === r);
-    if (hit?.url) return hit.url;
+    if (hit?.url) return hit;
   }
-  return list[0]?.url ?? null;
+  return list[0]?.url ? list[0] : null;
 }
+/* região do ScreenScraper -> código curto do game_media ('ss' genérico = null) */
+const ssRegion = (r) => (!r || r === 'ss' ? null : r);
 
 export async function importScreenscraper(ctx) {
   const { sb, flag, DRY, log, c, step, itemLog, fetchAll, ENV } = ctx;
@@ -145,10 +150,12 @@ export async function importScreenscraper(ctx) {
 
     try {
       const patch = { metadata: { ...(g.metadata ?? {}) } };
+      const mediaRows = [];
+      const MEDIA_KIND = { box2d: 'boxart', box3d: 'box3d', support: 'media' };
       // copia cada mídia pro nosso storage
-      for (const [kind, url] of [['box2d', box2d], ['box3d', box3d], ['support', support]]) {
-        if (!url) continue;
-        const imgRes = await fetch(`${url}&${qs(auth)}`);
+      for (const [kind, m] of [['box2d', box2d], ['box3d', box3d], ['support', support]]) {
+        if (!m?.url) continue;
+        const imgRes = await fetch(`${m.url}&${qs(auth)}`);
         if (!imgRes.ok) continue;
         const bytes = new Uint8Array(await imgRes.arrayBuffer());
         const path = `covers/screenscraper/${norm(platKey).replace(/\s+/g, '-')}/${norm(g.title).replace(/\s+/g, '-')}-${kind}.png`;
@@ -156,6 +163,7 @@ export async function importScreenscraper(ctx) {
           .upload(path, bytes, { contentType: 'image/png', upsert: true });
         if (upErr) continue;
         const publicUrl = sb.storage.from('uploads').getPublicUrl(path).data.publicUrl;
+        mediaRows.push({ game_id: g.id, platform: platKey, kind: MEDIA_KIND[kind], region: ssRegion(m.region), url: publicUrl, source: 'screenscraper' });
         if (kind === 'box2d') {
           if (!g.cover_url) await sb.from('games').update({ cover_url: publicUrl, thumbnail: publicUrl }).eq('id', g.id);
           stats.box2d++;
@@ -166,6 +174,8 @@ export async function importScreenscraper(ctx) {
       }
       patch.metadata.media_source = 'screenscraper';
       await sb.from('games').update(patch).eq('id', g.id);
+      // fase 2: box2D/box3D/suporte também entram no game_media (por plataforma)
+      await upsertMedia(sb, mediaRows);
       itemLog(stats.box3d, `  ${c.green('~')} ${g.title}`);
     } catch (err) {
       stats.erros++;

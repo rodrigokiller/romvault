@@ -4161,6 +4161,7 @@ button.heat-cell::after {
   gap: var(--s3);
 }
 .media-cover {
+  position: relative;
   margin: 0;
   display: flex;
   flex-direction: column;
@@ -4174,6 +4175,42 @@ button.heat-cell::after {
   border: 1px solid var(--line);
 }
 .media-cover figcaption { margin-left: 0; }
+.media-cap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  max-width: 140px;
+}
+.type-chip.dim { opacity: 0.6; }
+/* ações (usar na estante / definir capa) — aparecem no hover/focus, tocáveis */
+.media-acts {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+.media-cover:hover .media-acts,
+.media-cover:focus-within .media-acts { opacity: 1; }
+.media-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--ink);
+  background: color-mix(in oklab, var(--bg) 82%, transparent);
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.media-act:hover { background: var(--surface); border-color: var(--accent); color: var(--accent); }
+.media-act:disabled { opacity: 0.5; cursor: default; }
+@media (hover: none) { .media-acts { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .media-acts { transition: none; } }
 
 /* ── /platforms — índice por família + card temático ────────────────────────── */
 .platform-grid {

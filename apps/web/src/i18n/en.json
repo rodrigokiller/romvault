@@ -174,7 +174,12 @@
     "relBase": "Original",
     "seriesChipHint": "See the series timeline",
     "mediaCoversTitle": "Covers by region",
+    "mediaScansTitle": "Scans and physical media",
     "mediaHeroesTitle": "Artworks",
+    "mediaUseInShelf": "Use on my shelf",
+    "mediaSetCover": "Set as main cover",
+    "mediaUsedInShelf": "Cover applied to your shelf.",
+    "mediaCoverSet": "Main cover updated.",
     "logPlay": "Played today",
     "logPlayHint": "Logs a session for today (retro, emulator, physical) in your history",
     "logPlayDone": "Today's session logged to your history."
