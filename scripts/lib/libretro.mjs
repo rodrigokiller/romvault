@@ -156,8 +156,9 @@ export async function importCoversLibretro(ctx) {
         if (upErr) { stats.erros++; if (stats.erros <= 3) log(c.red(`  ✖ upload ${file}: ${upErr.message}`)); continue; }
         const publicUrl = sb.storage.from('uploads').getPublicUrl(path).data.publicUrl;
 
-        // box art física vai pra metadata.boxart (material da vitrine);
-        // sem --backfill ela vira capa TAMBÉM (o jogo não tinha nenhuma)
+        // box art física vai pra metadata.boxart (compat) E pra game_media
+        // COM A PLATAFORMA (fase 2: a vitrine escolhe a capa da plataforma da
+        // cópia — o Quake2 da Steam mostra a de PC, não a do PSX)
         const patch = {
           metadata: { ...(g.metadata ?? {}), boxart: publicUrl, boxart_source: 'libretro-thumbnails' },
         };
@@ -166,6 +167,12 @@ export async function importCoversLibretro(ctx) {
           patch.thumbnail = publicUrl;
         }
         await sb.from('games').update(patch).eq('id', g.id);
+        // region da preferencia (usa>world>...): a chave regionScore ja escolheu
+        await sb.from('game_media')
+          .upsert(
+            { game_id: g.id, platform, kind: 'boxart', region: null, url: publicUrl, source: 'libretro' },
+            { onConflict: 'game_id,url', ignoreDuplicates: true },
+          ).then(() => {}, () => {}); // tabela nova: falha nunca derruba o import
         stats.preenchidos++;
         itemLog(stats.preenchidos, `  ${c.green('~')} ${g.title} ${c.dim(`<- ${file}`)}`);
         await new Promise((r) => setTimeout(r, 120)); // gentileza com o CDN

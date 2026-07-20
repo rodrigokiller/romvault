@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   Store, ArrowLeft, Pencil, Upload, Trash2, Rows3, LayoutGrid, Eye, X,
-  Repeat, ChevronLeft, ChevronRight, ArrowLeftRight, Check, Lock,
+  Repeat, ChevronLeft, ChevronRight, ArrowLeftRight, Check, Lock, ImageDown,
 } from 'lucide-react';
 import type { Game } from '@romvault/core';
 import { getSupabase } from '@/lib/supabase';
+import { invokeFn } from '@/lib/invokeFn';
 import { env } from '@/lib/env';
 import { useProfileByUsername, useMyProfile } from '@/hooks/useProfile';
 import { useSetCustomArt } from '@/hooks/useTracks';
@@ -29,6 +30,7 @@ interface OwnedGame {
   acquired: string;    // 1ª cópia (ordem padrão: chegada na coleção)
   customArt: string | null;
   isPrivate?: boolean;
+  platformArt?: string | null; // capa da plataforma da cópia (game_media, fase 2)
 }
 
 /** Jogos que o usuário TEM (cópias), com jogo embutido + arte custom do track. */
@@ -67,6 +69,29 @@ function useOwnedGames(userId: string | undefined) {
           });
         }
       }
+      // FASE 2: capa/boxart POR PLATAFORMA (game_media). Busca em blocos de 200
+      // e monta { game_id: { platform: url } } — o card escolhe pela cópia.
+      const ids = [...map.keys()];
+      const mediaByGame = new Map<string, Record<string, string>>();
+      for (let i = 0; i < ids.length; i += 200) {
+        const { data: media } = await db().from('game_media')
+          .select('game_id, platform, kind, url')
+          .in('game_id', ids.slice(i, i + 200))
+          .in('kind', ['boxart', 'cover']);
+        for (const m of (media ?? []) as { game_id: string; platform: string | null; url: string }[]) {
+          if (!m.platform) continue;
+          const cur = mediaByGame.get(m.game_id) ?? {};
+          if (!cur[m.platform]) cur[m.platform] = m.url; // 1a por plataforma
+          mediaByGame.set(m.game_id, cur);
+        }
+      }
+      for (const o of map.values()) {
+        const perPlat = mediaByGame.get(o.game.id);
+        if (perPlat) {
+          // a capa da plataforma da cópia do usuário (Quake2 Steam -> PC)
+          o.platformArt = o.platforms.map((p) => perPlat[p]).find(Boolean) ?? null;
+        }
+      }
       // ordem padrão: chegada na coleção (novos no fim)
       return [...map.values()].sort((a, b) => a.acquired.localeCompare(b.acquired));
     },
@@ -102,6 +127,26 @@ export function Vitrine() {
   const [ordering, setOrdering] = useState(false);
   const [showPrivate, setShowPrivate] = useState(false); // privados fora da vitrine por padrão
   const isMe = Boolean(me && profile && me.id === profile.id);
+  const qc = useQueryClient();
+  // "sincronizar imagens": preenche capas que faltam (cooldown de 10 min)
+  const [syncingArt, setSyncingArt] = useState(false);
+  const [artCooldown, setArtCooldown] = useState(false);
+  async function syncArt() {
+    setSyncingArt(true);
+    try {
+      const d = await invokeFn<{ filled?: number; tried?: number; note?: string }>('sync-my-art', {});
+      toast.success(d?.note ?? t('vitrine:syncArtDone', { filled: d?.filled ?? 0 }));
+      void qc.invalidateQueries({ queryKey: ['ownedGames'] });
+      setArtCooldown(true);
+      setTimeout(() => setArtCooldown(false), 10 * 60_000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      const notDeployed = /failed to send|fetch|networkerror/i.test(msg);
+      toast.error(notDeployed ? t('settings:fnNotDeployed', { fn: 'sync-my-art' }) : (msg || t('forms:submitError')));
+    } finally {
+      setSyncingArt(false);
+    }
+  }
 
   /* ── a vitrine lembra como você deixou (modo/arte/view, por vitrine) ── */
   const prefsKey = profile ? `rv:vitrine:${profile.id}` : null;
@@ -238,6 +283,17 @@ export function Vitrine() {
                 <Lock aria-hidden /> {t('library:privateChip', { count: owned.filter((o) => o.isPrivate).length })}
               </button>
             )}
+            {isMe && (
+              <button
+                type="button"
+                className="lib-stat lib-showcase"
+                onClick={() => void syncArt()}
+                disabled={syncingArt || artCooldown}
+                title={t('vitrine:syncArtHint')}
+              >
+                <ImageDown aria-hidden /> {syncingArt ? t('vitrine:syncArtBusy') : t('vitrine:syncArt')}
+              </button>
+            )}
             {isMe && !spines && (
               <button
                 type="button"
@@ -354,8 +410,10 @@ function VitrineCard({
   const meta = (o.game.metadata as unknown as {
     box3d?: string; boxart?: string; moby?: { front?: string; back?: string };
   } | null) ?? null;
-  // prioridade: arte CUSTOM do usuário > (caixa: box3d > boxart > loja) > loja
+  // prioridade: CUSTOM do usuário > capa da PLATAFORMA da cópia (fase 2) >
+  // (modo caixa: box3d > boxart > loja) > loja
   const art = o.customArt
+    ?? o.platformArt
     ?? (artMode === 'box' ? (meta?.box3d ?? meta?.boxart ?? o.game.cover_url) : o.game.cover_url)
     ?? o.game.thumbnail;
   const back = meta?.moby?.back ?? null; // verso real da caixa (scan do Moby)

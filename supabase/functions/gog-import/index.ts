@@ -47,32 +47,35 @@ interface GogGame {
 
 /** Lê todas as páginas do perfil público do GOG. */
 async function gogGames(username: string): Promise<GogGame[]> {
-  const UAS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
-  ];
-  const fetchPage = (page: number, ua: string) => fetch(
+  // headers COMPLETOS de Chrome (client hints sec-ch-ua + sec-fetch) — o
+  // Cloudflare do GOG deixa passar bem mais requisicoes com eles do que só o UA
+  const CHROME = {
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9,pt-BR;q=0.8',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    'sec-ch-ua': '"Chromium";v="126", "Google Chrome";v="126", "Not.A/Brand";v="24"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+    'X-Requested-With': 'XMLHttpRequest',
+  };
+  const fetchPage = (page: number) => fetch(
     `https://www.gog.com/u/${encodeURIComponent(username)}/games/stats?page=${page}`,
-    {
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9,pt-BR;q=0.8',
-        'User-Agent': ua,
-        Referer: `https://www.gog.com/u/${encodeURIComponent(username)}/games`,
-      },
-    },
+    { headers: { ...CHROME, Referer: `https://www.gog.com/u/${encodeURIComponent(username)}/games` } },
   );
   const out: GogGame[] = [];
   for (let page = 1; page <= 40; page++) {
-    // o GOG (atrás de CDN) recusa robô: cara de navegador + 1 retry no 403
-    let res = await fetchPage(page, UAS[0]);
-    if (res.status === 403) {
-      await new Promise((r) => setTimeout(r, 2500));
-      res = await fetchPage(page, UAS[1]);
+    // até 3 tentativas com backoff no 403 (CDN às vezes solta na 2a/3a)
+    let res = await fetchPage(page);
+    for (let attempt = 1; attempt <= 2 && res.status === 403; attempt++) {
+      await new Promise((r) => setTimeout(r, 1500 * attempt));
+      res = await fetchPage(page);
     }
     if (res.status === 404) throw new Error(`Perfil GOG "${username}" não existe ou é privado.`);
     if (res.status === 403) {
-      throw new Error('GOG bloqueou a consulta (HTTP 403, mesmo após retry) — o CDN deles recusa IPs de datacenter às vezes; confira a privacidade em gog.com/account/settings/privacy e tente em outro horário.');
+      throw new Error('GOG bloqueou a consulta (HTTP 403). O CDN deles recusa IPs de servidor de vez em quando; confira se o perfil está PÚBLICO em gog.com/account/settings/privacy e tente de novo em alguns minutos.');
     }
     if (!res.ok) throw new Error(`GOG: HTTP ${res.status}`);
     const data = await res.json();
