@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { Key, Copy, Trash2, Plus, BookOpen, RefreshCw, Gamepad2, Trophy, Gamepad, HelpCircle, LogIn, ExternalLink, type LucideIcon } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
+import { env } from '@/lib/env';
 import { invokeFn } from '@/lib/invokeFn';
 import { Dialog } from '@/components/ui/Dialog';
 import { Spinner } from '@/components/ui/feedback';
@@ -101,6 +103,7 @@ export function Settings() {
       {session && !disabled && <InviteSection />}
       {session && !disabled && <PrivacySection />}
       {session && !disabled && <AccountLinksSection />}
+      {session && !disabled && <SyncHealthSection />}
       {session && !disabled && <ApiKeysSection />}
     </div>
   );
@@ -122,6 +125,62 @@ function steamLoginRedirect() {
     'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
   });
   window.location.href = `https://steamcommunity.com/openid/login?${q.toString()}`;
+}
+
+/**
+ * Saúde do sync POR CONTA: jogos trazidos, quantos casaram com o IGDB e
+ * quantos ficaram sem vínculo — tira a sensação de caixa-preta do sync.
+ */
+function SyncHealthSection() {
+  const { t } = useTranslation();
+  const { data: me } = useMyProfile();
+  const { data: rows = [] } = useQuery({
+    queryKey: ['syncHealth', me?.id],
+    enabled: env.configured && Boolean(me?.id),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      // jogos sincronizados do usuário + se o jogo tem igdb_id (embed)
+      const { data } = await sb.from('game_sync_data')
+        .select('provider, game:games(igdb_id)')
+        .eq('user_id', me!.id)
+        .range(0, 9999);
+      const agg = new Map<string, { total: number; matched: number }>();
+      for (const r of (data ?? []) as unknown as { provider: string; game: { igdb_id: number | null } | null }[]) {
+        const a = agg.get(r.provider) ?? { total: 0, matched: 0 };
+        a.total += 1;
+        if (r.game?.igdb_id != null) a.matched += 1;
+        agg.set(r.provider, a);
+      }
+      return [...agg.entries()].map(([provider, a]) => ({ provider, ...a, unmatched: a.total - a.matched }));
+    },
+  });
+  if (rows.length === 0) return null;
+  return (
+    <Card className="settings-section" style={{ marginTop: 'var(--s5)' }}>
+      <div>
+        <div className="card-title">{t('settings:syncHealthTitle')}</div>
+        <div className="card-sub">{t('settings:syncHealthHint')}</div>
+      </div>
+      <ul className="integ-list">
+        {rows.map((r) => {
+          const pct = r.total > 0 ? Math.round((r.matched / r.total) * 100) : 0;
+          return (
+            <li key={r.provider} className={`integ-item mono ${r.unmatched > 0 ? 'integ-stale' : ''}`}>
+              <span className="integ-name">{r.provider === 'retroachievements' ? 'RA' : r.provider}</span>
+              <span className="integ-meta" style={{ flex: 1 }}>
+                {t('settings:syncHealthLine', { matched: r.matched, total: r.total, pct })}
+              </span>
+              {r.unmatched > 0 && (
+                <span className="integ-state integ-stale">{t('settings:syncHealthUnmatched', { count: r.unmatched })}</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <p className="field-hint">{t('settings:syncHealthFoot')}</p>
+    </Card>
+  );
 }
 
 function AccountLinksSection() {

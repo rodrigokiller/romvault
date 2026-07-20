@@ -87,7 +87,7 @@ Deno.serve(async (req: Request) => {
     // Fallback por título SÓ casa jogo de PC: o Chrono Trigger de SNES não
     // pode "capturar" o Chrono Trigger da Steam (versões são jogos ligados,
     // não o mesmo registro) — sem PC no catálogo, cria a versão de PC.
-    const existing = await fetchAll(() => admin.from('games').select('id, title, external_ids, platforms'));
+    const existing = await fetchAll(() => admin.from('games').select('id, title, external_ids, platforms, igdb_id'));
     const bySteam = new Map<number, string>();
     const byTitle = new Map<string, string>();
     for (const g of existing) {
@@ -176,8 +176,11 @@ Deno.serve(async (req: Request) => {
         .eq('user_id', user.id).eq('game_id', u.game_id);
     }
 
-    // 5b) enriquece os jogos RECÉM-CRIADOS com o IGDB (capa/igdb_id) — teto de
-    // 25 por sync pra caber no tempo da function; o resto a fila de arte pega
+    // 5b) AUTO-VINCULA os jogos RECÉM-CRIADOS com o IGDB na hora (o vínculo
+    // nasce certo em vez de virar dívida pro relink). Teto de 60/sync pra
+    // caber no tempo da function; o resto o cron diário + relink pegam.
+    // Casa por nome exato; sem cover ainda assim grava o igdb_id (o vínculo
+    // é o que importa — a capa a fila de arte completa depois).
     const twitchId = Deno.env.get('TWITCH_CLIENT_ID');
     const twitchSecret = Deno.env.get('TWITCH_CLIENT_SECRET');
     let enriched = 0;
@@ -189,29 +192,39 @@ Deno.serve(async (req: Request) => {
         );
         const igdbToken = (await tokRes.json())?.access_token;
         if (igdbToken) {
-          for (const c of toCreate.slice(0, 25)) {
+          const usedIgdb = new Set<number>();
+          for (const g of existing) {
+            const id = (g.external_ids as Record<string, unknown> | null)?.igdb ?? g.igdb_id;
+            if (id != null) usedIgdb.add(Number(id));
+          }
+          for (const c of toCreate.slice(0, 60)) {
             const gid = gameIdOf.get(c.external_ids.steam);
             if (!gid) continue;
             const res = await fetch('https://api.igdb.com/v4/games', {
               method: 'POST',
               headers: { 'Client-ID': twitchId, Authorization: `Bearer ${igdbToken}` },
-              body: `fields name, cover.image_id, first_release_date; search "${c.title.replace(/"/g, '')}"; limit 5;`,
+              body: `fields name, game_type, cover.image_id, first_release_date, platforms; search "${c.title.replace(/"/g, '')}"; limit 8;`,
             });
             if (!res.ok) continue;
             // deno-lint-ignore no-explicit-any
             const hits = (await res.json()) as any[];
-            const hit = hits.find((h) => norm(h.name) === norm(c.title));
-            if (!hit?.cover?.image_id) continue;
-            await admin.from('games').update({
+            // nome exato + tem PC (id 6) > nome exato; ignora igdb já usado
+            const exact = hits.filter((h) => norm(h.name) === norm(c.title) && !usedIgdb.has(Number(h.id)));
+            const hit = exact.find((h) => (h.platforms ?? []).includes(6)) ?? exact[0];
+            if (!hit) continue;
+            usedIgdb.add(Number(hit.id));
+            const patch: Record<string, unknown> = {
               igdb_id: hit.id,
-              cover_url: `https://images.igdb.com/igdb/image/upload/t_cover_big_2x/${hit.cover.image_id}.jpg`,
-              thumbnail: `https://images.igdb.com/igdb/image/upload/t_cover_big/${hit.cover.image_id}.jpg`,
-              ...(hit.first_release_date
-                ? { release_date: new Date(hit.first_release_date * 1000).toISOString().slice(0, 10) }
-                : {}),
-            }).eq('id', gid).is('cover_url', null);
-            enriched++;
-            await new Promise((r) => setTimeout(r, 300)); // 4 req/s do IGDB
+              game_type: ({ 0: 'main', 8: 'remake', 9: 'remaster', 10: 'expanded', 11: 'port' } as Record<number, string>)[hit.game_type] ?? 'main',
+            };
+            if (hit.cover?.image_id) {
+              patch.cover_url = `https://images.igdb.com/igdb/image/upload/t_cover_big_2x/${hit.cover.image_id}.jpg`;
+              patch.thumbnail = `https://images.igdb.com/igdb/image/upload/t_cover_big/${hit.cover.image_id}.jpg`;
+            }
+            if (hit.first_release_date) patch.release_date = new Date(hit.first_release_date * 1000).toISOString().slice(0, 10);
+            const { error: upErr } = await admin.from('games').update(patch).eq('id', gid);
+            if (!upErr) enriched++;
+            await new Promise((r) => setTimeout(r, 280)); // ~4 req/s do IGDB
           }
         }
       } catch { /* enriquecimento é bônus: nunca derruba o sync */ }
