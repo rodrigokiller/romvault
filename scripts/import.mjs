@@ -556,15 +556,17 @@ async function importRelinkIgdb(sb) {
   // alvos: sem igdb_id, criados por sync (ou dataset/manual)
   let targets = (await fetchAll(() =>
     sb.from('games').select('id, title, platforms, data_source, cover_url, description, game_type, alt_titles, series, developer, igdb_id')
-      .is('igdb_id', null)))
+      .is('igdb_id', null).order('id')))
     .filter((g) => g.title && !/^n\/?a$/i.test(g.title));
   if (onlyPlat) targets = targets.filter((g) => (g.platforms ?? []).some((p) => norm(p) === norm(onlyPlat)));
   if (limit) targets = targets.slice(0, limit);
   log(`  ${targets.length} jogos sem igdb_id pra tentar vincular`);
 
-  // indice dos NOSSOS igdb_ids (pra criar relacoes so entre quem existe)
+  // indice dos NOSSOS igdb_ids (pra criar relacoes so entre quem existe).
+  // ORDER('id') e ESSENCIAL: sem ordem estavel o range() da paginacao pula
+  // linhas e o set fica incompleto -> "duplicate key" no update (o bug!)
   const ourByIgdb = new Map();
-  for (const g of await fetchAll(() => sb.from('games').select('id, igdb_id').not('igdb_id', 'is', null))) {
+  for (const g of await fetchAll(() => sb.from('games').select('id, igdb_id').not('igdb_id', 'is', null).order('id'))) {
     ourByIgdb.set(Number(g.igdb_id), g.id);
   }
   const usedIgdb = new Set(ourByIgdb.keys());
@@ -622,7 +624,16 @@ async function importRelinkIgdb(sb) {
       itemLog(stats.vinculados, `  ${c.dim('[dry]')} ${g.title} -> igdb ${hit.id} (${hit.name})`);
     } else {
       const { error } = await sb.from('games').update(patch).eq('id', g.id);
-      if (error) { stats.erros++; if (stats.erros <= 5) log(c.red(`  ✖ ${g.title}: ${error.message}`)); continue; }
+      if (error) {
+        // igdb ja tomado (indice defasado): marca como usado e segue — vira
+        // candidato a MERGE, nao a link. Nao conta como erro fatal.
+        if (/duplicate key|unique/i.test(error.message)) {
+          usedIgdb.add(Number(hit.id));
+          stats.sem_match++;
+          continue;
+        }
+        stats.erros++; if (stats.erros <= 5) log(c.red(`  ✖ ${g.title}: ${error.message}`)); continue;
+      }
       ourByIgdb.set(Number(hit.id), g.id);
       usedIgdb.add(Number(hit.id));
       stats.vinculados++;
