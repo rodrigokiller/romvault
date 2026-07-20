@@ -326,6 +326,8 @@
     "syncHealthLine": "{{matched}}/{{total}} vinculados ({{pct}}%)",
     "syncHealthUnmatched": "{{count}} sem vínculo",
     "syncHealthFoot": "Os sem vínculo aparecem na biblioteca, mas sem página rica. O sync diário e o relink automático vão casando com o tempo.",
+    "syncLinkBtn": "Vincular os que faltam",
+    "syncLinkDone": "{{linked}} de {{tried}} vinculados ao IGDB.",
     "steamVerifying": "Login da Steam confirmado, sincronizando sua biblioteca…",
     "helpLastSync": "último sync",
     "steamLogin": "Entrar com a Steam",

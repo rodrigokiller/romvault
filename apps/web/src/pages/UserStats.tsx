@@ -8,7 +8,7 @@ import { getSupabase } from '@/lib/supabase';
 import { Dialog } from '@/components/ui/Dialog';
 import { env } from '@/lib/env';
 import { useProfileByUsername } from '@/hooks/useProfile';
-import { useLibrary, useUserPlaythroughs, useUserSyncRows, useLibraryCopies } from '@/hooks/useTracks';
+import { useLibrary, useUserPlaythroughs, useUserSyncRows, useLibraryCopies, useUserPlaySessions } from '@/hooks/useTracks';
 import { useAuth } from '@/auth/AuthProvider';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 import { PLATFORM_THEMES } from '@/lib/platformThemes';
@@ -75,6 +75,7 @@ export function UserStats() {
   const { data: tracks = [] } = useLibrary(profile?.id);
   const { data: playthroughs = [] } = useUserPlaythroughs(profile?.id);
   const { data: syncRows = [] } = useUserSyncRows(profile?.id);
+  const { data: playSessions = [] } = useUserPlaySessions(profile?.id);
   const { data: copies = [] } = useLibraryCopies(profile?.id);
   const [period, setPeriod] = useState<Period>('month');
   const { data: growth = [] } = useCollectionGrowth(profile?.id);
@@ -124,6 +125,7 @@ export function UserStats() {
     };
     for (const p of playthroughs) bump(p.finished_on, 3);
     for (const r of syncRows) bump(r.last_played, 1);
+    for (const s of playSessions) bump(s.played_on, 1); // histórico (Nintendo etc.)
     for (const c of copies) bump((c as unknown as { acquired_at?: string | null }).acquired_at, 1);
 
     // o ANO inteiro: do domingo antes de 1º/jan ao sábado depois de 31/dez
@@ -145,7 +147,7 @@ export function UserStats() {
     const max = Math.max(1, ...cells.map((c) => c.count));
     const weeks = Math.ceil(cells.length / 7);
     return { cells, max, weeks };
-  }, [playthroughs, syncRows, copies, heatYear]);
+  }, [playthroughs, syncRows, playSessions, copies, heatYear]);
 
   /* ── plataformas e jogos do período ── */
   const periodPlatforms = useMemo(() => {
@@ -406,6 +408,20 @@ export function UserStats() {
                       ? <Link to={`/games/${titleOf.get(r.game_id)!.slug}`}>{titleOf.get(r.game_id)!.title}</Link>
                       : t('ustats:dayUnknownGame')}
                     {' '}<span className="mono muted-text">({r.provider === 'retroachievements' ? 'RA' : r.provider})</span>
+                  </span>
+                </li>
+              ))}
+            {playSessions
+              .filter((s) => s.played_on === dayOpen)
+              .map((s, i) => (
+                <li key={`ps-${i}`} className="day-act">
+                  <RefreshCw aria-hidden className="day-act-icon" />
+                  <span>
+                    {t('ustats:daySession')}{' '}
+                    {titleOf.get(s.game_id)
+                      ? <Link to={`/games/${titleOf.get(s.game_id)!.slug}`}>{titleOf.get(s.game_id)!.title}</Link>
+                      : t('ustats:dayUnknownGame')}
+                    {' '}<span className="mono muted-text">({s.provider})</span>
                   </span>
                 </li>
               ))}

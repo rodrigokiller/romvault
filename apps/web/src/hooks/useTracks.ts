@@ -360,6 +360,24 @@ export function useUserSyncRows(userId: string | undefined) {
   });
 }
 
+/** Histórico de sessões (play_sessions): cada DIA jogado, pro heatmap completo. */
+export function useUserPlaySessions(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['playSessions', userId],
+    enabled: env.configured && Boolean(userId),
+    staleTime: 60_000,
+    queryFn: async (): Promise<{ game_id: string; provider: string; played_on: string }[]> => {
+      const { data, error } = await db()
+        .from('play_sessions')
+        .select('game_id, provider, played_on')
+        .eq('user_id', userId as string)
+        .range(0, 9999);
+      if (error) return []; // tabela nova: sem histórico, sem quebra
+      return (data ?? []) as { game_id: string; provider: string; played_on: string }[];
+    },
+  });
+}
+
 /** Map game_id -> último jogado (max entre provedores) — ordenação "Atividade". */
 export function useUserLastPlayed(userId: string | undefined) {
   return useQuery({

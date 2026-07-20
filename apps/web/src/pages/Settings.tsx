@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Key, Copy, Trash2, Plus, BookOpen, RefreshCw, Gamepad2, Trophy, Gamepad, HelpCircle, LogIn, ExternalLink, type LucideIcon } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
@@ -133,7 +133,27 @@ function steamLoginRedirect() {
  */
 function SyncHealthSection() {
   const { t } = useTranslation();
+  const toast = useToast();
+  const qc = useQueryClient();
   const { data: me } = useMyProfile();
+  const [linking, setLinking] = useState<string | null>(null);
+
+  async function linkMissing(provider: string) {
+    setLinking(provider);
+    try {
+      const d = await invokeFn<{ linked?: number; tried?: number; note?: string }>('link-my-games', { provider });
+      toast.success(d?.note ?? t('settings:syncLinkDone', { linked: d?.linked ?? 0, tried: d?.tried ?? 0 }));
+      void qc.invalidateQueries({ queryKey: ['syncHealth'] });
+      void qc.invalidateQueries({ queryKey: ['library'] });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      const notDeployed = /failed to send|fetch|networkerror/i.test(msg);
+      toast.error(notDeployed ? t('settings:fnNotDeployed', { fn: 'link-my-games' }) : (msg || t('forms:submitError')));
+    } finally {
+      setLinking(null);
+    }
+  }
+
   const { data: rows = [] } = useQuery({
     queryKey: ['syncHealth', me?.id],
     enabled: env.configured && Boolean(me?.id),
@@ -172,7 +192,16 @@ function SyncHealthSection() {
                 {t('settings:syncHealthLine', { matched: r.matched, total: r.total, pct })}
               </span>
               {r.unmatched > 0 && (
-                <span className="integ-state integ-stale">{t('settings:syncHealthUnmatched', { count: r.unmatched })}</span>
+                <>
+                  <span className="integ-state integ-stale">{t('settings:syncHealthUnmatched', { count: r.unmatched })}</span>
+                  <Button
+                    size="sm" variant="secondary"
+                    disabled={linking !== null}
+                    onClick={() => void linkMissing(r.provider)}
+                  >
+                    {linking === r.provider ? <Spinner /> : t('settings:syncLinkBtn')}
+                  </Button>
+                </>
               )}
             </li>
           );

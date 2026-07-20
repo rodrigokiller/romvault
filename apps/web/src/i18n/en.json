@@ -326,6 +326,8 @@
     "syncHealthLine": "{{matched}}/{{total}} linked ({{pct}}%)",
     "syncHealthUnmatched": "{{count}} unlinked",
     "syncHealthFoot": "Unlinked ones still show in the library, just without a rich page. The daily sync and auto-relink match them over time.",
+    "syncLinkBtn": "Link the missing",
+    "syncLinkDone": "{{linked}} of {{tried}} linked to IGDB.",
     "steamVerifying": "Steam login confirmed, syncing your library…",
     "helpLastSync": "last sync",
     "steamLogin": "Sign in via Steam",

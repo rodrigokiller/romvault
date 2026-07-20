@@ -182,6 +182,16 @@ async function accumulate(admin: any, userId: string, presence: Presence | undef
     synced_at: new Date().toISOString(),
   }, { onConflict: 'user_id,game_id,provider' });
 
+  // HISTÓRICO: o dia dessa presença vira uma sessão (a Nintendo só pega o
+  // "agora", então acumular cada dia detectado é o histórico possível)
+  const playedOn = presence?.logoutAt
+    ? new Date(presence.logoutAt * 1000).toISOString().slice(0, 10)
+    : new Date().toISOString().slice(0, 10);
+  await admin.from('play_sessions')
+    .upsert({ user_id: userId, game_id: gid, provider: 'nintendo', played_on: playedOn },
+      { onConflict: 'user_id,game_id,provider,played_on', ignoreDuplicates: true })
+    .then(() => {}, () => {}); // tabela nova: falha nunca derruba o sync
+
   const { data: track } = await admin.from('game_tracks')
     .select('source').eq('user_id', userId).eq('game_id', gid).maybeSingle();
   if (!track) {
