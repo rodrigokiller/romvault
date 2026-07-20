@@ -3158,6 +3158,13 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
 }
 .admin-tools-row .input { max-width: 340px; }
 .admin-tools-hint { color: var(--muted); font-size: 0.7rem; }
+/* editor de campos do jogo (admin) */
+.admin-edit { display: flex; flex-direction: column; gap: var(--s3); margin-top: var(--s3); }
+.admin-edit-field { display: flex; flex-direction: column; gap: 4px; }
+.admin-edit-field > span { color: var(--muted); font-size: 0.72rem; }
+.admin-edit-field .input, .admin-edit-field textarea { max-width: none; width: 100%; }
+.admin-edit-row2 { display: flex; gap: var(--s3); flex-wrap: wrap; }
+.admin-edit-row2 .admin-edit-field { flex: 1; min-width: 160px; }
 
 /* atividade da semana no perfil (estilo gametrack) */
 .activity-strip {

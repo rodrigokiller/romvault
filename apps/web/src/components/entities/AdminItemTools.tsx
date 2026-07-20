@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Shield, RefreshCw, ImagePlus, Link2, Search, Clock3, Star, Combine, Zap } from 'lucide-react';
+import { Shield, RefreshCw, ImagePlus, Link2, Search, Clock3, Star, Combine, Zap, SquarePen, Unlink, DownloadCloud } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { invokeFn } from '@/lib/invokeFn';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
-import { Input } from '@/components/ui/Input';
+import { Input, Textarea } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/Toast';
 import { useIsAdmin } from '@/hooks/useProfile';
@@ -72,7 +72,77 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
   // "Sincronizar tudo": passo atual mostrado no botão
   const [syncStep, setSyncStep] = useState<string | null>(null);
 
+  // editor de campos (nome/desc/plataformas/lançamento/igdb) — edição direta
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [form, setForm] = useState({ title: '', description: '', platforms: '', release_date: '', igdb_id: '' });
+
   if (!isAdmin) return null;
+
+  async function openEdit() {
+    setEditOpen(true);
+    setEditLoading(true);
+    try {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const { data } = await sb.from('games')
+        .select('title, description, platforms, release_date, igdb_id').eq('id', gameId).maybeSingle();
+      const g = (data ?? {}) as { title?: string; description?: string | null; platforms?: string[] | null; release_date?: string | null; igdb_id?: number | null };
+      setForm({
+        title: g.title ?? '',
+        description: g.description ?? '',
+        platforms: (g.platforms ?? []).join(', '),
+        release_date: g.release_date ? String(g.release_date).slice(0, 10) : '',
+        igdb_id: g.igdb_id != null ? String(g.igdb_id) : '',
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  async function saveEdit() {
+    setEditSaving(true);
+    try {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      // o slug NÃO muda junto (mexer nele quebraria os links existentes)
+      const upd = {
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        platforms: form.platforms.split(',').map((s) => s.trim()).filter(Boolean),
+        release_date: form.release_date || null,
+        igdb_id: form.igdb_id.trim() ? Number(form.igdb_id.trim()) : null,
+      };
+      const { error } = await sb.from('games').update(upd).eq('id', gameId);
+      if (error) throw error;
+      toast.success(t('admin:editSaved'));
+      setEditOpen(false);
+      void qc.invalidateQueries({ queryKey: ['game'] });
+      void qc.invalidateQueries({ queryKey: ['games'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  /** Sobrescreve nome/arte/descrição puxando do IGDB do id que está no form. */
+  async function overwriteFromIgdb() {
+    const id = Number(form.igdb_id.trim());
+    if (!id) { toast.error(t('admin:editNeedIgdb')); return; }
+    setEditSaving(true);
+    try {
+      await invokeFn('game-sync', { game_id: gameId, action: 'igdb', igdb_id: id });
+      toast.success(t('admin:editOverwritten'));
+      setEditOpen(false);
+      void qc.invalidateQueries({ queryKey: ['game'] });
+      void qc.invalidateQueries({ queryKey: ['games'] });
+      void qc.invalidateQueries({ queryKey: ['gameMedia'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   // "Sincronizar tudo": um clique roda IGDB + capas/mídia + HLTB + Metacritic
   // em sequência (funções separadas por baixo; UX de um botão só)
@@ -232,6 +302,9 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
             >
               <Combine /> {t('admin:mergeBtn')}
             </Button>
+            <Button size="sm" variant="secondary" disabled={running} onClick={() => void openEdit()}>
+              <SquarePen /> {t('admin:editBtn')}
+            </Button>
           </div>
           {/* individuais: pra rodar uma fonte só quando precisa */}
           <details className="admin-tools-adv">
@@ -377,6 +450,55 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
                 </li>
               ))}
             </ul>
+          )}
+        </Dialog>
+      )}
+
+      {/* editor de campos: edição direta (nome/desc/plataformas/lançamento/igdb) */}
+      {editOpen && (
+        <Dialog open={editOpen} onClose={() => setEditOpen(false)} title={t('admin:editTitle')}>
+          <p className="page-sub">{t('admin:editText')}</p>
+          {editLoading ? <Spinner /> : (
+            <div className="admin-edit">
+              <label className="admin-edit-field">
+                <span className="mono">{t('admin:editName')}</span>
+                <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+              </label>
+              <label className="admin-edit-field">
+                <span className="mono">{t('admin:editDescription')}</span>
+                <Textarea rows={5} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+              </label>
+              <label className="admin-edit-field">
+                <span className="mono">{t('admin:editPlatforms')}</span>
+                <Input value={form.platforms} onChange={(e) => setForm((f) => ({ ...f, platforms: e.target.value }))} placeholder="SNES, PS1, Switch" />
+              </label>
+              <div className="admin-edit-row2">
+                <label className="admin-edit-field">
+                  <span className="mono">{t('admin:editReleaseDate')}</span>
+                  <Input type="date" value={form.release_date} onChange={(e) => setForm((f) => ({ ...f, release_date: e.target.value }))} />
+                </label>
+                <label className="admin-edit-field">
+                  <span className="mono">{t('admin:editIgdbId')}</span>
+                  <Input value={form.igdb_id} onChange={(e) => setForm((f) => ({ ...f, igdb_id: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="—" inputMode="numeric" />
+                </label>
+              </div>
+              <div className="admin-tools-row">
+                <Button size="sm" variant="ghost" disabled={editSaving || !form.igdb_id}
+                  onClick={() => setForm((f) => ({ ...f, igdb_id: '' }))}>
+                  <Unlink /> {t('admin:editRemoveIgdb')}
+                </Button>
+                <Button size="sm" variant="secondary" disabled={editSaving || !form.igdb_id}
+                  title={t('admin:editOverwriteHint')} onClick={() => void overwriteFromIgdb()}>
+                  <DownloadCloud /> {t('admin:editOverwrite')}
+                </Button>
+              </div>
+              <div className="admin-tools-row" style={{ marginTop: 'var(--s3)', justifyContent: 'flex-end' }}>
+                <Button variant="ghost" disabled={editSaving} onClick={() => setEditOpen(false)}>{t('admin:editCancel')}</Button>
+                <Button variant="primary" disabled={editSaving || !form.title.trim()} onClick={() => void saveEdit()}>
+                  {editSaving ? <Spinner /> : t('admin:editSave')}
+                </Button>
+              </div>
+            </div>
           )}
         </Dialog>
       )}

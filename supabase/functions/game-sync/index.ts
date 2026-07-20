@@ -310,47 +310,51 @@ Deno.serve(async (req: Request) => {
       let times: { main: string | null; extras: string | null; full: string | null; source: string } | null = null;
 
       try {
-        // 1) token: home -> _app-*.js -> "/api/xxx/".concat("a").concat("b")
-        const home = await (await fetch('https://howlongtobeat.com/', { headers: { 'User-Agent': UA } })).text();
-        const appJs = home.match(/src="(\/_next\/static\/chunks\/pages\/_app-[^"]+\.js)"/)?.[1];
-        if (appJs) {
-          const js = await (await fetch(`https://howlongtobeat.com${appJs}`, { headers: { 'User-Agent': UA } })).text();
-          const mm = js.match(/"\/api\/([a-z]+)\/"(?:\.concat\("([^"]+)"\))(?:\.concat\("([^"]+)"\))?/);
-          if (mm) {
-            const endpoint = `/api/${mm[1]}/${mm[2] ?? ''}${mm[3] ?? ''}`;
-            const res = await fetch(`https://howlongtobeat.com${endpoint}`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json', 'User-Agent': UA,
-                origin: 'https://howlongtobeat.com', referer: 'https://howlongtobeat.com/',
+        // fluxo novo do HLTB (2025): o /_app-*.js + concat morreu. Agora é
+        //   GET  /api/bleed/init  -> { token, hpKey, hpVal }  (anti-bot leve)
+        //   POST /api/bleed       com headers x-auth-token/x-hp-key/x-hp-val
+        //                         + o par honeypot [hpKey]=hpVal no corpo.
+        const initRes = await fetch(`https://howlongtobeat.com/api/bleed/init?t=${Date.now()}`, {
+          headers: { 'User-Agent': UA, referer: 'https://howlongtobeat.com/' },
+        });
+        if (initRes.ok) {
+          const sec = (await initRes.json()) as { token?: string; hpKey?: string; hpVal?: string };
+          const reqBody: Record<string, unknown> = {
+            searchType: 'games',
+            searchTerms: String(game.title).split(/\s+/).filter(Boolean),
+            searchPage: 1,
+            size: 5,
+            searchOptions: {
+              games: {
+                userId: 0, platform: '', sortCategory: 'popular', rangeCategory: 'main',
+                rangeTime: { min: null, max: null },
+                gameplay: { perspective: '', flow: '', genre: '', difficulty: '' },
+                rangeYear: { min: '', max: '' }, modifier: '',
               },
-              body: JSON.stringify({
-                searchType: 'games',
-                searchTerms: String(game.title).split(/\s+/).filter(Boolean),
-                searchPage: 1,
-                size: 5,
-                searchOptions: {
-                  games: {
-                    userId: 0, platform: '', sortCategory: 'popular', rangeCategory: 'main',
-                    rangeTime: { min: null, max: null },
-                    gameplay: { perspective: '', flow: '', genre: '', difficulty: '' },
-                    rangeYear: { min: '', max: '' }, modifier: '',
-                  },
-                  users: { sortCategory: 'postcount' }, lists: { sortCategory: 'follows' },
-                  filter: '', sort: 0, randomizer: 0,
-                },
-              }),
-            });
-            if (res.ok) {
-              // deno-lint-ignore no-explicit-any
-              const hits = ((await res.json())?.data ?? []) as any[];
-              const best = hits.find((h) => normTitle(h.game_name) === normTitle(game.title)) ?? hits[0];
-              if (best) {
-                times = {
-                  main: fmtH(best.comp_main), extras: fmtH(best.comp_plus), full: fmtH(best.comp_100),
-                  source: 'HowLongToBeat',
-                };
-              }
+              users: { sortCategory: 'postcount' }, lists: { sortCategory: 'follows' },
+              filter: '', sort: 0, randomizer: 0,
+            },
+            useCache: true,
+          };
+          if (sec.hpKey) reqBody[sec.hpKey] = sec.hpVal;
+          const res = await fetch('https://howlongtobeat.com/api/bleed', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json', 'User-Agent': UA,
+              origin: 'https://howlongtobeat.com', referer: 'https://howlongtobeat.com/',
+              'x-auth-token': sec.token ?? '', 'x-hp-key': sec.hpKey ?? '', 'x-hp-val': sec.hpVal ?? '',
+            },
+            body: JSON.stringify(reqBody),
+          });
+          if (res.ok) {
+            // deno-lint-ignore no-explicit-any
+            const hits = ((await res.json())?.data ?? []) as any[];
+            const best = hits.find((h) => normTitle(h.game_name) === normTitle(game.title)) ?? hits[0];
+            if (best) {
+              times = {
+                main: fmtH(best.comp_main), extras: fmtH(best.comp_plus), full: fmtH(best.comp_100),
+                source: 'HowLongToBeat',
+              };
             }
           }
         }
@@ -402,9 +406,25 @@ Deno.serve(async (req: Request) => {
       // deno-lint-ignore no-explicit-any
       const items = (((await res.json()) as any)?.data?.items ?? []) as any[];
       const gamesOnly = items.filter((i) => i.type === 'game-title' || i.criticScoreSummary);
-      const best = gamesOnly.find((i) => normTitle(i.title) === normTitle(game.title)) ?? gamesOnly[0];
+      // O finder é FUZZY e frequentemente NÃO traz o jogo certo: "GTA VI"
+      // devolvia Vice City/V/IV, "FF VI" devolvia FF VII. Cair no [0] colava a
+      // nota errada. Regra: só título IDÊNTICO; com ano conhecido, o ano tem
+      // que bater (±1). Sem match confiável -> 404 (não inventa nota).
+      const target = normTitle(game.title);
+      const ourYear = game.release_date ? new Date(String(game.release_date)).getFullYear() : null;
+      // deno-lint-ignore no-explicit-any
+      const yearOf = (i: any): number | null => {
+        const raw = i?.premiereYear ?? i?.releaseYear ?? i?.releaseDate ?? null;
+        if (raw == null) return null;
+        const y = typeof raw === 'number' ? raw : new Date(String(raw)).getFullYear();
+        return Number.isFinite(y) ? y : null;
+      };
+      const exact = gamesOnly.filter((i) => normTitle(i.title) === target);
+      const best = ourYear != null
+        ? (exact.find((i) => { const y = yearOf(i); return y == null || Math.abs(y - ourYear) <= 1; }) ?? null)
+        : (exact[0] ?? null);
       const score = best?.criticScoreSummary?.score;
-      if (!best || !score) return json({ error: 'Metacritic não achou este jogo (ou está sem nota).' }, 404);
+      if (!best || !score) return json({ error: 'Metacritic sem match confiável pra este jogo (ou sem nota).' }, 404);
 
       const mcMeta = { ...((game.metadata as Record<string, unknown> | null) ?? {}) } as Record<string, unknown>;
       const prevScores = (mcMeta.scores as Record<string, unknown> | undefined) ?? {};

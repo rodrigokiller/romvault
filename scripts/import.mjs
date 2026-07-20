@@ -1271,19 +1271,28 @@ async function main() {
   } else if (SOURCE === 'dedupe') {
     const { dedupeGames } = await import('./lib/dedupe-games.mjs');
     stats = await dedupeGames({ sb, flag, DRY, log, c, step, itemLog, fetchAll });
+  } else if (SOURCE === 'enrich') {
+    const { importEnrich } = await import('./lib/enrich.mjs');
+    stats = await importEnrich({ sb, flag, DRY, log, c, step, itemLog, fetchAll });
   } else if (SOURCE === 'all') {
-    // pipeline de manutencao: dataset -> dedupe -> capas IGDB -> box art libretro
+    // pipeline de primeira carga: dataset -> dedupe -> capas IGDB -> box art
+    // libretro -> enrich (Metacritic + HowLongToBeat). O enrich respeita --limit
+    // (default 300/rodada): enriquecer 80k jogos por scraping é incremental, não
+    // cabe numa noite; rode `--source=enrich --limit=N` pra mastigar o resto.
     const ctx = { sb, flag, DRY, log, c, step, itemLog, fetchAll, slugifyText };
     const { dedupeGames } = await import('./lib/dedupe-games.mjs');
     const { importCoversLibretro } = await import('./lib/libretro.mjs');
-    log(c.cyan('\n══ PIPELINE COMPLETO: dataset → dedupe → covers → libretro ══'));
+    const { importEnrich } = await import('./lib/enrich.mjs');
+    log(c.cyan('\n══ PIPELINE COMPLETO: dataset → dedupe → covers → libretro → enrich ══'));
     const s1 = await importDataset(sb);
     const s2 = await dedupeGames(ctx);
     const s3 = await importCovers(sb);
     const s4 = await importCoversLibretro(ctx);
+    const s5 = await importEnrich(ctx);
     stats = {
       'dataset.games': s1.games, 'dedupe.fundidos': s2.fundidos,
       'covers.igdb': s3.preenchidos, 'covers.libretro': s4.preenchidos ?? 0,
+      'enrich.metacritic': s5.metacritic ?? 0, 'enrich.hltb': s5.hltb ?? 0,
     };
   } else if (SOURCE === 'dataset') {
     stats = await importDataset(sb);
@@ -1293,7 +1302,7 @@ async function main() {
     log(c.red(`✖ source desconhecido: "${SOURCE}" — falta um git pull?`));
     log('  Conhecidos: dataset, igdb, igdb-backfill, smwc, rhdn, pobre, covers,');
     log('  covers-libretro, mobygames, screenscraper, langs-igdb, purge-mods,');
-    log('  dedupe, reset-sync, all');
+    log('  dedupe, enrich, reset-sync, all');
     process.exit(1);
   }
 
