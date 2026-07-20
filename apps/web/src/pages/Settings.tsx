@@ -394,7 +394,33 @@ function AccountLinksSection() {
           };
         }}
       />
-      {(['Epic', 'EA', 'Battle.net', 'Riot', 'Ubisoft'] as const).map((name) => (
+      <SyncAccountRow
+        provider="epic"
+        icon={Gamepad}
+        title="Epic Games"
+        hint={t('settings:epicHint')}
+        placeholder={t('settings:epicCodePh')}
+        linked={linked('epic')}
+        help={{
+          steps: [t('settings:help_epic_1'), t('settings:help_epic_2'), t('settings:help_epic_3')],
+          links: [{
+            label: t('settings:help_epic_link'),
+            url: 'https://www.epicgames.com/id/api/redirect?clientId=34a02cf8f4414e29b15921876da36f9a&responseType=code',
+          }],
+        }}
+        invoke={async (code) => {
+          const d = await invokeFn<{ epic_games?: number; matched?: number; tracks_added?: number; note?: string; unmatched?: number; sample_misses?: string[]; account_id?: string }>(
+            'epic-import', { epic_code: code },
+          );
+          return {
+            message: d?.note ?? t('settings:epicDone', {
+              total: d?.epic_games ?? 0, matched: d?.matched ?? 0, tracks: d?.tracks_added ?? 0,
+            }),
+            unmatched: d?.unmatched, misses: d?.sample_misses, accountId: d?.account_id,
+          };
+        }}
+      />
+      {(['EA', 'Battle.net', 'Riot', 'Ubisoft'] as const).map((name) => (
         <div key={name} className="account-row account-row-soon">
           <div className="account-row-head">
             <span className="account-name">
