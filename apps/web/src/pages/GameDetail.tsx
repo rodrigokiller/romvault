@@ -3,8 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Gamepad2, Languages as LanguagesIcon } from 'lucide-react';
+import { Gamepad2, Languages as LanguagesIcon, CalendarCheck } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
+import { useAuth } from '@/auth/AuthProvider';
+import { useLogPlay } from '@/hooks/useTracks';
 import { Button } from '@/components/ui/Button';
 import { useGame, useRelatedGames } from '@/hooks/useGames';
 import { useGameRomhacks, useGameTranslations, useGameDocuments } from '@/hooks/useMaterials';
@@ -226,6 +229,7 @@ export function GameDetail() {
             <div className="detail-actions">
               <PlayInMyLang translations={(translations.data ?? []) as Row[]} />
               <TrackButton gameId={game.id} />
+              <LogPlayButton gameId={game.id} />
               <PrivacyToggle gameId={game.id} />
               <FavoriteButton subjectType="game" subjectId={game.id} />
               <ShareButton title={title} />
@@ -573,6 +577,30 @@ function ReleasesTab({ game }: { game: ReturnType<typeof useGame>['data'] }) {
         </dl>
       )}
     </div>
+  );
+}
+
+/** "Joguei hoje": registra uma sessão manual (retrô/emulador/físico). */
+function LogPlayButton({ gameId }: { gameId: string }) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const { user, disabled } = useAuth();
+  const log = useLogPlay(gameId);
+  if (disabled || !user) return null;
+  return (
+    <Button
+      variant="secondary"
+      onClick={() => {
+        const today = new Date().toISOString().slice(0, 10);
+        void log.mutateAsync(today)
+          .then(() => toast.success(t('games:logPlayDone')))
+          .catch((e) => toast.error(e instanceof Error ? e.message : t('forms:submitError')));
+      }}
+      disabled={log.isPending}
+      title={t('games:logPlayHint')}
+    >
+      <CalendarCheck /> {t('games:logPlay')}
+    </Button>
   );
 }
 

@@ -174,7 +174,10 @@
     "relBase": "Original",
     "seriesChipHint": "Ver a linha do tempo da série",
     "mediaCoversTitle": "Capas por região",
-    "mediaHeroesTitle": "Artes"
+    "mediaHeroesTitle": "Artes",
+    "logPlay": "Joguei hoje",
+    "logPlayHint": "Registra uma sessão de hoje (retrô, emulador, físico) no seu histórico",
+    "logPlayDone": "Sessão de hoje registrada no histórico."
   },
   "entities": {
     "kindGame": "Jogo",
@@ -754,6 +757,7 @@
     "followers_other": "{{count}} seguidores",
     "following": "segue {{count}}",
     "feedTitle": "Zeradas de quem você segue",
+    "historyTitle": "Histórico de jogatina",
     "feedFinished": "zerou",
     "joined": "Entrou em",
     "empty": "Este usuário ainda não publicou nada.",

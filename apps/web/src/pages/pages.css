@@ -4097,6 +4097,22 @@ button.heat-cell::after {
 .series-chip:hover { color: var(--accent); border-color: var(--accent); }
 .series-chip svg { width: 11px; height: 11px; flex-shrink: 0; }
 
+/* ── histórico de jogatina no perfil (play_sessions por dia) ────────────────── */
+.play-history { display: grid; gap: var(--s3); }
+.play-history-day {
+  display: flex;
+  gap: var(--s4);
+  align-items: flex-start;
+}
+.play-history-date {
+  min-width: 56px;
+  padding-top: var(--s1);
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: capitalize;
+  flex-shrink: 0;
+}
+
 /* ── mídia do IGDB por grupos: capas por região ─────────────────────────────── */
 .media-covers {
   display: flex;

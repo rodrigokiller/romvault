@@ -174,7 +174,10 @@
     "relBase": "Original",
     "seriesChipHint": "See the series timeline",
     "mediaCoversTitle": "Covers by region",
-    "mediaHeroesTitle": "Artworks"
+    "mediaHeroesTitle": "Artworks",
+    "logPlay": "Played today",
+    "logPlayHint": "Logs a session for today (retro, emulator, physical) in your history",
+    "logPlayDone": "Today's session logged to your history."
   },
   "entities": {
     "kindGame": "Game",
@@ -754,6 +757,7 @@
     "followers_other": "{{count}} followers",
     "following": "follows {{count}}",
     "feedTitle": "Completions from people you follow",
+    "historyTitle": "Play history",
     "feedFinished": "finished",
     "joined": "Joined",
     "empty": "This user hasn't published anything yet.",

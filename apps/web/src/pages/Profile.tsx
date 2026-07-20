@@ -17,7 +17,7 @@ import {
   useProfileByUsername, useMyProfile, useContributions, useUpdateProfile,
 } from '@/hooks/useProfile';
 import { useMyFavorites } from '@/hooks/useFavorites';
-import { useTrackPulse, useUserPlaythroughs, useLibraryCopies, type GameCopy } from '@/hooks/useTracks';
+import { useTrackPulse, useUserPlaythroughs, useLibraryCopies, usePlayHistory, type GameCopy } from '@/hooks/useTracks';
 import { useIsFollowing, useToggleFollow, useFollowCounts, useFriendsFeed } from '@/hooks/useFollows';
 import { useAuth } from '@/auth/AuthProvider';
 import type { Kind } from '@/components/entities/kinds';
@@ -106,6 +106,8 @@ export function Profile() {
       </div>
 
       <ActivityStrip tracks={libTracks} playthroughs={playthroughs} copies={copies} />
+
+      <PlayHistorySection userId={profile.id} />
 
       <VitrineTeaser userId={profile.id} username={profile.username ?? username ?? ''} copies={copies} />
 
@@ -342,6 +344,44 @@ function SyncedBadges({ username }: { username: string }) {
         </span>
       ))}
     </div>
+  );
+}
+
+/**
+ * Histórico de jogatina (play_sessions unificado: sync + zeradas + log manual),
+ * agrupado por dia — a memória de jogo que o heatmap só resume.
+ */
+function PlayHistorySection({ userId }: { userId: string }) {
+  const { t, i18n } = useTranslation();
+  const { data: history = [] } = usePlayHistory(userId, 60);
+  if (history.length === 0) return null;
+  // agrupa por dia (mantém a ordem desc que veio do banco)
+  const byDay = new Map<string, typeof history>();
+  for (const h of history) {
+    if (!h.game) continue;
+    byDay.set(h.played_on, [...(byDay.get(h.played_on) ?? []), h]);
+  }
+  const fmt = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString(i18n.language || 'pt-BR', { day: '2-digit', month: 'short' });
+  return (
+    <section className="section">
+      <div className="section-head"><h2>{t('profile:historyTitle')}</h2></div>
+      <div className="play-history">
+        {[...byDay.entries()].slice(0, 14).map(([day, items]) => (
+          <div key={day} className="play-history-day">
+            <span className="play-history-date mono">{fmt(day)}</span>
+            <div className="my-strip-covers" style={{ flexWrap: 'wrap' }}>
+              {[...new Map(items.map((h) => [h.game!.slug, h])).values()].map((h) => (
+                <Link key={h.game!.slug} to={`/games/${h.game!.slug}`} title={`${h.game!.title} (${h.provider})`}>
+                  {h.game!.cover_url || h.game!.thumbnail
+                    ? <img src={h.game!.cover_url ?? h.game!.thumbnail ?? ''} alt={h.game!.title} loading="lazy" />
+                    : <span className="my-strip-fallback">{h.game!.title}</span>}
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

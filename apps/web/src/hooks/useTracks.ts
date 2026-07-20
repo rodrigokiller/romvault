@@ -360,6 +360,46 @@ export function useUserSyncRows(userId: string | undefined) {
   });
 }
 
+/** Registra "joguei isso em tal dia" (log manual, provider='manual'). */
+export function useLogPlay(gameId: string | undefined) {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (playedOn: string) => {
+      const uid = user?.id;
+      if (!uid || !gameId) throw new Error('Não autenticado.');
+      const { error } = await db().from('play_sessions').upsert(
+        { user_id: uid, game_id: gameId, provider: 'manual', played_on: playedOn },
+        { onConflict: 'user_id,game_id,provider,played_on', ignoreDuplicates: true },
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['playSessions'] });
+      void qc.invalidateQueries({ queryKey: ['playHistory'] });
+    },
+  });
+}
+
+/** Histórico rico do usuário: sessões + zeradas, com jogo embutido, por dia. */
+export function usePlayHistory(userId: string | undefined, limit = 120) {
+  return useQuery({
+    queryKey: ['playHistory', userId, limit],
+    enabled: env.configured && Boolean(userId),
+    staleTime: 60_000,
+    queryFn: async (): Promise<{ game_id: string; provider: string; played_on: string; game: { title: string; slug: string; cover_url: string | null; thumbnail: string | null } | null }[]> => {
+      const { data, error } = await db()
+        .from('play_sessions')
+        .select('game_id, provider, played_on, game:games(title, slug, cover_url, thumbnail)')
+        .eq('user_id', userId as string)
+        .order('played_on', { ascending: false })
+        .limit(limit);
+      if (error) return [];
+      return (data ?? []) as never;
+    },
+  });
+}
+
 /** Histórico de sessões (play_sessions): cada DIA jogado, pro heatmap completo. */
 export function useUserPlaySessions(userId: string | undefined) {
   return useQuery({
