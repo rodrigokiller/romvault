@@ -3648,6 +3648,52 @@ button.heat-cell::after {
 .heatmap-years .vitrine-tab { flex-shrink: 0; }
 
 /* ── MOBILE (pedido do Killer: "deixa mobile friendly também") ──────────────── */
+/* ═══ MOBILE geral (≤640px): folga menor, grids que encolhem, chips que rolam ══ */
+@media (max-width: 640px) {
+  /* o padding lateral de 24px comia a tela do celular */
+  .container { padding: var(--s4) var(--s3); }
+  .hero-inner { padding: var(--s6) var(--s3); }
+  .hero h1 { font-size: clamp(1.6rem, 8vw, 2.2rem); }
+  .hero-sub { font-size: 0.95rem; }
+  .hero-stats { gap: var(--s4); margin-top: var(--s5); }
+  .hero-stat-num { font-size: 1.3rem; }
+  .page-head { margin-bottom: var(--s4); }
+  .page-head h1 { font-size: 1.5rem; word-break: break-word; }
+
+  /* cards de material: 1 coluna cabe melhor que forçar 260px espremido */
+  .card-grid { grid-template-columns: 1fr; gap: var(--s3); }
+  /* capas (retrato): 3 por linha no telefone (eram ~2 largas) */
+  .card-grid-cover { grid-template-columns: repeat(3, 1fr); gap: var(--s3) var(--s2); }
+  .card-grid-tight { grid-template-columns: 1fr; }
+  .shelf { grid-template-columns: repeat(3, 1fr); gap: var(--s4) var(--s2); }
+  .vitrine-grid { columns: 3 100px; }
+
+  /* filtros/abas rolam na horizontal em vez de virar um paredão vertical */
+  .search-filters, .type-seg {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: var(--s2);
+    scrollbar-width: none;
+  }
+  .search-filters::-webkit-scrollbar, .type-seg::-webkit-scrollbar { display: none; }
+  .search-chip, .type-seg-btn { flex-shrink: 0; }
+
+  /* estatísticas da biblioteca quebram sem empurrar largura */
+  .lib-stats { gap: var(--s2); }
+  .lib-stat { font-size: 0.72rem; }
+
+  /* barra de ações em massa não cola nas bordas */
+  .bulk-bar { left: var(--s2); right: var(--s2); transform: none; max-width: none; }
+
+  /* formulários do admin/settings em 1 coluna */
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .sync-row, .api-create, .admin-tools-row { flex-wrap: wrap; }
+  .admin-row { flex-wrap: wrap; row-gap: var(--s2); }
+
+  /* modais ocupam quase a tela toda */
+  .dialog { width: calc(100vw - var(--s4)); max-width: none; }
+}
+
 @media (max-width: 720px) {
   /* página do jogo: cabeçalho em coluna (capa em cima, infos embaixo),
      sem estouro de largura no topo (queixa do Killer) */

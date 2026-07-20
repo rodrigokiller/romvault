@@ -24,6 +24,10 @@ export interface GamesFilter {
   /** Faixa de anos (inclusive). */
   yearFrom?: number;
   yearTo?: number;
+  /** Só jogos "main" (fora DLC/bundle/mod) — usado nos "lançamentos recentes". */
+  mainOnly?: boolean;
+  /** Só com capa (recentes: nada de placeholder feio na primeira dobra). */
+  hasCover?: boolean;
 }
 
 export const gamesKeys = {
@@ -113,6 +117,10 @@ export function useGamesPage(filters: GamesFilter, page: number, pageSize = PAGE
       const release = filters.release ?? 'released';
       if (release === 'released') q = q.or(`release_date.lte.${today},release_date.is.null`);
       else if (release === 'upcoming') q = q.gt('release_date', today);
+      // "lançamentos recentes" limpos: só jogos main COM capa e igdb (nada de
+      // DLC/bundle/edição especial de 2025 poluindo a primeira dobra)
+      if (filters.mainOnly) q = q.eq('game_type', 'main').not('igdb_id', 'is', null);
+      if (filters.hasCover) q = q.not('cover_url', 'is', null);
       if (filters.yearFrom) q = q.gte('release_date', `${filters.yearFrom}-01-01`);
       if (filters.yearTo) q = q.lte('release_date', `${filters.yearTo}-12-31`);
       const sort = filters.sort ?? 'title';

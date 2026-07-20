@@ -39,8 +39,9 @@ export function Home() {
   const { data: trending = [], isLoading: trendingLoading } = useTrending(8);
   const { data: articles = [], isLoading: articlesLoading } = useArticles(3);
   const { data: collections = [] } = useCollections(3);
-  // 6 lançamentos mais recentes (só o que JÁ saiu — mesmo filtro do Explorar)
-  const { data: recent } = useGamesPage({ sort: 'newest', release: 'released' }, 0, 6);
+  // 6 lançamentos mais recentes: só jogos MAIN com capa (sem DLC/bundle
+  // poluindo a home — queixa "não tá 100% atualizada")
+  const { data: recent } = useGamesPage({ sort: 'newest', release: 'released', mainOnly: true, hasCover: true }, 0, 6);
 
   return (
     <>
