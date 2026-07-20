@@ -788,6 +788,76 @@ async function importResetSync(sb) {
  *   npm run import -- --source=igdb-backfill [--dry] [--force]
  *   (--force: reprocessa tambem quem ja tem game_type)
  * ═══════════════════════════════════════════════════════════════════════════ */
+/**
+ * PRÓXIMOS LANÇAMENTOS / MAIS AGUARDADOS. O critério de "aguardado" é o `hypes`
+ * do IGDB (quantas pessoas seguem o jogo) — nota não serve, jogo não lançado
+ * não tem nota. Traz os com DATA FUTURA e os anunciados SEM data (TBA).
+ *
+ *   npm run import -- --source=igdb-upcoming
+ *   npm run import -- --source=igdb-upcoming --limit=800
+ *
+ * Quem já existe só tem hypes/tba/data atualizados (não sobrescreve curadoria);
+ * os novos entram inteiros.
+ */
+async function importIgdbUpcoming(sb) {
+  const auth = await igdbToken();
+  const limit = Number(flag('limit', 400)) || 400;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const fields =
+    'fields id,name,summary,first_release_date,hypes,cover.url,screenshots.url,genres.name,' +
+    'platforms.id,platforms.name,game_modes.name,themes.name,franchises.name,collection.name,' +
+    'game_type,alternative_names.name,' +
+    'involved_companies.developer,involved_companies.publisher,involved_companies.company.name;';
+
+  step('IGDB — proximos lancamentos + anunciados sem data');
+  const dated = [];
+  for (let off = 0; off < limit; off += 500) {
+    const take = Math.min(500, limit - off);
+    const batch = await igdbQuery(auth, 'games',
+      `${fields} where first_release_date > ${nowSec} & game_type = (0,8,9,10,11); sort hypes desc; limit ${take}; offset ${off};`);
+    dated.push(...batch);
+    if (batch.length < take) break;
+  }
+  const tba = await igdbQuery(auth, 'games',
+    `${fields} where first_release_date = null & hypes > 3 & game_type = (0,8,9,10,11); sort hypes desc; limit 250;`);
+  log(`  ${dated.length} com data futura · ${tba.length} anunciados sem data`);
+
+  const existing = await fetchAll(() => sb.from('games').select('id, slug, igdb_id'));
+  const byIgdb = new Map(existing.filter((g) => g.igdb_id != null).map((g) => [Number(g.igdb_id), g]));
+  const bySlug = new Map(existing.map((g) => [g.slug, g.id]));
+
+  const stats = { novos: 0, atualizados: 0, pulados: 0 };
+  for (const [list, isTba] of [[dated, false], [tba, true]]) {
+    for (const g of list) {
+      const mapped = (g.platforms ?? []).map((p) => PLATFORM_SHORT[p.id] ?? p.name).filter(Boolean);
+      const row = { ...igdbToGame(g, mapped[0] ?? 'PC'), hypes: g.hypes ?? null, tba: isTba };
+      const hit = byIgdb.get(g.id);
+      if (hit) {
+        // só os campos voláteis: não mexe no que já foi curado
+        if (!DRY) {
+          await sb.from('games')
+            .update({ hypes: row.hypes, tba: isTba, release_date: row.release_date })
+            .eq('id', hit.id);
+        }
+        stats.atualizados++;
+        continue;
+      }
+      if (bySlug.has(row.slug)) { stats.pulados++; continue; }
+      if (DRY) {
+        stats.novos++;
+        itemLog(stats.novos, `  ${c.dim('[dry]')} ${row.title} ${c.dim(`hypes:${row.hypes ?? 0}${isTba ? ' TBA' : ' ' + (row.release_date ?? '')}`)}`);
+        continue;
+      }
+      const { error } = await sb.from('games').upsert(row, { onConflict: 'slug' });
+      if (error) { stats.pulados++; continue; }
+      bySlug.set(row.slug, true);
+      stats.novos++;
+      itemLog(stats.novos, `  ${c.green('+')} ${row.title} ${c.dim(`hypes:${row.hypes ?? 0}`)}`);
+    }
+  }
+  return stats;
+}
+
 async function importIgdbBackfill(sb) {
   const auth = await igdbToken();
   const force = Boolean(flag('force', false));
@@ -1249,6 +1319,8 @@ async function main() {
     stats = await importCovers(sb);
   } else if (SOURCE === 'purge-mods') {
     stats = await importPurgeMods(sb);
+  } else if (SOURCE === 'igdb-upcoming') {
+    stats = await importIgdbUpcoming(sb);
   } else if (SOURCE === 'igdb-backfill') {
     stats = await importIgdbBackfill(sb);
   } else if (SOURCE === 'reset-sync') {
@@ -1305,7 +1377,7 @@ async function main() {
     log(c.red(`✖ source desconhecido: "${SOURCE}" — falta um git pull?`));
     log('  Conhecidos: dataset, igdb, igdb-backfill, smwc, rhdn, pobre, covers,');
     log('  covers-libretro, mobygames, screenscraper, langs-igdb, purge-mods,');
-    log('  dedupe, enrich, platform-wiki, reset-sync, all');
+    log('  dedupe, enrich, platform-wiki, igdb-upcoming, reset-sync, all');
     process.exit(1);
   }
 

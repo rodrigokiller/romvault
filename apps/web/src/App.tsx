@@ -49,6 +49,7 @@ const CollectionDetail = lazy(() => import('./pages/Collections').then((m) => ({
 const Series = lazy(() => import('./pages/Series').then((m) => ({ default: m.Series })));
 const PlatformsIndex = lazy(() => import('./pages/Platforms').then((m) => ({ default: m.PlatformsIndex })));
 const PlatformDetail = lazy(() => import('./pages/Platforms').then((m) => ({ default: m.PlatformDetail })));
+const Upcoming = lazy(() => import('./pages/Upcoming').then((m) => ({ default: m.Upcoming })));
 
 export function App() {
   return (
@@ -83,6 +84,7 @@ export function App() {
                       <Route path="series/:name" element={<Series />} />
                       <Route path="platforms" element={<PlatformsIndex />} />
                       <Route path="platform/:name" element={<PlatformDetail />} />
+                      <Route path="upcoming" element={<Upcoming />} />
 
                       <Route path="users" element={<Users />} />
                       <Route path="stats" element={<Stats />} />

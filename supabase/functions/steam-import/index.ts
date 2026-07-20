@@ -210,7 +210,35 @@ Deno.serve(async (req: Request) => {
             const hits = (await res.json()) as any[];
             // nome exato + tem PC (id 6) > nome exato; ignora igdb já usado
             const exact = hits.filter((h) => norm(h.name) === norm(c.title) && !usedIgdb.has(Number(h.id)));
-            const hit = exact.find((h) => (h.platforms ?? []).includes(6)) ?? exact[0];
+            const pcOnly = exact.filter((h) => (h.platforms ?? []).includes(6));
+            const pool = pcOnly.length > 0 ? pcOnly : exact;
+            // DESEMPATE POR ANO: vários jogos têm o MESMO nome (o caso Final
+            // Fantasy VI: Pixel Remaster de 2022 vs o port antigo). A data da
+            // própria Steam diz qual é o que o usuário tem.
+            let steamYear: number | null = null;
+            if (pool.length > 1) {
+              try {
+                const dRes = await fetch(
+                  `https://store.steampowered.com/api/appdetails?appids=${c.external_ids.steam}&filters=basic`,
+                );
+                if (dRes.ok) {
+                  const dj = await dRes.json();
+                  const raw = dj?.[String(c.external_ids.steam)]?.data?.release_date?.date;
+                  const y = raw ? new Date(String(raw)).getFullYear() : NaN;
+                  if (Number.isFinite(y)) steamYear = y;
+                }
+              } catch { /* sem data da Steam: cai no critério antigo */ }
+            }
+            // deno-lint-ignore no-explicit-any
+            const yearOf = (h: any) =>
+              h.first_release_date ? new Date(h.first_release_date * 1000).getFullYear() : null;
+            const hit = steamYear != null
+              ? [...pool].sort((a, b) => {
+                const ya = yearOf(a); const yb = yearOf(b);
+                return (ya == null ? 999 : Math.abs(ya - steamYear!))
+                  - (yb == null ? 999 : Math.abs(yb - steamYear!));
+              })[0]
+              : pool[0];
             if (!hit) continue;
             usedIgdb.add(Number(hit.id));
             const patch: Record<string, unknown> = {

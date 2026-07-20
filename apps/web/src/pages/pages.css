@@ -4280,6 +4280,19 @@ button.heat-cell::after {
   background: color-mix(in oklab, var(--plat-accent, var(--line)) 10%, transparent);
   border: 1px solid color-mix(in oklab, var(--plat-accent, var(--line)) 40%, var(--line));
 }
+/* /upcoming — agenda de lançamentos */
+.upcoming-cell { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.upcoming-tag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s2);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+.upcoming-hypes { color: var(--muted); }
+
 /* bloco de dados técnicos da plataforma */
 .platform-info-grid {
   display: grid;

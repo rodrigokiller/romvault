@@ -44,6 +44,28 @@ const GAME_CARD_COLS =
   'id, title, slug, cover_url, thumbnail, platforms, genres, release_date, developer, description, franchise, series, is_adult, game_type';
 
 /**
+ * MAIS AGUARDADOS: jogos ainda não lançados, ordenados pela expectativa
+ * (`hypes` = quantas pessoas seguem no IGDB). Nota não serve aqui — jogo que
+ * não saiu não tem nota. Carga: `--source=igdb-upcoming`.
+ */
+export function useMostAwaited(limit = 6) {
+  return useQuery({
+    queryKey: ['mostAwaited', limit],
+    enabled: env.configured,
+    staleTime: 30 * 60_000,
+    queryFn: async (): Promise<Game[]> => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data, error } = await db().from('games').select(GAME_CARD_COLS)
+        .gt('release_date', today).eq('is_adult', false)
+        .order('hypes', { ascending: false, nullsFirst: false })
+        .limit(limit);
+      if (error) return []; // coluna hypes ainda não migrada: seção só não aparece
+      return (data ?? []) as unknown as Game[];
+    },
+  });
+}
+
+/**
  * Hook de exemplo (padrão react-query): lista de jogos.
  * `enabled` só dispara quando o Supabase está configurado — sem env, devolve
  * uma lista vazia e a página mostra o estado vazio elegante.

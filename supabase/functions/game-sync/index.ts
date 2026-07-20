@@ -41,6 +41,126 @@ const norm = (s: string) =>
 const img = (imageId: string, size: string) =>
   `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.jpg`;
 
+/** UA de navegador: HLTB e Metacritic rejeitam cliente "sem cara de browser". */
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+
+const fmtH = (secs: number | null | undefined) =>
+  (secs && secs > 0 ? `${Math.round((secs / 3600) * 2) / 2}h` : null);
+
+type Times = { main_story: string | null; main_extras: string | null; completionist: string | null; source: string };
+
+/**
+ * HowLongToBeat — fluxo novo (2025). O antigo (_app-*.js + tokens .concat)
+ * morreu e fazia TUDO cair no fallback do IGDB. Agora:
+ *   GET  /api/bleed/init -> { token, hpKey, hpVal }   (anti-bot leve)
+ *   POST /api/bleed      com x-auth-token/x-hp-key/x-hp-val + honeypot no corpo
+ */
+async function hltbTimes(title: string): Promise<Times | null> {
+  try {
+    const initRes = await fetch(`https://howlongtobeat.com/api/bleed/init?t=${Date.now()}`, {
+      headers: { 'User-Agent': UA, referer: 'https://howlongtobeat.com/' },
+    });
+    if (!initRes.ok) return null;
+    const sec = (await initRes.json()) as { token?: string; hpKey?: string; hpVal?: string };
+    const body: Record<string, unknown> = {
+      searchType: 'games',
+      searchTerms: String(title).split(/\s+/).filter(Boolean),
+      searchPage: 1,
+      size: 5,
+      searchOptions: {
+        games: {
+          userId: 0, platform: '', sortCategory: 'popular', rangeCategory: 'main',
+          rangeTime: { min: null, max: null },
+          gameplay: { perspective: '', flow: '', genre: '', difficulty: '' },
+          rangeYear: { min: '', max: '' }, modifier: '',
+        },
+        users: { sortCategory: 'postcount' }, lists: { sortCategory: 'follows' },
+        filter: '', sort: 0, randomizer: 0,
+      },
+      useCache: true,
+    };
+    if (sec.hpKey) body[sec.hpKey] = sec.hpVal;
+    const res = await fetch('https://howlongtobeat.com/api/bleed', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json', 'User-Agent': UA,
+        origin: 'https://howlongtobeat.com', referer: 'https://howlongtobeat.com/',
+        'x-auth-token': sec.token ?? '', 'x-hp-key': sec.hpKey ?? '', 'x-hp-val': sec.hpVal ?? '',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    // deno-lint-ignore no-explicit-any
+    const hits = ((await res.json())?.data ?? []) as any[];
+    const best = hits.find((h) => norm(String(h.game_name ?? '')) === norm(title)) ?? hits[0];
+    if (!best) return null;
+    return {
+      main_story: fmtH(best.comp_main), main_extras: fmtH(best.comp_plus),
+      completionist: fmtH(best.comp_100), source: 'HowLongToBeat',
+    };
+  } catch { return null; }
+}
+
+/** Fallback do HLTB: game_time_to_beats do IGDB (mais ralo, porém estável). */
+async function igdbTimes(igdbId: number | null | undefined): Promise<Times | null> {
+  const cid = Deno.env.get('TWITCH_CLIENT_ID');
+  const secret = Deno.env.get('TWITCH_CLIENT_SECRET');
+  if (!igdbId || !cid || !secret) return null;
+  try {
+    const tok = (await (await fetch(
+      `https://id.twitch.tv/oauth2/token?client_id=${cid}&client_secret=${secret}&grant_type=client_credentials`,
+      { method: 'POST' },
+    )).json())?.access_token;
+    const ttb = await fetch('https://api.igdb.com/v4/game_time_to_beats', {
+      method: 'POST',
+      headers: { 'Client-ID': cid, Authorization: `Bearer ${tok}` },
+      body: `fields hastily, normally, completely; where game_id = ${igdbId};`,
+    });
+    // deno-lint-ignore no-explicit-any
+    const [row] = ((await ttb.json()) ?? []) as any[];
+    if (!row) return null;
+    return {
+      main_story: fmtH(row.normally), main_extras: fmtH(row.hastily),
+      completionist: fmtH(row.completely), source: 'IGDB',
+    };
+  } catch { return null; }
+}
+
+const MC_KEY = '1MOZgmNFxvmljaQR1X9KAij9Mo4xAY3u'; // apiKey pública do frontend deles
+/**
+ * Metacritic — SÓ título idêntico (+ano ±1). O finder é fuzzy e muitas vezes nem
+ * traz o jogo certo ("GTA VI" devolvia Vice City); cair no [0] colava nota errada.
+ */
+async function mcScore(title: string, releaseDate: string | null): Promise<{ score: number; url: string; slug: string } | null> {
+  try {
+    const q = encodeURIComponent(String(title).slice(0, 60));
+    const res = await fetch(
+      `https://backend.metacritic.com/finder/metacritic/search/${q}/web?apiKey=${MC_KEY}&offset=0&limit=10&mcoTypeId=13`,
+      { headers: { 'User-Agent': UA } },
+    );
+    if (!res.ok) return null;
+    // deno-lint-ignore no-explicit-any
+    const items = (((await res.json()) as any)?.data?.items ?? []) as any[];
+    const gamesOnly = items.filter((i) => i.type === 'game-title' || i.criticScoreSummary);
+    const target = norm(title);
+    const ourYear = releaseDate ? new Date(String(releaseDate)).getFullYear() : null;
+    // deno-lint-ignore no-explicit-any
+    const yearOf = (i: any): number | null => {
+      const raw = i?.premiereYear ?? i?.releaseYear ?? i?.releaseDate ?? null;
+      if (raw == null) return null;
+      const y = typeof raw === 'number' ? raw : new Date(String(raw)).getFullYear();
+      return Number.isFinite(y) ? y : null;
+    };
+    const exact = gamesOnly.filter((i) => norm(String(i.title ?? '')) === target);
+    const best = ourYear != null
+      ? (exact.find((i) => { const y = yearOf(i); return y == null || Math.abs(y - ourYear) <= 1; }) ?? null)
+      : (exact[0] ?? null);
+    const score = best?.criticScoreSummary?.score;
+    if (!best || !score) return null;
+    return { score: Number(score), url: `https://www.metacritic.com/game/${best.slug}/`, slug: best.slug };
+  } catch { return null; }
+}
+
 /* id de plataforma do IGDB -> nosso nome curto (mesma tabela do importer) */
 const PLATFORM_SHORT: Record<number, string> = {
   18: 'NES', 19: 'SNES', 4: 'N64', 21: 'GameCube', 5: 'Wii', 41: 'Wii U', 130: 'Switch', 508: 'Switch 2',
@@ -61,19 +181,85 @@ Deno.serve(async (req: Request) => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const admin = createClient(url, serviceKey);
 
-    // auth: admin logado
-    const asUser = createClient(url, anonKey, {
-      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-    });
-    const { data: { user } } = await asUser.auth.getUser();
-    if (!user) return json({ error: 'Não autenticado.' }, 401);
-    const { data: prof } = await admin.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
-    if (!prof?.is_admin) return json({ error: 'Só admins.' }, 403);
-
     const body = await req.json().catch(() => ({}));
     const action = String(body.action ?? 'igdb');
 
+    // auth: admin logado — EXCETO o enrich em lote, que é chamado pelo cron
+    // (sem usuário) e se identifica pelo x-cron-secret.
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const isCron = action === 'enrich-batch'
+      && Boolean(cronSecret) && req.headers.get('x-cron-secret') === cronSecret;
+    if (!isCron) {
+      const asUser = createClient(url, anonKey, {
+        global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+      });
+      const { data: { user } } = await asUser.auth.getUser();
+      if (!user) return json({ error: 'Não autenticado.' }, 401);
+      const { data: prof } = await admin.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
+      if (!prof?.is_admin) return json({ error: 'Só admins.' }, 403);
+    }
+
     /* ── ações que NÃO precisam de um jogo existente ── */
+
+    /*
+     * ENRICH EM LOTE (job diário): preenche Metacritic + HowLongToBeat de quem
+     * ainda não tem. É a "primeira carga" automática — o resto do dia-a-dia os
+     * jogos novos entram por aqui sozinhos. Marca mc_miss/hltb_miss pra não
+     * re-gastar request em quem não tem match.
+     */
+    if (action === 'enrich-batch') {
+      const cap = Math.min(Math.max(Number(body.limit ?? 25), 1), 60);
+      const WINDOW = 1500;
+      // janela DESLOCADA a cada rodada: varrendo sempre as mesmas primeiras
+      // linhas, o resto do catálogo nunca seria enriquecido.
+      const { count: poolCount } = await admin.from('games')
+        .select('id', { count: 'exact', head: true }).not('igdb_id', 'is', null);
+      const maxOffset = Math.max(0, (poolCount ?? 0) - WINDOW);
+      const offset = maxOffset > 0 ? Math.floor(Math.random() * maxOffset) : 0;
+      const { data: pool } = await admin.from('games')
+        .select('id, title, release_date, metadata, completion_times, igdb_id')
+        .not('igdb_id', 'is', null)
+        .order('id')
+        .range(offset, offset + WINDOW - 1);
+      type Row = {
+        id: string; title: string; release_date: string | null; igdb_id: number | null;
+        metadata: Record<string, unknown> | null;
+        completion_times: { main_story?: string | null; completionist?: string | null } | null;
+      };
+      const pending = ((pool ?? []) as Row[]).filter((g) => {
+        const md = (g.metadata ?? {}) as { scores?: { metacritic?: unknown }; mc_miss?: boolean; hltb_miss?: boolean };
+        const ct = g.completion_times;
+        const hasMc = Boolean(md.scores?.metacritic) || md.mc_miss === true;
+        const hasHltb = Boolean(ct && (ct.main_story || ct.completionist)) || md.hltb_miss === true;
+        return !hasMc || !hasHltb;
+      }).slice(0, cap);
+
+      let hltbOk = 0; let mcOk = 0;
+      for (const g of pending) {
+        const md = { ...((g.metadata ?? {}) as Record<string, unknown>) };
+        const scores = { ...((md.scores as Record<string, unknown> | undefined) ?? {}) };
+        const ct = g.completion_times;
+        const patch: Record<string, unknown> = {};
+        if (!(ct && (ct.main_story || ct.completionist)) && md.hltb_miss !== true) {
+          const times = (await hltbTimes(String(g.title))) ?? (await igdbTimes(g.igdb_id));
+          if (times && (times.main_story || times.completionist)) { patch.completion_times = times; hltbOk++; }
+          else md.hltb_miss = true;
+        }
+        if (!scores.metacritic && md.mc_miss !== true) {
+          const mc = await mcScore(String(g.title), g.release_date);
+          if (mc) { scores.metacritic = mc; md.scores = scores; mcOk++; }
+          else md.mc_miss = true;
+        }
+        patch.metadata = md;
+        await admin.from('games').update(patch).eq('id', g.id);
+        await new Promise((r) => setTimeout(r, 350)); // gentileza com HLTB/MC
+      }
+      // registro no painel de jobs (falha aqui nunca derruba a rodada)
+      await admin.from('job_runs')
+        .insert({ job: 'enrich-cron', mode: 'cron', ok: true, stats: { tentados: pending.length, hltb: hltbOk, metacritic: mcOk } })
+        .then(() => {}, () => {});
+      return json({ ok: true, action, tried: pending.length, hltb: hltbOk, metacritic: mcOk });
+    }
     if (action === 'igdb-search' || action === 'igdb-create') {
       const twitchId = Deno.env.get('TWITCH_CLIENT_ID');
       const twitchSecret = Deno.env.get('TWITCH_CLIENT_SECRET');
@@ -184,9 +370,6 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
       return json({ ok: true, action, updated: Object.keys(patch) });
     }
-
-    const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
-    const normTitle = (s: string) => norm(String(s ?? ''));
 
     /* ── FERRAMENTA VISUAL DE MERGE (analise.txt): funde ESTE jogo dentro de
        um alvo — filhos re-apontados, lacunas do alvo preenchidas, este some.
@@ -305,136 +488,28 @@ Deno.serve(async (req: Request) => {
     /* ── FASE 4a: HowLongToBeat (sem API oficial: descoberta de token no
        bundle deles, padrão das libs da comunidade) + fallback IGDB ── */
     if (action === 'hltb') {
-      const fmtH = (secs: number | null | undefined) =>
-        secs && secs > 0 ? `${Math.round((secs / 3600) * 2) / 2}h` : null;
-      let times: { main: string | null; extras: string | null; full: string | null; source: string } | null = null;
-
-      try {
-        // fluxo novo do HLTB (2025): o /_app-*.js + concat morreu. Agora é
-        //   GET  /api/bleed/init  -> { token, hpKey, hpVal }  (anti-bot leve)
-        //   POST /api/bleed       com headers x-auth-token/x-hp-key/x-hp-val
-        //                         + o par honeypot [hpKey]=hpVal no corpo.
-        const initRes = await fetch(`https://howlongtobeat.com/api/bleed/init?t=${Date.now()}`, {
-          headers: { 'User-Agent': UA, referer: 'https://howlongtobeat.com/' },
-        });
-        if (initRes.ok) {
-          const sec = (await initRes.json()) as { token?: string; hpKey?: string; hpVal?: string };
-          const reqBody: Record<string, unknown> = {
-            searchType: 'games',
-            searchTerms: String(game.title).split(/\s+/).filter(Boolean),
-            searchPage: 1,
-            size: 5,
-            searchOptions: {
-              games: {
-                userId: 0, platform: '', sortCategory: 'popular', rangeCategory: 'main',
-                rangeTime: { min: null, max: null },
-                gameplay: { perspective: '', flow: '', genre: '', difficulty: '' },
-                rangeYear: { min: '', max: '' }, modifier: '',
-              },
-              users: { sortCategory: 'postcount' }, lists: { sortCategory: 'follows' },
-              filter: '', sort: 0, randomizer: 0,
-            },
-            useCache: true,
-          };
-          if (sec.hpKey) reqBody[sec.hpKey] = sec.hpVal;
-          const res = await fetch('https://howlongtobeat.com/api/bleed', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json', 'User-Agent': UA,
-              origin: 'https://howlongtobeat.com', referer: 'https://howlongtobeat.com/',
-              'x-auth-token': sec.token ?? '', 'x-hp-key': sec.hpKey ?? '', 'x-hp-val': sec.hpVal ?? '',
-            },
-            body: JSON.stringify(reqBody),
-          });
-          if (res.ok) {
-            // deno-lint-ignore no-explicit-any
-            const hits = ((await res.json())?.data ?? []) as any[];
-            const best = hits.find((h) => normTitle(h.game_name) === normTitle(game.title)) ?? hits[0];
-            if (best) {
-              times = {
-                main: fmtH(best.comp_main), extras: fmtH(best.comp_plus), full: fmtH(best.comp_100),
-                source: 'HowLongToBeat',
-              };
-            }
-          }
-        }
-      } catch { /* HLTB fora/mudou: cai no IGDB */ }
-
-      // fallback: time_to_beats do IGDB (dados existem mas são mais ralos)
-      const hltbTwitchId = Deno.env.get('TWITCH_CLIENT_ID');
-      const hltbTwitchSecret = Deno.env.get('TWITCH_CLIENT_SECRET');
-      if (!times && game.igdb_id && hltbTwitchId && hltbTwitchSecret) {
-        try {
-          const tok = (await (await fetch(
-            `https://id.twitch.tv/oauth2/token?client_id=${hltbTwitchId}&client_secret=${hltbTwitchSecret}&grant_type=client_credentials`,
-            { method: 'POST' },
-          )).json())?.access_token;
-          const ttb = await fetch('https://api.igdb.com/v4/game_time_to_beats', {
-            method: 'POST',
-            headers: { 'Client-ID': hltbTwitchId, Authorization: `Bearer ${tok}` },
-            body: `fields hastily, normally, completely; where game_id = ${game.igdb_id};`,
-          });
-          // deno-lint-ignore no-explicit-any
-          const [row] = ((await ttb.json()) ?? []) as any[];
-          if (row) {
-            times = { main: fmtH(row.normally), extras: fmtH(row.hastily), full: fmtH(row.completely), source: 'IGDB' };
-          }
-        } catch { /* sem fallback */ }
-      }
-
-      if (!times || (!times.main && !times.full)) {
+      const times = (await hltbTimes(String(game.title))) ?? (await igdbTimes(game.igdb_id));
+      if (!times || (!times.main_story && !times.completionist)) {
         return json({ error: 'Nem o HowLongToBeat nem o IGDB têm tempos pra este jogo.' }, 404);
       }
-      const { error: htErr } = await admin.from('games').update({
-        completion_times: {
-          main_story: times.main, main_extras: times.extras, completionist: times.full, source: times.source,
-        },
-      }).eq('id', gameId);
+      const { error: htErr } = await admin.from('games').update({ completion_times: times }).eq('id', gameId);
       if (htErr) throw htErr;
-      return json({ ok: true, action, updated: ['completion_times'], note: `Tempos de ${times.source}: ${times.main ?? '?'} / ${times.full ?? '?'}` });
+      return json({
+        ok: true, action, updated: ['completion_times'],
+        note: `Tempos de ${times.source}: ${times.main_story ?? '?'} / ${times.completionist ?? '?'}`,
+      });
     }
 
     /* ── FASE 4b: Metacritic (API do próprio frontend deles, complementar) ── */
     if (action === 'metacritic') {
-      const mcKey = '1MOZgmNFxvmljaQR1X9KAij9Mo4xAY3u'; // apiKey pública do site
-      const q = encodeURIComponent(String(game.title).slice(0, 60));
-      const res = await fetch(
-        `https://backend.metacritic.com/finder/metacritic/search/${q}/web?apiKey=${mcKey}&offset=0&limit=10&mcoTypeId=13`,
-        { headers: { 'User-Agent': UA } },
-      );
-      if (!res.ok) return json({ error: `Metacritic: HTTP ${res.status}` }, 502);
-      // deno-lint-ignore no-explicit-any
-      const items = (((await res.json()) as any)?.data?.items ?? []) as any[];
-      const gamesOnly = items.filter((i) => i.type === 'game-title' || i.criticScoreSummary);
-      // O finder é FUZZY e frequentemente NÃO traz o jogo certo: "GTA VI"
-      // devolvia Vice City/V/IV, "FF VI" devolvia FF VII. Cair no [0] colava a
-      // nota errada. Regra: só título IDÊNTICO; com ano conhecido, o ano tem
-      // que bater (±1). Sem match confiável -> 404 (não inventa nota).
-      const target = normTitle(game.title);
-      const ourYear = game.release_date ? new Date(String(game.release_date)).getFullYear() : null;
-      // deno-lint-ignore no-explicit-any
-      const yearOf = (i: any): number | null => {
-        const raw = i?.premiereYear ?? i?.releaseYear ?? i?.releaseDate ?? null;
-        if (raw == null) return null;
-        const y = typeof raw === 'number' ? raw : new Date(String(raw)).getFullYear();
-        return Number.isFinite(y) ? y : null;
-      };
-      const exact = gamesOnly.filter((i) => normTitle(i.title) === target);
-      const best = ourYear != null
-        ? (exact.find((i) => { const y = yearOf(i); return y == null || Math.abs(y - ourYear) <= 1; }) ?? null)
-        : (exact[0] ?? null);
-      const score = best?.criticScoreSummary?.score;
-      if (!best || !score) return json({ error: 'Metacritic sem match confiável pra este jogo (ou sem nota).' }, 404);
-
+      const mc = await mcScore(String(game.title), game.release_date ?? null);
+      if (!mc) return json({ error: 'Metacritic sem match confiável pra este jogo (ou sem nota).' }, 404);
       const mcMeta = { ...((game.metadata as Record<string, unknown> | null) ?? {}) } as Record<string, unknown>;
       const prevScores = (mcMeta.scores as Record<string, unknown> | undefined) ?? {};
-      mcMeta.scores = {
-        ...prevScores,
-        metacritic: { score: Number(score), url: `https://www.metacritic.com/game/${best.slug}/`, slug: best.slug },
-      };
+      mcMeta.scores = { ...prevScores, metacritic: mc };
       const { error: mcErr } = await admin.from('games').update({ metadata: mcMeta }).eq('id', gameId);
       if (mcErr) throw mcErr;
-      return json({ ok: true, action, updated: ['metacritic'], note: `Metacritic ${score} (${best.title})` });
+      return json({ ok: true, action, updated: ['metacritic'], note: `Metacritic ${mc.score} (${mc.slug})` });
     }
 
     /* ── FASE 2: MÍDIA DO IGDB POR GRUPOS (analise.txt: "trazer tudo, separar
@@ -552,12 +627,29 @@ Deno.serve(async (req: Request) => {
     // deno-lint-ignore no-explicit-any
     const sharesPlat = (h: any) =>
       (h.platforms ?? []).some((pid: number) => ourPlats.has(PLATFORM_SHORT[pid]));
+    /*
+     * DESEMPATE POR ANO: quando vários candidatos têm o MESMO nome (Final
+     * Fantasy VI original vs Pixel Remaster de 2022), o ano que já sabemos do
+     * nosso jogo escolhe o certo — antes vinha o 1º da lista, no chute.
+     */
+    const ourYear = game.release_date ? new Date(String(game.release_date)).getFullYear() : null;
+    // deno-lint-ignore no-explicit-any
+    const yearOf = (h: any) => (h.first_release_date ? new Date(h.first_release_date * 1000).getFullYear() : null);
+    // deno-lint-ignore no-explicit-any
+    const closest = (list: any[]) => {
+      if (list.length === 0) return undefined;
+      if (ourYear == null || list.length === 1) return list[0];
+      return [...list].sort((a, b) => {
+        const ya = yearOf(a); const yb = yearOf(b);
+        return (ya == null ? 999 : Math.abs(ya - ourYear)) - (yb == null ? 999 : Math.abs(yb - ourYear));
+      })[0];
+    };
     const hit = forceId
       ? hits[0] // o admin escolheu explicitamente: obedece
       : ((game.igdb_id && !customQuery)
         ? hits[0]
-        : (hits.find((h) => norm(h.name) === norm(searchTerm))
-          ?? hits.find(sharesPlat)
+        : (closest(hits.filter((h) => norm(h.name) === norm(searchTerm)))
+          ?? closest(hits.filter(sharesPlat))
           ?? (customQuery ? hits[0] : undefined)));
     if (!hit) {
       return json({ error: `IGDB não achou nada confiável pra "${searchTerm}" — tente ajustar o termo de busca.` }, 404);

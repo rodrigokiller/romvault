@@ -675,6 +675,25 @@
     "editSave": "Save",
     "editCancel": "Cancel"
   },
+  "upcoming": {
+    "kicker": "// what's coming",
+    "title": "Upcoming releases",
+    "subtitle": "The schedule of what's still to come, what people are waiting for most, and what was announced without a date.",
+    "mode_agenda": "Schedule (by date)",
+    "mode_hyped": "Most awaited",
+    "mode_tba": "No date",
+    "platformFilter": "Platform",
+    "allPlatforms": "All platforms",
+    "emptyTitle": "Nothing scheduled yet",
+    "emptyText": "Run the upcoming-releases import to fill this page.",
+    "tbaTag": "no date",
+    "inDays_one": "in {{count}} day",
+    "inDays_other": "in {{count}} days",
+    "following_one": "{{count}} following",
+    "following_other": "{{count}} following",
+    "homeKicker": "// what's coming",
+    "homeTitle": "Most awaited"
+  },
   "series": {
     "kicker": "// series / franchise",
     "subtitle_one": "{{count}} release on the timeline",

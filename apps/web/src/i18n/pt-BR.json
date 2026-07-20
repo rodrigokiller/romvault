@@ -675,6 +675,25 @@
     "editSave": "Salvar",
     "editCancel": "Cancelar"
   },
+  "upcoming": {
+    "kicker": "// o que vem por aí",
+    "title": "Próximos lançamentos",
+    "subtitle": "A agenda do que ainda vai sair, o que a galera mais espera e o que foi anunciado sem data.",
+    "mode_agenda": "Agenda (por data)",
+    "mode_hyped": "Mais aguardados",
+    "mode_tba": "Sem data",
+    "platformFilter": "Plataforma",
+    "allPlatforms": "Todas as plataformas",
+    "emptyTitle": "Nada na agenda ainda",
+    "emptyText": "Rode o import de próximos lançamentos pra encher esta página.",
+    "tbaTag": "sem data",
+    "inDays_one": "em {{count}} dia",
+    "inDays_other": "em {{count}} dias",
+    "following_one": "{{count}} seguindo",
+    "following_other": "{{count}} seguindo",
+    "homeKicker": "// o que vem por aí",
+    "homeTitle": "Mais aguardados"
+  },
   "series": {
     "kicker": "// série / franquia",
     "subtitle_one": "{{count}} lançamento na linha do tempo",

@@ -11,7 +11,7 @@ import { EmptyState, Skeleton } from '@/components/ui/feedback';
 import { useStats, useTrending } from '@/hooks/useHome';
 import { useArticles } from '@/hooks/useArticles';
 import { useCollections } from '@/hooks/useCollections';
-import { useGamesPage } from '@/hooks/useGames';
+import { useGamesPage, useMostAwaited } from '@/hooks/useGames';
 import { useMyProfile } from '@/hooks/useProfile';
 import { useHomeShelf, useLibraryCount } from '@/hooks/useTracks';
 import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
@@ -42,6 +42,7 @@ export function Home() {
   // 6 lançamentos mais recentes: só jogos MAIN com capa (sem DLC/bundle
   // poluindo a home — queixa "não tá 100% atualizada")
   const { data: recent } = useGamesPage({ sort: 'newest', release: 'released', mainOnly: true, hasCover: true }, 0, 6);
+  const { data: awaited = [] } = useMostAwaited(6);
 
   return (
     <>
@@ -139,6 +140,22 @@ export function Home() {
               {recent!.games.map((g) => (
                 <GameCard key={g.id} game={g} />
               ))}
+            </div>
+          </section>
+        )}
+
+        {/* Mais aguardados (jogos que ainda vão sair, por expectativa) */}
+        {awaited.length > 0 && (
+          <section className="section">
+            <div className="section-head">
+              <div>
+                <span className="kicker">{t('upcoming:homeKicker')}</span>
+                <h2>{t('upcoming:homeTitle')}</h2>
+              </div>
+              <Link to="/upcoming" className="section-link">{t('common:viewAll')}</Link>
+            </div>
+            <div className="card-grid card-grid-cover">
+              {awaited.map((g) => <GameCard key={g.id} game={g} />)}
             </div>
           </section>
         )}
