@@ -758,6 +758,8 @@
     "following": "follows {{count}}",
     "feedTitle": "Completions from people you follow",
     "historyTitle": "Play history",
+    "streak_one": "{{count}} day streak",
+    "streak_other": "{{count}} day streak",
     "feedFinished": "finished",
     "joined": "Joined",
     "empty": "This user hasn't published anything yet.",

@@ -4097,6 +4097,47 @@ button.heat-cell::after {
 .series-chip:hover { color: var(--accent); border-color: var(--accent); }
 .series-chip svg { width: 11px; height: 11px; flex-shrink: 0; }
 
+/* streak de dias jogados (gancho de hábito) */
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  background: color-mix(in srgb, var(--amber) 15%, transparent);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+.streak-badge svg { width: 14px; height: 14px; }
+
+/* botão "joguei hoje" com ▾ pra data passada */
+.logplay { position: relative; display: inline-flex; }
+.logplay-more {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  border: 1px solid var(--line-bright);
+  border-left: none;
+  background: var(--panel-2);
+  color: var(--muted);
+  cursor: pointer;
+}
+.logplay-more:hover { color: var(--accent); }
+.logplay-more svg { width: 14px; height: 14px; }
+.logplay-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  gap: var(--s2);
+  padding: var(--s2);
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
 /* ── histórico de jogatina no perfil (play_sessions por dia) ────────────────── */
 .play-history { display: grid; gap: var(--s3); }
 .play-history-day {

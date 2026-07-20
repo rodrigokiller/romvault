@@ -758,6 +758,8 @@
     "following": "segue {{count}}",
     "feedTitle": "Zeradas de quem você segue",
     "historyTitle": "Histórico de jogatina",
+    "streak_one": "{{count}} dia seguido",
+    "streak_other": "{{count}} dias seguidos",
     "feedFinished": "zerou",
     "joined": "Entrou em",
     "empty": "Este usuário ainda não publicou nada.",

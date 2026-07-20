@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { User, Pencil, Check, X, Library as LibraryIcon, Store, UserPlus, UserMinus, Trophy, BarChart3, BadgeCheck } from 'lucide-react';
+import { User, Pencil, Check, X, Library as LibraryIcon, Store, UserPlus, UserMinus, Trophy, BarChart3, BadgeCheck, Flame } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -353,7 +353,7 @@ function SyncedBadges({ username }: { username: string }) {
  */
 function PlayHistorySection({ userId }: { userId: string }) {
   const { t, i18n } = useTranslation();
-  const { data: history = [] } = usePlayHistory(userId, 60);
+  const { data: history = [] } = usePlayHistory(userId, 120);
   if (history.length === 0) return null;
   // agrupa por dia (mantém a ordem desc que veio do banco)
   const byDay = new Map<string, typeof history>();
@@ -361,10 +361,22 @@ function PlayHistorySection({ userId }: { userId: string }) {
     if (!h.game) continue;
     byDay.set(h.played_on, [...(byDay.get(h.played_on) ?? []), h]);
   }
-  const fmt = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString(i18n.language || 'pt-BR', { day: '2-digit', month: 'short' });
+  // STREAK: dias consecutivos jogados terminando hoje/ontem (gancho de hábito)
+  const days = new Set([...byDay.keys()]);
+  let streak = 0;
+  const cur = new Date();
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  if (!days.has(iso(cur))) cur.setDate(cur.getDate() - 1); // conta se jogou ontem
+  while (days.has(iso(cur))) { streak++; cur.setDate(cur.getDate() - 1); }
+  const fmt = (isoDay: string) => new Date(isoDay + 'T00:00:00').toLocaleDateString(i18n.language || 'pt-BR', { day: '2-digit', month: 'short' });
   return (
     <section className="section">
-      <div className="section-head"><h2>{t('profile:historyTitle')}</h2></div>
+      <div className="section-head">
+        <h2>{t('profile:historyTitle')}</h2>
+        {streak >= 2 && (
+          <span className="streak-badge mono"><Flame aria-hidden /> {t('profile:streak', { count: streak })}</span>
+        )}
+      </div>
       <div className="play-history">
         {[...byDay.entries()].slice(0, 14).map(([day, items]) => (
           <div key={day} className="play-history-day">

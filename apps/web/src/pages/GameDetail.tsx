@@ -3,12 +3,13 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Gamepad2, Languages as LanguagesIcon, CalendarCheck } from 'lucide-react';
+import { Gamepad2, Languages as LanguagesIcon, CalendarCheck, ChevronDown } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/auth/AuthProvider';
 import { useLogPlay } from '@/hooks/useTracks';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { useGame, useRelatedGames } from '@/hooks/useGames';
 import { useGameRomhacks, useGameTranslations, useGameDocuments } from '@/hooks/useMaterials';
 import { MaterialCard } from '@/components/entities/MaterialCard';
@@ -580,27 +581,40 @@ function ReleasesTab({ game }: { game: ReturnType<typeof useGame>['data'] }) {
   );
 }
 
-/** "Joguei hoje": registra uma sessão manual (retrô/emulador/físico). */
+/** "Joguei hoje": registra uma sessão manual (retrô/emulador/físico). O ▾
+ *  abre um campo de data pra registrar um dia passado (histórico retroativo). */
 function LogPlayButton({ gameId }: { gameId: string }) {
   const { t } = useTranslation();
   const toast = useToast();
   const { user, disabled } = useAuth();
   const log = useLogPlay(gameId);
+  const [pickOpen, setPickOpen] = useState(false);
+  const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10));
   if (disabled || !user) return null;
+  const doLog = (iso: string) =>
+    log.mutateAsync(iso)
+      .then(() => { toast.success(t('games:logPlayDone')); setPickOpen(false); })
+      .catch((e) => toast.error(e instanceof Error ? e.message : t('forms:submitError')));
   return (
-    <Button
-      variant="secondary"
-      onClick={() => {
-        const today = new Date().toISOString().slice(0, 10);
-        void log.mutateAsync(today)
-          .then(() => toast.success(t('games:logPlayDone')))
-          .catch((e) => toast.error(e instanceof Error ? e.message : t('forms:submitError')));
-      }}
-      disabled={log.isPending}
-      title={t('games:logPlayHint')}
-    >
-      <CalendarCheck /> {t('games:logPlay')}
-    </Button>
+    <span className="logplay">
+      <Button
+        variant="secondary" disabled={log.isPending} title={t('games:logPlayHint')}
+        onClick={() => void doLog(new Date().toISOString().slice(0, 10))}
+      >
+        <CalendarCheck /> {t('games:logPlay')}
+      </Button>
+      <button type="button" className="logplay-more" onClick={() => setPickOpen((v) => !v)} aria-label={t('games:logPlayPast')}>
+        <ChevronDown aria-hidden />
+      </button>
+      {pickOpen && (
+        <span className="logplay-pop">
+          <Input type="date" max={new Date().toISOString().slice(0, 10)} value={day} onChange={(e) => setDay(e.target.value)} />
+          <Button size="sm" variant="primary" disabled={log.isPending} onClick={() => void doLog(day)}>
+            {t('games:logPlayConfirm')}
+          </Button>
+        </span>
+      )}
+    </span>
   );
 }
 
