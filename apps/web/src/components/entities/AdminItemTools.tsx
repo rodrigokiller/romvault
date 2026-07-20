@@ -122,18 +122,24 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
   }
 
   /** Funde ESTE jogo dentro do alvo (server-side move tudo) e navega pro alvo. */
-  async function mergeInto(target: CatalogCandidate) {
-    if (!window.confirm(t('admin:mergeConfirm', { target: target.title }))) return;
+  async function mergeInto(target: CatalogCandidate, force = false) {
+    if (!force && !window.confirm(t('admin:mergeConfirm', { target: target.title }))) return;
     setRunning(true);
     try {
       const d = await invokeFn<{ target_slug?: string; moved?: Record<string, number> }>('game-sync', {
-        game_id: gameId, action: 'merge', target_id: target.id,
+        game_id: gameId, action: 'merge', target_id: target.id, ...(force ? { force: true } : {}),
       });
       toast.success(t('admin:mergeDone', { target: target.title }));
       setMergeOpen(false);
       if (d?.target_slug) navigate(`/games/${d.target_slug}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+      // igdb_ids diferentes: pergunta se força (um pode estar com igdb errado)
+      const msg = err instanceof Error ? err.message : '';
+      if (/igdb_id diferente/i.test(msg) && window.confirm(t('admin:mergeForceConfirm', { target: target.title }))) {
+        setRunning(false);
+        return mergeInto(target, true);
+      }
+      toast.error(msg || t('forms:submitError'));
     } finally {
       setRunning(false);
     }

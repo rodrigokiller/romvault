@@ -877,6 +877,7 @@
     "mergeInto": "Fundir neste",
     "mergeConfirm": "Fundir ESTE jogo dentro de \"{{target}}\"? Tracks, cópias, hacks e traduções vão pra lá e esta página deixa de existir.",
     "mergeDone": "Fundido em \"{{target}}\".",
+    "mergeForceConfirm": "\"{{target}}\" tem um igdb_id diferente. Se um dos dois está com o IGDB errado, dá pra fundir mesmo assim. Fundir à força?",
     "linkVersion": "Ligar versão",
     "linkVersionDone": "Ligado como versão de \"{{target}}\".",
     "digestSent_one": "Digest enviado pra {{count}} admin.",

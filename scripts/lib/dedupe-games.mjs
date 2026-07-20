@@ -60,7 +60,12 @@ export async function dedupeGames(ctx) {
     // keeper = mais completo; o resto tenta fundir nele
     const sorted = [...list].sort((a, b) => score(b) - score(a));
     const keeper = sorted[0];
-    const dupes = sorted.slice(1).filter((d) => sharePlatform(keeper, d));
+    // SEGURANÇA (regra do Killer: remaster/remake do IGDB são jogos DIFERENTES):
+    // só funde automaticamente quem NÃO tem igdb_id ou tem o MESMO do keeper.
+    // igdb_id diferente = fica pro merge manual (pode ser versão OU match errado).
+    const dupes = sorted.slice(1).filter(
+      (d) => sharePlatform(keeper, d) && (d.igdb_id == null || d.igdb_id === keeper.igdb_id),
+    );
     if (dupes.length === 0) continue;
     stats.grupos++;
     stats.mantidos_ports += sorted.length - 1 - dupes.length;

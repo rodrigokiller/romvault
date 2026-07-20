@@ -877,6 +877,7 @@
     "mergeInto": "Merge into this",
     "mergeConfirm": "Merge THIS game into \"{{target}}\"? Tracks, copies, hacks and translations move there and this page ceases to exist.",
     "mergeDone": "Merged into \"{{target}}\".",
+    "mergeForceConfirm": "\"{{target}}\" has a different igdb_id. If one of them has the wrong IGDB, you can merge anyway. Force merge?",
     "linkVersion": "Link version",
     "linkVersionDone": "Linked as a version of \"{{target}}\".",
     "digestSent_one": "Digest sent to {{count}} admin.",

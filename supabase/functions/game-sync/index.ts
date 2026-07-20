@@ -196,12 +196,15 @@ Deno.serve(async (req: Request) => {
       if (!targetId || targetId === gameId) return json({ error: 'Informe um jogo ALVO diferente.' }, 400);
       const { data: target } = await admin.from('games').select('*').eq('id', targetId).maybeSingle();
       if (!target) return json({ error: 'Jogo alvo não encontrado.' }, 404);
-      // dois igdb_ids DIFERENTES = jogos distintos de verdade (remaster/port):
-      // o caminho certo é LIGAR (game_relations), nunca fundir
-      if (game.igdb_id && target.igdb_id && game.igdb_id !== target.igdb_id) {
+      // dois igdb_ids DIFERENTES normalmente = jogos distintos (remaster/port),
+      // mas às vezes um deles é um MATCH ERRADO (RHDN criou um chrono-trigger-snes
+      // com igdb 206320). Bloqueia por padrão sugerindo Ligar, mas aceita
+      // force:true quando o admin confirma que é a mesma coisa.
+      if (game.igdb_id && target.igdb_id && game.igdb_id !== target.igdb_id && !body.force) {
         return json({
-          error: `Os dois têm igdb_id próprios (${game.igdb_id} vs ${target.igdb_id}): são jogos distintos. `
-            + 'Use "Ligar como versão" em vez de fundir.',
+          error: `Os dois têm igdb_id diferentes (${game.igdb_id} vs ${target.igdb_id}). `
+            + 'Se forem versões distintas, use "Ligar como versão". Se um está com igdb errado, confirme pra fundir mesmo assim.',
+          needsForce: true,
         }, 409);
       }
 
