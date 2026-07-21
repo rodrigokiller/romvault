@@ -42,15 +42,37 @@ Visão: estante pessoal estilo Backloggd/HLTB, MUITO bonita visualmente.
   futuramente, sistema de amizades (tabela `friendships` polimórfica simples).
 - 💡 Estatísticas do perfil: total de horas, % finalizados, jogos por plataforma.
 
-## Trilhas sonoras (💡 pedido do Killer 2026-07-21)
-Álbuns lançados dos jogos (OST) ligados ao registro do jogo — "nosso banco vai
-ter tudo". Fontes candidatas a avaliar:
-- **MusicBrainz** (API pública, sem chave, tem release-group de OST de jogo e
-  relação com a obra) — provavelmente a melhor base canônica.
-- **VGMdb** (o acervo mais completo de OST de jogo; API não-oficial/scrape).
-- **IGDB** não cobre OST; Discogs tem, mas casar jogo↔álbum é manual.
-Escopo mínimo: tabela `game_soundtracks` (game_id, título do álbum, ano, selo,
-nº de faixas, capa, link externo) + aba na página do jogo. Faixas depois.
+## Trilhas sonoras (💡 pedido do Killer — pesquisa FEITA em 2026-07-21)
+Fontes testadas ao vivo, com resultado:
+- ❌ **IGDB**: não tem. Endpoints `/soundtracks`, `/albums`, `/music` dão 404 e
+  o objeto `game` não tem nenhum campo de música. Descartado (testado na API).
+- ❌ **VGMdb** (o melhor acervo de música de jogo): o site responde 403 atrás de
+  Cloudflare e o mirror da API da comunidade (vgmdb.info) está fora do ar.
+  Inutilizável de forma automática.
+- ⚠️ **Wikidata** (`P406 = trilha sonora`): dado ESTRUTURADO e confiável, mas a
+  cobertura é ridícula — **319 jogos no mundo todo** têm a propriedade (309 com
+  id do IGDB), contra ~147 mil jogos com id do IGDB. Serve só como semente
+  grátis e 100% confiável. Atenção: o `P5794` guarda o **slug** do IGDB, não o
+  id numérico — precisaríamos gravar o slug do IGDB pra fazer o join.
+- ✅ **MusicBrainz** (a escolhida): grátis, sem chave, dados excelentes —
+  compositor, tipo, várias edições, **tracklist com duração** e **capa grátis**
+  pelo Cover Art Archive. Ex.: Chrono Trigger OST → 光田康典, 30 faixas, capa.
+
+**O problema NÃO é o dado, é o VÍNCULO.** Casar jogo↔álbum por título é a mesma
+armadilha do Metacritic (que trazia Vice City pro "GTA VI"). Medido: "Celeste"
+casa com **"Mélodie céleste"** (score 100!), "Undertale" casa com fan-covers,
+"Doom" casa com "DooM 3 Soundtrack", e apertar a regra faz o Chrono Trigger
+sumir (a data do release-group é 1999, o jogo é 1995). **Não automatizar.**
+
+Arquitetura decidida:
+1. Tabela `game_soundtracks` (game_id, mb_release_group_id, título, compositor,
+   ano, nº de faixas, capa, link) + `soundtrack_tracks` (posição, título, ms).
+2. **Vínculo CURADO pelo admin**: modal "Buscar trilha" na página do jogo que
+   lista candidatos do MusicBrainz (título, ano, capa) e o admin escolhe — o
+   mesmo padrão do "Vincular IGDB" que já existe e funciona bem.
+3. Semente grátis: importar de uma vez os ~309 do Wikidata (vínculo verificado).
+4. Aba "Trilha sonora" na página do jogo (capa + faixas + compositor).
+Respeitar 1 req/s do MusicBrainz e mandar User-Agent identificando o ROMVault.
 
 ## Sync de contas — situação real de cada loja (apurado 2026-07-21)
 - ✅ **Steam / GOG / PSN / Xbox**: identificador público → cron diário.
