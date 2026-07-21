@@ -259,14 +259,18 @@ export function GameDetail() {
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
       <div className="tab-panel" role="tabpanel">
         {tab === 'overview' && (
-          <OverviewTab game={game} completion={completion} />
+          <>
+            <OverviewTab game={game} completion={completion} />
+            {/* trilha fica na visão geral (aba padrão): é onde se procura, e
+                estava escondida na aba Imagens */}
+            {game && <Soundtracks gameId={game.id} gameTitle={game.title} />}
+          </>
         )}
 
         {tab === 'images' && (
           <>
             <BoxScans metadata={game?.metadata} />
             {game && <GameMediaGroups gameId={game.id} />}
-            {game && <Soundtracks gameId={game.id} gameTitle={game.title} />}
             {screenshots.length > 0 ? (
               <ScreenshotGrid images={screenshots} />
             ) : (
