@@ -12,7 +12,33 @@
 import * as Sentry from '@sentry/react';
 import { env } from '@/lib/env';
 
+declare global {
+  interface Window {
+    romvaultSentry?: { enabled: boolean; environment: string; test: () => void };
+  }
+}
+
 export function initSentry() {
+  /*
+   * Diagnóstico no console do site (`romvaultSentry`): o DSN é embutido em
+   * tempo de BUILD, então adicionar a variável na Vercel só vale a partir do
+   * PRÓXIMO deploy — sem isso o bundle sai sem Sentry e nada é enviado.
+   * `romvaultSentry.test()` manda um evento de propósito pra provar a ponta a
+   * ponta (o Sentry só sai da tela de "aguardando" quando recebe algo).
+   */
+  window.romvaultSentry = {
+    enabled: Boolean(env.sentryDsn),
+    environment: env.appEnv,
+    test: () => {
+      if (!env.sentryDsn) {
+        console.warn('[ROMVault] Sentry DESLIGADO: VITE_SENTRY_DSN não entrou neste build. Refaça o deploy depois de criar a variável.');
+        return;
+      }
+      Sentry.captureMessage('Teste de integração do ROMVault', 'info');
+      console.info('[ROMVault] evento de teste enviado — confira em Issues no Sentry.');
+    },
+  };
+
   if (!env.sentryDsn) return; // sem DSN = desligado (padrão no local)
   Sentry.init({
     dsn: env.sentryDsn,
