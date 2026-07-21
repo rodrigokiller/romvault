@@ -39,6 +39,13 @@ export function useIsAdmin(): boolean {
   return Boolean(data?.is_admin);
 }
 
+/** Pode curar catálogo (trilhas etc.)? manager OU admin — espelha can_curate(). */
+export function useIsCurator(): boolean {
+  const { data } = useMyProfile();
+  const p = data as unknown as { is_admin?: boolean; role?: string } | null;
+  return Boolean(p?.is_admin || p?.role === 'manager' || p?.role === 'admin');
+}
+
 /** O usuário optou por VER conteúdo adulto? (padrão: escondido) */
 export function useShowAdult(): boolean {
   const { data } = useMyProfile();

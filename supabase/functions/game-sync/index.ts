@@ -305,7 +305,8 @@ Deno.serve(async (req: Request) => {
       const igdbId = Number(body.igdb_id ?? 0);
       if (!igdbId) return json({ error: 'Informe igdb_id.' }, 400);
       const { data: existing } = await admin.from('games').select('id, slug').eq('igdb_id', igdbId).maybeSingle();
-      if (existing) return json({ ok: true, existed: true, slug: existing.slug });
+      // devolve o id: o painel encadeia o enriquecimento (mídia/HLTB/Metacritic)
+      if (existing) return json({ ok: true, existed: true, id: existing.id, slug: existing.slug });
 
       const res = await igdb(
         'fields name, cover.image_id, screenshots.image_id, summary, first_release_date, platforms, '
@@ -345,7 +346,7 @@ Deno.serve(async (req: Request) => {
         ({ data: created, error: insErr } = await admin.from('games').insert(row).select('id, slug').single());
       }
       if (insErr) throw insErr;
-      return json({ ok: true, created: true, slug: created?.slug, title: hit.name });
+      return json({ ok: true, created: true, id: created?.id, slug: created?.slug, title: hit.name });
     }
 
     const gameId = String(body.game_id ?? '');

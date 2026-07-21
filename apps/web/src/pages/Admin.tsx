@@ -291,6 +291,8 @@ function AddGamePanel() {
   const [q, setQ] = useState('');
   const [results, setResults] = useState<IgdbHit[]>([]);
   const [busy, setBusy] = useState<number | 'search' | null>(null);
+  // passo do enriquecimento que roda logo após criar o jogo
+  const [enriching, setEnriching] = useState<string | null>(null);
 
   async function search() {
     setBusy('search');
@@ -305,15 +307,38 @@ function AddGamePanel() {
     }
   }
 
+  /**
+   * Cria o jogo pelo IGDB e JÁ ENRIQUECE na sequência (mídia + HowLongToBeat +
+   * Metacritic) — o jogo nasce completo em vez de virar dívida pra depois.
+   * A box art do libretro fica de fora: é importador de CLI, não tem edge.
+   */
   async function add(hit: IgdbHit) {
     setBusy(hit.igdb_id);
     try {
-      const d = await invokeFn<{ existed?: boolean; slug?: string }>('game-sync', { action: 'igdb-create', igdb_id: hit.igdb_id });
+      const d = await invokeFn<{ existed?: boolean; id?: string; slug?: string }>(
+        'game-sync', { action: 'igdb-create', igdb_id: hit.igdb_id },
+      );
       toast.success(d.existed ? t('admin:addExisted', { slug: d.slug ?? '' }) : t('admin:addCreated', { title: hit.title }));
+
+      if (d.id) {
+        const done: string[] = [];
+        for (const [label, action] of [
+          [t('admin:igdbMediaBtn'), 'igdb-media'], ['HowLongToBeat', 'hltb'], ['Metacritic', 'metacritic'],
+        ] as const) {
+          setEnriching(label);
+          try {
+            await invokeFn('game-sync', { game_id: d.id, action });
+            done.push(label);
+          } catch { /* fonte sem dado pro jogo não derruba as outras */ }
+        }
+        setEnriching(null);
+        if (done.length > 0) toast.success(t('admin:addEnriched', { list: done.join(', ') }));
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('forms:submitError'));
     } finally {
       setBusy(null);
+      setEnriching(null);
     }
   }
 
@@ -341,7 +366,7 @@ function AddGamePanel() {
               <span className="art-queue-title">{r.title}{r.year ? ` (${r.year})` : ''}</span>
               <span className="art-queue-plat">{r.platforms.slice(0, 5).join(' ')}</span>
               <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void add(r)}>
-                {busy === r.igdb_id ? <Spinner /> : t('admin:addBtn')}
+                {busy === r.igdb_id ? <><Spinner /> {enriching ?? ''}</> : t('admin:addBtn')}
               </Button>
             </li>
           ))}

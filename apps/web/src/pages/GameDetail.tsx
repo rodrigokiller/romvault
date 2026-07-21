@@ -23,6 +23,7 @@ import { CopiesWidget } from '@/components/entities/CopiesWidget';
 import { PlaythroughsWidget, type PatchOption } from '@/components/entities/PlaythroughsWidget';
 import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { BoxScans } from '@/components/entities/BoxScans';
+import { Soundtracks } from '@/components/entities/Soundtracks';
 import { AdminItemTools } from '@/components/entities/AdminItemTools';
 import { ReportButton } from '@/components/entities/ReportButton';
 import { PrivacyToggle } from '@/components/entities/PrivacyToggle';
@@ -265,6 +266,7 @@ export function GameDetail() {
           <>
             <BoxScans metadata={game?.metadata} />
             {game && <GameMediaGroups gameId={game.id} />}
+            {game && <Soundtracks gameId={game.id} gameTitle={game.title} />}
             {screenshots.length > 0 ? (
               <ScreenshotGrid images={screenshots} />
             ) : (
