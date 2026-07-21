@@ -420,7 +420,10 @@ function AccountLinksSection() {
           };
         }}
       />
-      {(['EA', 'Battle.net', 'Riot', 'Ubisoft'] as const).map((name) => (
+      {/* EA e Ubisoft saíram: a biblioteca deles só existe em ARQUIVO LOCAL do
+          cliente (o Playnite lê c:\ProgramData\...), coisa que um site não
+          alcança. Battle.net e Riot seguem porque ainda têm caminho viável. */}
+      {(['Battle.net', 'Riot'] as const).map((name) => (
         <div key={name} className="account-row account-row-soon">
           <div className="account-row-head">
             <span className="account-name">

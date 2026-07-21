@@ -1,5 +1,6 @@
-import { Component, type ReactNode } from 'react';
+import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { AppError } from '@/pages/misc';
+import { reportError } from '@/lib/sentry';
 
 interface Props {
   children: ReactNode;
@@ -16,9 +17,10 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true };
   }
 
-  componentDidCatch(error: unknown) {
-    // Sem provedor de telemetria por ora; ao menos deixa rastro no console.
+  componentDidCatch(error: unknown, info: ErrorInfo) {
     console.error('[ROMVault] erro não tratado:', error);
+    // vai pro Sentry quando há DSN; no local não sai nada
+    reportError(error, { componentStack: info.componentStack });
   }
 
   render() {

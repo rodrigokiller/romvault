@@ -42,6 +42,34 @@ Visão: estante pessoal estilo Backloggd/HLTB, MUITO bonita visualmente.
   futuramente, sistema de amizades (tabela `friendships` polimórfica simples).
 - 💡 Estatísticas do perfil: total de horas, % finalizados, jogos por plataforma.
 
+## Trilhas sonoras (💡 pedido do Killer 2026-07-21)
+Álbuns lançados dos jogos (OST) ligados ao registro do jogo — "nosso banco vai
+ter tudo". Fontes candidatas a avaliar:
+- **MusicBrainz** (API pública, sem chave, tem release-group de OST de jogo e
+  relação com a obra) — provavelmente a melhor base canônica.
+- **VGMdb** (o acervo mais completo de OST de jogo; API não-oficial/scrape).
+- **IGDB** não cobre OST; Discogs tem, mas casar jogo↔álbum é manual.
+Escopo mínimo: tabela `game_soundtracks` (game_id, título do álbum, ano, selo,
+nº de faixas, capa, link externo) + aba na página do jogo. Faixas depois.
+
+## Sync de contas — situação real de cada loja (apurado 2026-07-21)
+- ✅ **Steam / GOG / PSN / Xbox**: identificador público → cron diário.
+  Steam já pede `include_played_free_games=1` (jogo grátis NÃO é filtrado).
+- ✅ **Epic**: fluxo do launcher (authorizationCode) → biblioteca + horas.
+- 🧊 **EA**: sem caminho para um site. Nem o Playnite tem plugin de EA; a
+  biblioteca do EA App vive em arquivo local da máquina.
+- 🧊 **Ubisoft**: idem — o plugin do Playnite lê o *product cache local*
+  (`Uplay.GetLocalProductCache()`), não uma API web.
+- 💡 **Battle.net**: a lista de jogos comprados só sai de uma **sessão de
+  navegador logada** (o Playnite abre um webview e usa os cookies) — inviável
+  pedir isso a um usuário de site. O que É viável: OAuth OFICIAL da Blizzard
+  (develop.battle.net) pra **dados por jogo** (personagens de WoW, perfil de
+  D3/SC2/OW). Entra como "sincronizar dados de jogo", não biblioteca.
+- 💡 **Riot**: API oficial + RSO. Não há biblioteca (jogos são grátis), mas há
+  **histórico de partidas/tempo** de LoL/TFT/Valorant — e isso conta, porque o
+  ROMVault rastreia TEMPO JOGADO, não só posse. Chave de produção precisa de
+  aprovação da Riot (a de dev expira em 24h).
+
 ## App / UX
 - 💡 Badge visual "importado de X" nos detalhes (data_source já existe).
 - 💡 Filtro/facet por fonte nas listas.

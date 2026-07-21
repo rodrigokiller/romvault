@@ -373,7 +373,7 @@
     "gogHint": "Biblioteca do GOG pelo perfil público: jogos + horas (deixe o perfil público no GOG)",
     "gogUserPh": "Seu username do GOG",
     "gogDone": "GOG: {{matched}} de {{total}} jogos casados com o catálogo, {{tracks}} novos na biblioteca!",
-    "epicHint": "Biblioteca da Epic: jogos + horas. Sync manual (a Epic exige um código de login a cada vez)",
+    "epicHint": "Biblioteca da Epic: jogos + horas. Guardamos o acesso criptografado pra sincronizar sozinho todo dia; desvincular apaga.",
     "epicCodePh": "Cole o authorizationCode da Epic",
     "epicDone": "Epic: {{matched}} de {{total}} jogos casados com o catálogo, {{tracks}} novos na biblioteca!",
     "nintendoHint": "EXPERIMENTAL (API do app NSO): informe seu friend code, aceite a amizade da conta ROMVault no Switch, e os jogos acumulam conforme você joga (sync diário)",
