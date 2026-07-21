@@ -58,6 +58,13 @@ Fontes testadas ao vivo, com resultado:
   compositor, tipo, várias edições, **tracklist com duração** e **capa grátis**
   pelo Cover Art Archive. Ex.: Chrono Trigger OST → 光田康典, 30 faixas, capa.
 
+- ✅ **Deezer** (achado extra, sem chave nenhuma): capa, nº de faixas e o NOME DO
+  ARTISTA — e artista é um ótimo validador ("Christopher Larkin" e "SQUARE ENIX
+  MUSIC" = oficial; "Arcade Player" = fábrica de covers). Bônus: tem player
+  embutível, o que daria pra **ouvir a trilha na página do jogo**. Mesmo
+  problema de vínculo, mas ótimo como 2ª fonte / validação cruzada.
+- ❌ **TheAudioDB**: 0 resultados até pra Nobuo Uematsu. Descartado.
+
 **O problema NÃO é o dado, é o VÍNCULO.** Casar jogo↔álbum por título é a mesma
 armadilha do Metacritic (que trazia Vice City pro "GTA VI"). Medido: "Celeste"
 casa com **"Mélodie céleste"** (score 100!), "Undertale" casa com fan-covers,
