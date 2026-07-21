@@ -18,7 +18,8 @@
 // Traz: lista de jogos + TEMPO DE JOGO. Match por título — NUNCA cria jogo
 // (igual GOG). Cria cópias (digital · Epic), game_sync_data e tracks "owned".
 //
-// Segredos: TOKEN_ENC_KEY (32 bytes em base64), CRON_SECRET (modo cron).
+// Segredos: TOKEN_ENC_KEY (32 bytes em HEX de 64 chars ou base64) e CRON_SECRET.
+//   Gerar:  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 // Deploy: supabase functions deploy epic-import --no-verify-jwt
 // ─────────────────────────────────────────────────────────────────────────────
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -52,11 +53,17 @@ const b64encode = (bytes: Uint8Array) => {
 const b64decode = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 async function aesKey(): Promise<CryptoKey | null> {
-  const raw = Deno.env.get('TOKEN_ENC_KEY');
+  const raw = (Deno.env.get('TOKEN_ENC_KEY') ?? '').trim();
   if (!raw) return null;
-  let bytes: Uint8Array;
-  try { bytes = b64decode(raw); } catch { return null; }
-  if (bytes.length !== 32) return null; // AES-256 exige 32 bytes
+  let bytes: Uint8Array | null = null;
+  // aceita HEX (64 chars, sem caractere que brigue com shell) ou base64
+  if (/^[0-9a-fA-F]{64}$/.test(raw)) {
+    bytes = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) bytes[i] = parseInt(raw.slice(i * 2, i * 2 + 2), 16);
+  } else {
+    try { bytes = b64decode(raw); } catch { return null; }
+  }
+  if (!bytes || bytes.length !== 32) return null; // AES-256 exige 32 bytes
   return await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
 }
 
