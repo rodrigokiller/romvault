@@ -4280,6 +4280,77 @@ button.heat-cell::after {
   background: color-mix(in oklab, var(--plat-accent, var(--line)) 10%, transparent);
   border: 1px solid color-mix(in oklab, var(--plat-accent, var(--line)) 40%, var(--line));
 }
+/* ── tela de abertura (F5 / pós-login) ──────────────────────────────────────
+   A marca é um chip de ROM se preenchendo: é o que o site faz de verdade. */
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s4);
+  background: var(--bg);
+}
+.boot-mark {
+  display: grid;
+  grid-template-columns: repeat(4, 14px);
+  gap: 3px;
+}
+.boot-bit {
+  width: 14px;
+  height: 14px;
+  background: var(--line);
+  animation: boot-fill 1.5s var(--t-ease, cubic-bezier(0.22, 1, 0.36, 1)) infinite;
+}
+@keyframes boot-fill {
+  0%, 100% { background: var(--line); transform: scale(0.82); }
+  40%, 60% { background: var(--accent); transform: scale(1); }
+}
+.boot-word {
+  color: var(--ink-bright);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.boot-caret {
+  width: 9px;
+  height: 1.05em;
+  background: var(--accent);
+  animation: boot-caret 1s steps(1) infinite;
+}
+@keyframes boot-caret { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+.boot-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 15rem;
+}
+.boot-step {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--muted);
+  font-size: 0.72rem;
+  opacity: 0.35;
+  transition: opacity 200ms ease-out;
+}
+.boot-step.is-on { opacity: 1; }
+.boot-dot { width: 6px; height: 6px; flex-shrink: 0; background: var(--line-bright); }
+.boot-step.is-on .boot-dot { background: var(--accent); }
+@media (prefers-reduced-motion: reduce) {
+  .boot-bit, .boot-caret { animation: none; }
+  .boot-bit { background: var(--accent); transform: none; }
+  .boot-step { transition: none; opacity: 1; }
+}
+
 /* trilhas sonoras do jogo */
 .ost-list { display: flex; flex-direction: column; gap: var(--s3); }
 .ost-card {

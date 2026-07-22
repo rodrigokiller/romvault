@@ -1,9 +1,11 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
 import { I18nProvider } from './i18n/I18nProvider';
-import { AuthProvider } from './auth/AuthProvider';
+import { AuthProvider, useAuth } from './auth/AuthProvider';
+import { BootScreen } from './components/BootScreen';
+import { useBoot } from './hooks/useBoot';
 import { ToastProvider } from './components/ui/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RequireAuth } from './auth/guards';
@@ -51,12 +53,24 @@ const PlatformsIndex = lazy(() => import('./pages/Platforms').then((m) => ({ def
 const PlatformDetail = lazy(() => import('./pages/Platforms').then((m) => ({ default: m.PlatformDetail })));
 const Upcoming = lazy(() => import('./pages/Upcoming').then((m) => ({ default: m.Upcoming })));
 
+/**
+ * Segura a tela de abertura enquanto a sessão é verificada. Fica DENTRO do
+ * AuthProvider porque precisa do `loading` dele; e some por tempo mínimo, não
+ * por tempo fixo (ver useBoot).
+ */
+function BootGate({ children }: { children: ReactNode }) {
+  const { loading } = useAuth();
+  const abrindo = useBoot(loading);
+  return abrindo ? <BootScreen /> : <>{children}</>;
+}
+
 export function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <I18nProvider>
           <AuthProvider>
+            <BootGate>
             <ToastProvider>
               <BrowserRouter>
                 <Suspense fallback={<LoadingPage />}>
@@ -123,6 +137,7 @@ export function App() {
                 </Suspense>
               </BrowserRouter>
             </ToastProvider>
+            </BootGate>
           </AuthProvider>
         </I18nProvider>
       </QueryClientProvider>

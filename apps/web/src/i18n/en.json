@@ -9,7 +9,10 @@
     "close": "Close",
     "backHome": "Back home",
     "comingSoonTitle": "Under construction",
-    "comingSoonText": "This area is still a scaffold placeholder. The design is in place; data and actions land in upcoming milestones."
+    "comingSoonText": "This area is still a scaffold placeholder. The design is in place; data and actions land in upcoming milestones.",
+    "bootSession": "Checking your session",
+    "bootCatalog": "Loading the catalog",
+    "bootReady": "Ready"
   },
   "nav": {
     "home": "Home",

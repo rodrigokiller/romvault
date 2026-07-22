@@ -9,7 +9,10 @@
     "close": "Fechar",
     "backHome": "Voltar ao início",
     "comingSoonTitle": "Em construção",
-    "comingSoonText": "Esta área ainda é um placeholder do alicerce. O design está no lugar; os dados e as ações chegam nos próximos milestones."
+    "comingSoonText": "Esta área ainda é um placeholder do alicerce. O design está no lugar; os dados e as ações chegam nos próximos milestones.",
+    "bootSession": "Verificando a sessão",
+    "bootCatalog": "Carregando o catálogo",
+    "bootReady": "Pronto"
   },
   "nav": {
     "home": "Início",
