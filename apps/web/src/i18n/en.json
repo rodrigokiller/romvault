@@ -218,7 +218,9 @@
     "ostEditionHint": "The same album has per-country editions (the Japanese one comes with Japanese track titles). Pick the one you want; tracks are rewritten.",
     "ostEditionCurrent": "current edition",
     "ostEditionUse": "Use this one",
-    "ostEditionSet": "Edition changed ({{count}} tracks)."
+    "ostEditionSet": "Edition changed ({{count}} tracks).",
+    "ostProvider": "Provider",
+    "ostEditionDefault": "(default edition)"
   },
   "entities": {
     "kindGame": "Game",

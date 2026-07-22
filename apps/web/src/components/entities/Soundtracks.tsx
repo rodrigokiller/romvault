@@ -15,11 +15,23 @@ import { Spinner } from '@/components/ui/feedback';
 /** tipos de álbum — 'inspired' é o caso "Music Inspired by The Witcher" */
 const KINDS = ['original', 'arrange', 'vocal', 'remix', 'cover', 'piano', 'live', 'selection', 'inspired', 'other'] as const;
 
+/** provedores da busca — o edge normaliza os dois pro mesmo formato */
+const PROVIDERS = ['musicbrainz', 'discogs'] as const;
+type Provider = typeof PROVIDERS[number];
+const PROVIDER_LABEL: Record<Provider, string> = { musicbrainz: 'MusicBrainz', discogs: 'Discogs' };
+
 interface Candidate {
-  mbid: string; title: string; artist: string | null;
-  first_release: string | null; secondary_types: string[];
+  id: string; title: string; artist: string | null; year: string | null;
+  /** o Discogs manda a capa na busca; no MusicBrainz vem por URL do CAA */
+  cover_url: string | null;
+  /** "Vinyl/LP · Fangamer FG17" ou os tipos secundários do MB */
+  meta: string | null;
 }
-type PreviewTrack = { disc: number; position: number; title: string; duration_ms: number | null };
+type PreviewTrack = {
+  disc: number; position: number; title: string; duration_ms: number | null;
+  /** "A1" no vinil, "2-14" em box set — o Discogs numera assim */
+  position_label?: string | null;
+};
 interface Release {
   id: string; date: string | null; country: string | null; script: string | null;
   language: string | null; disambiguation: string | null; tracks: number | null;
@@ -31,16 +43,15 @@ interface Preview { releases: Release[]; release_id: string; tracks: PreviewTrac
  * (/release/<id>/front-250), então não custa request nenhum nosso — e quando o
  * álbum não tem capa a imagem dá 404 e a gente simplesmente esconde.
  */
-function CoverThumb({ kind, mbid, alt }: { kind: 'release' | 'release-group'; mbid: string; alt: string }) {
+function CoverThumb({ kind, mbid, alt, src }: {
+  kind?: 'release' | 'release-group'; mbid?: string; alt: string;
+  /** url pronta (Discogs); sem ela, monta a do Cover Art Archive pelo mbid */
+  src?: string | null;
+}) {
   const [failed, setFailed] = useState(false);
-  if (failed) return <div className="ost-thumb ost-thumb-empty"><Disc3 size={18} aria-hidden /></div>;
-  return (
-    <img
-      className="ost-thumb"
-      src={`https://coverartarchive.org/${kind}/${mbid}/front-250`}
-      alt={alt} loading="lazy" onError={() => setFailed(true)}
-    />
-  );
+  const url = src ?? (mbid && kind ? `https://coverartarchive.org/${kind}/${mbid}/front-250` : null);
+  if (!url || failed) return <div className="ost-thumb ost-thumb-empty"><Disc3 size={18} aria-hidden /></div>;
+  return <img className="ost-thumb" src={url} alt={alt} loading="lazy" onError={() => setFailed(true)} />;
 }
 
 /** "2021-11-06 · JP · 44 faixas" — o suficiente pra reconhecer a edição. */
@@ -93,7 +104,9 @@ function AlbumCard({ album, tracks, canCurate, onRemove, onChangeEdition }: {
               <ol className="ost-tracks">
                 {tracks.map((tr) => (
                   <li key={`${tr.disc}-${tr.position}`}>
-                    <span className="ost-tn mono">{tr.disc > 1 ? `${tr.disc}.` : ''}{tr.position}</span>
+                    <span className="ost-tn mono">
+                      {tr.position_label ?? `${tr.disc > 1 ? `${tr.disc}.` : ''}${tr.position}`}
+                    </span>
                     <span className="ost-tt">{tr.title}</span>
                     <span className="ost-td mono">{mmss(tr.duration_ms)}</span>
                   </li>
@@ -132,6 +145,7 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState(gameTitle);
   const [kind, setKind] = useState<string>('original');
+  const [provider, setProvider] = useState<Provider>('musicbrainz');
   const [results, setResults] = useState<Candidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -140,7 +154,7 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
   const [previewing, setPreviewing] = useState<string | null>(null);
   // troca de edição de um álbum já cadastrado
   const [edition, setEdition] = useState<
-    { id: string; title: string; releases: Release[]; current: string; loading: boolean } | null
+    { id: string; title: string; provider: Provider; releases: Release[]; current: string; loading: boolean } | null
   >(null);
   // faixas por EDIÇÃO no diálogo de troca (carregadas sob demanda)
   const [relTracks, setRelTracks] = useState<Record<string, PreviewTrack[]>>({});
@@ -155,7 +169,7 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
     setRelTracksBusy(releaseId);
     try {
       const d = await invokeFn<{ tracks: PreviewTrack[] }>('soundtrack-import', {
-        action: 'tracks', release_id: releaseId,
+        action: 'tracks', release_id: releaseId, provider: edition?.provider ?? 'musicbrainz',
       });
       setRelTracks((p) => ({ ...p, [releaseId]: d.tracks ?? [] }));
     } catch (err) {
@@ -170,8 +184,11 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
   async function search() {
     setSearching(true);
     try {
-      const d = await invokeFn<{ results: Candidate[] }>('soundtrack-import', { action: 'search', query: term.trim() });
+      const d = await invokeFn<{ results: Candidate[] }>('soundtrack-import', {
+        action: 'search', query: term.trim(), provider,
+      });
       setResults(d.results ?? []);
+      setPreview({}); // prévias do provedor anterior não valem mais
       if ((d.results ?? []).length === 0) toast.error(t('games:ostNoResults'));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('forms:submitError'));
@@ -184,30 +201,30 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
    * lista de faixas muda com ela (era o caso do Deltarune vir em japonês).
    */
   async function loadPreview(c: Candidate, releaseId?: string) {
-    if (preview[c.mbid] && !releaseId) { // já aberto e sem troca: recolhe
-      setPreview((p) => { const n = { ...p }; delete n[c.mbid]; return n; });
+    if (preview[c.id] && !releaseId) { // já aberto e sem troca: recolhe
+      setPreview((p) => { const n = { ...p }; delete n[c.id]; return n; });
       return;
     }
-    setPreviewing(c.mbid);
+    setPreviewing(c.id);
     try {
       const d = await invokeFn<Preview>('soundtrack-import', {
-        action: 'preview', mbid: c.mbid, ...(releaseId ? { release_id: releaseId } : {}),
+        action: 'preview', id: c.id, provider, ...(releaseId ? { release_id: releaseId } : {}),
       });
-      setPreview((p) => ({ ...p, [c.mbid]: { releases: d.releases ?? [], release_id: d.release_id, tracks: d.tracks ?? [] } }));
+      setPreview((p) => ({ ...p, [c.id]: { releases: d.releases ?? [], release_id: d.release_id, tracks: d.tracks ?? [] } }));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('forms:submitError'));
     } finally { setPreviewing(null); }
   }
 
   async function add(c: Candidate) {
-    setBusy(c.mbid);
+    setBusy(c.id);
     try {
       // derivação entra pendurada no álbum principal, quando já existe um
       const parent = kind === 'original' ? null : (albums.find((a) => a.kind === 'original')?.id ?? null);
       const d = await invokeFn<{ title?: string; tracks?: number }>('soundtrack-import', {
-        action: 'add', game_id: gameId, mbid: c.mbid, kind, parent_id: parent,
+        action: 'add', game_id: gameId, id: c.id, provider, kind, parent_id: parent,
         // respeita a edição que o curador escolheu na prévia
-        ...(preview[c.mbid]?.release_id ? { release_id: preview[c.mbid].release_id } : {}),
+        ...(preview[c.id]?.release_id ? { release_id: preview[c.id].release_id } : {}),
       });
       toast.success(t('games:ostAdded', { title: d?.title ?? c.title, count: d?.tracks ?? 0 }));
       setOpen(false);
@@ -219,14 +236,20 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
 
   /** Abre o seletor de edição de um álbum JÁ cadastrado. */
   async function openEdition(a: Soundtrack) {
-    const mbid = a.external_ids?.musicbrainz;
-    if (!mbid) return;
-    setEdition({ id: a.id, title: a.title, releases: [], current: a.external_ids?.mb_release ?? '', loading: true });
+    // o álbum sabe de onde veio: guardamos o id do provedor em external_ids
+    const prov: Provider = a.external_ids?.discogs ? 'discogs' : 'musicbrainz';
+    const albumId = prov === 'discogs' ? a.external_ids?.discogs : a.external_ids?.musicbrainz;
+    const currentKey = prov === 'discogs' ? 'discogs_release' : 'mb_release';
+    if (!albumId) return;
+    setEdition({
+      id: a.id, title: a.title, provider: prov, releases: [],
+      current: a.external_ids?.[currentKey] ?? '', loading: true,
+    });
     try {
-      const d = await invokeFn<Preview>('soundtrack-import', { action: 'preview', mbid });
+      const d = await invokeFn<Preview>('soundtrack-import', { action: 'preview', id: albumId, provider: prov });
       setEdition({
-        id: a.id, title: a.title, releases: d.releases ?? [],
-        current: a.external_ids?.mb_release || d.release_id, loading: false,
+        id: a.id, title: a.title, provider: prov, releases: d.releases ?? [],
+        current: a.external_ids?.[currentKey] || d.release_id, loading: false,
       });
     } catch (err) {
       setEdition(null);
@@ -240,7 +263,7 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
     setEdition({ ...edition, loading: true });
     try {
       const d = await invokeFn<{ tracks?: number }>('soundtrack-import', {
-        action: 'set-release', id: edition.id, release_id: releaseId,
+        action: 'set-release', id: edition.id, release_id: releaseId, provider: edition.provider,
       });
       toast.success(t('games:ostEditionSet', { count: d?.tracks ?? 0 }));
       setEdition(null);
@@ -293,6 +316,10 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
         <Dialog open={open} onClose={() => setOpen(false)} title={t('games:ostSearchTitle')}>
           <p className="page-sub">{t('games:ostSearchHint')}</p>
           <div className="admin-tools-row" style={{ marginTop: 'var(--s3)' }}>
+            <Select value={provider} onChange={(e) => { setProvider(e.target.value as Provider); setResults([]); }}
+              aria-label={t('games:ostProvider')} style={{ maxWidth: 140 }}>
+              {PROVIDERS.map((p) => <option key={p} value={p}>{PROVIDER_LABEL[p]}</option>)}
+            </Select>
             <Input value={term} onChange={(e) => setTerm(e.target.value)}
               placeholder={t('games:ostSearchPh')} aria-label={t('games:ostSearchPh')}
               onKeyDown={(e) => { if (e.key === 'Enter') void search(); }} />
@@ -306,42 +333,43 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
           {results.length > 0 && (
             <ul className="link-results">
               {results.map((c) => (
-                <li key={c.mbid} className="link-result">
-                  <CoverThumb kind="release-group" mbid={c.mbid} alt={c.title} />
+                <li key={c.id} className="link-result">
+                  <CoverThumb kind="release-group" mbid={c.id} src={c.cover_url} alt={c.title} />
                   <div className="link-result-body">
                     <span className="link-result-title">
-                      {c.title}{c.first_release ? ` (${c.first_release.slice(0, 4)})` : ''}
+                      {c.title}{c.year ? ` (${c.year})` : ''}
                     </span>
                     <span className="link-result-plats mono">
-                      {[c.artist, ...(c.secondary_types ?? [])].filter(Boolean).join(' · ')}
+                      {[c.artist, c.meta].filter(Boolean).join(' · ')}
                     </span>
                     <button type="button" className="ost-toggle mono"
-                      disabled={previewing === c.mbid} onClick={() => void loadPreview(c)}>
-                      {previewing === c.mbid ? <Spinner /> : <ChevronDown size={13}
-                        style={{ transform: preview[c.mbid] ? 'rotate(180deg)' : undefined }} />}
-                      {preview[c.mbid] ? t('games:ostHideTracks') : t('games:ostShowTracks')}
+                      disabled={previewing === c.id} onClick={() => void loadPreview(c)}>
+                      {previewing === c.id ? <Spinner /> : <ChevronDown size={13}
+                        style={{ transform: preview[c.id] ? 'rotate(180deg)' : undefined }} />}
+                      {preview[c.id] ? t('games:ostHideTracks') : t('games:ostShowTracks')}
                     </button>
-                    {preview[c.mbid] && (
+                    {preview[c.id] && (
                       <>
-                        {preview[c.mbid].releases.length > 1 && (
+                        {preview[c.id].releases.length > 1 && (
                           <label className="ost-edition mono">
                             {t('games:ostEdition')}
-                            <Select value={preview[c.mbid].release_id}
+                            <Select value={preview[c.id].release_id}
                               onChange={(e) => void loadPreview(c, e.target.value)}
-                              disabled={previewing === c.mbid} aria-label={t('games:ostEdition')}>
-                              {preview[c.mbid].releases.map((r) => (
+                              disabled={previewing === c.id} aria-label={t('games:ostEdition')}>
+                              <option value="">{t('games:ostEditionDefault')}</option>
+                              {preview[c.id].releases.map((r) => (
                                 <option key={r.id} value={r.id}>{releaseLabel(r)}</option>
                               ))}
                             </Select>
                           </label>
                         )}
-                        {preview[c.mbid].tracks.length === 0
+                        {preview[c.id].tracks.length === 0
                           ? <span className="ost-meta mono">{t('games:ostNoTracks')}</span>
                           : (
                             <ol className="ost-tracks">
-                              {preview[c.mbid].tracks.map((tr) => (
+                              {preview[c.id].tracks.map((tr) => (
                                 <li key={`${tr.disc}-${tr.position}`}>
-                                  <span className="ost-tn mono">{tr.disc > 1 ? `${tr.disc}.` : ''}{tr.position}</span>
+                                  <span className="ost-tn mono">{tr.position_label ?? tr.position}</span>
                                   <span className="ost-tt">{tr.title}</span>
                                   <span className="ost-td mono">{mmss(tr.duration_ms)}</span>
                                 </li>
@@ -351,8 +379,8 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
                       </>
                     )}
                   </div>
-                  <Button size="sm" variant="primary" disabled={busy === c.mbid} onClick={() => void add(c)}>
-                    {busy === c.mbid ? <Spinner /> : <Plus size={14} />} {t('games:ostAddPick')}
+                  <Button size="sm" variant="primary" disabled={busy === c.id} onClick={() => void add(c)}>
+                    {busy === c.id ? <Spinner /> : <Plus size={14} />} {t('games:ostAddPick')}
                   </Button>
                 </li>
               ))}
@@ -368,7 +396,8 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
             <ul className="link-results">
               {edition.releases.map((r) => (
                 <li key={r.id} className="link-result">
-                  <CoverThumb kind="release" mbid={r.id} alt={releaseLabel(r)} />
+                  <CoverThumb kind="release" mbid={edition.provider === 'musicbrainz' ? r.id : undefined}
+                    alt={releaseLabel(r)} />
                   <div className="link-result-body">
                     <span className="link-result-title">{releaseLabel(r)}</span>
                     {r.id === edition.current && (
@@ -387,7 +416,9 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
                           <ol className="ost-tracks">
                             {relTracks[r.id].map((tr) => (
                               <li key={`${tr.disc}-${tr.position}`}>
-                                <span className="ost-tn mono">{tr.disc > 1 ? `${tr.disc}.` : ''}{tr.position}</span>
+                                <span className="ost-tn mono">
+                                  {tr.position_label ?? `${tr.disc > 1 ? `${tr.disc}.` : ''}${tr.position}`}
+                                </span>
                                 <span className="ost-tt">{tr.title}</span>
                                 <span className="ost-td mono">{mmss(tr.duration_ms)}</span>
                               </li>

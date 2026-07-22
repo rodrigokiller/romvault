@@ -13,6 +13,8 @@ export interface Soundtrack {
 }
 export interface Track {
   soundtrack_id: string; disc: number; position: number; title: string; duration_ms: number | null;
+  /** rótulo como está na capa ("A1", "2-14"); null = usa o número */
+  position_label: string | null;
 }
 
 /**
@@ -33,7 +35,7 @@ export function useSoundtracks(gameId: string) {
       const albums = (data ?? []) as Soundtrack[];
       if (albums.length === 0) return { albums, tracks: [] };
       const { data: tk } = await db().from('soundtrack_tracks')
-        .select('soundtrack_id, disc, position, title, duration_ms')
+        .select('soundtrack_id, disc, position, title, duration_ms, position_label')
         .in('soundtrack_id', albums.map((a) => a.id))
         .order('disc').order('position');
       return { albums, tracks: (tk ?? []) as Track[] };
