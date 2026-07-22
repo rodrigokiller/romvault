@@ -75,7 +75,7 @@ const flag = (name, def = undefined) => {
   const next = args[idx + 1];
   return next && !next.startsWith('--') ? next : true;
 };
-const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section', 'verbose', 'backfill', 'enrich', 'images', 'shots', 'force', 'provider'];
+const KNOWN_FLAGS = ['source', 'platform', 'limit', 'pages', 'all', 'dry', 'file', 'inspect', 'section', 'verbose', 'backfill', 'enrich', 'images', 'shots', 'force', 'provider', 'sample', 'max-year-gap'];
 // sleep precisa existir ANTES de importRelinkIgdb rodar (main() roda por ultimo,
 // entao a const abaixo ja estara inicializada — mas movemos a definicao pra ca
 // por clareza de que os modos novos dependem dela)
@@ -1346,6 +1346,9 @@ async function main() {
   } else if (SOURCE === 'enrich') {
     const { importEnrich } = await import('./lib/enrich.mjs');
     stats = await importEnrich({ sb, flag, DRY, log, c, step, itemLog, fetchAll });
+  } else if (SOURCE === 'soundtracks' || SOURCE === 'ost') {
+    const { importSoundtracks } = await import('./lib/soundtracks.mjs');
+    stats = await importSoundtracks({ sb, flag, DRY, log, c, step, itemLog, fetchAll, ENV });
   } else if (SOURCE === 'platform-wiki' || SOURCE === 'platforms') {
     const { importPlatformWiki } = await import('./lib/platform-wiki.mjs');
     stats = await importPlatformWiki({ sb, flag, DRY, log, c, step, itemLog, fetchAll });
@@ -1377,7 +1380,7 @@ async function main() {
     log(c.red(`✖ source desconhecido: "${SOURCE}" — falta um git pull?`));
     log('  Conhecidos: dataset, igdb, igdb-backfill, smwc, rhdn, pobre, covers,');
     log('  covers-libretro, mobygames, screenscraper, langs-igdb, purge-mods,');
-    log('  dedupe, enrich, platform-wiki, igdb-upcoming, reset-sync, all');
+    log('  dedupe, enrich, platform-wiki, igdb-upcoming, soundtracks, reset-sync, all');
     process.exit(1);
   }
 
