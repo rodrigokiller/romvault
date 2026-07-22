@@ -74,7 +74,9 @@ function AlbumCard({ album, tracks, canCurate, onRemove, onChangeEdition }: {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const year = album.release_date?.slice(0, 4);
+  // o álbum sabe de onde veio; os dois provedores têm página e edições
   const mbid = album.external_ids?.musicbrainz;
+  const dgid = album.external_ids?.discogs;
   return (
     <article className="ost-card">
       <div className="ost-cover">
@@ -120,7 +122,11 @@ function AlbumCard({ album, tracks, canCurate, onRemove, onChangeEdition }: {
             <a className="section-link mono" href={`https://musicbrainz.org/release-group/${mbid}`}
               target="_blank" rel="noreferrer">MusicBrainz →</a>
           )}
-          {canCurate && mbid && (
+          {dgid && (
+            <a className="section-link mono" href={`https://www.discogs.com/master/${dgid}`}
+              target="_blank" rel="noreferrer">Discogs →</a>
+          )}
+          {canCurate && (mbid || dgid) && (
             <button type="button" className="ost-toggle mono" onClick={() => onChangeEdition(album)}>
               <Disc3 size={13} /> {t('games:ostChangeEdition')}
             </button>

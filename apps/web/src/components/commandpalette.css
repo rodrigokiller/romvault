@@ -122,13 +122,25 @@
   gap: 3px;
   flex-shrink: 0;
 }
+/*
+ * Nome de plataforma é INFORMAÇÃO, não enfeite: precisa ser lido de relance.
+ * Antes: 0.62rem (~10px), fundo transparente e, na linha selecionada, texto
+ * verde sobre um fundo tingido de verde (accent 12%) — verde sobre verde.
+ * Agora: fundo sólido próprio (separa da linha, selecionada ou não), texto
+ * claro e um tamanho que dá pra ler. O accent fica só na borda.
+ */
 .cmdk-badge {
-  padding: 1px 5px;
+  padding: 2px 6px;
+  background: var(--panel-2);
   border: 1px solid var(--line-bright);
-  color: var(--muted);
-  font-size: 0.62rem;
+  color: var(--ink);
+  font-size: 0.68rem;
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
-.cmdk-item.is-active .cmdk-badge { border-color: var(--accent); color: var(--accent); }
+.cmdk-item.is-active .cmdk-badge {
+  border-color: var(--accent);
+  background: var(--bg);
+  color: var(--ink-bright);
+}
 .cmdk-badge-more { color: var(--amber); border-style: dashed; }
