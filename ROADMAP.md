@@ -65,6 +65,29 @@ Fontes testadas ao vivo, com resultado:
   problema de vínculo, mas ótimo como 2ª fonte / validação cruzada.
 - ❌ **TheAudioDB**: 0 resultados até pra Nobuo Uematsu. Descartado.
 
+### Discogs — investigação a fundo (2026-07-21, tudo medido na API)
+API **oficial e pública** (`api.discogs.com`), sem gambiarra de terceiro.
+- **Sem token**: busca e release funcionam (25 req/min), MAS a busca devolve
+  `thumb`/`cover_image` VAZIOS. **Com token grátis**: 60 req/min + capa na busca
+  → o token é praticamente obrigatório pra um modal decente (`DISCOGS_TOKEN`).
+- **master/versions = release-group/release do MusicBrainz**: o seletor de edição
+  que já existe se aplica igual. Master "Chrono Trigger OSV" tem 10 edições.
+- **Filtros medidos** (busca "chrono trigger"): sem filtro **330** releases →
+  `type=master` **48** (colapsa prensagens) → `type=master&genre=Stage & Screen`
+  **27** (o filtro bom). `style=Score` só traz 3: quase não é usado, não serve.
+- **Sinais que o MusicBrainz NÃO tem**:
+  - `formats.descriptions` marca **"Unofficial Release"** → detecta bootleg
+    (SonMay, Miya Records) pra filtrar ou sinalizar.
+  - `community.have/want/rating` → dá pra ORDENAR por relevância real.
+  - Créditos com papel nomeado (ex.: "Illustration: Akira Toriyama").
+  - Gravadora + nº de catálogo + formato (Vinyl/LP, CD, Reissue, Etched).
+- **Cobertura** (Discogs master+S&S vs MusicBrainz OST): Chrono Trigger **27×10**,
+  Legend of Mana **8×2**, Silent Hill 2 **44×4**, The Witcher **33×18**;
+  empate nos indies modernos (Deltarune 8×9, Hollow Knight 7×6, Stardew 6×8).
+- **Leitura**: pro acervo CLÁSSICO/FÍSICO/JAPONÊS — que é o público do ROMVault —
+  o Discogs é bem mais fundo. Candidato real a padrão. A ressalva continua sendo
+  título comum ("Celeste" traz 204 mesmo filtrado), então a curadoria fica.
+
 **O problema NÃO é o dado, é o VÍNCULO.** Casar jogo↔álbum por título é a mesma
 armadilha do Metacritic (que trazia Vice City pro "GTA VI"). Medido: "Celeste"
 casa com **"Mélodie céleste"** (score 100!), "Undertale" casa com fan-covers,
