@@ -167,6 +167,15 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    /* ── faixas de UMA edição (1 request só). O 'preview' busca o grupo antes;
+       aqui a lista de edições já está na tela, então vai direto. ── */
+    if (action === 'tracks') {
+      const releaseId = String(body.release_id ?? '');
+      if (!releaseId) return json({ error: 'Informe o release_id.' }, 400);
+      const { discs, tracks } = await tracksOf(releaseId);
+      return json({ ok: true, action, release_id: releaseId, discs, tracks });
+    }
+
     /* ── troca a EDIÇÃO de um álbum já cadastrado (regrava as faixas) ── */
     if (action === 'set-release') {
       const id = String(body.id ?? '');

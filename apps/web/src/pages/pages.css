@@ -4336,6 +4336,16 @@ button.heat-cell::after {
   font-size: 0.78rem;
   border-top: 1px solid var(--line);
 }
+/* miniatura de capa nos modais de busca/edição (vem do Cover Art Archive) */
+.ost-thumb {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.ost-thumb-empty { display: flex; align-items: center; justify-content: center; color: var(--muted); }
 .ost-links { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; }
 .ost-edition {
   display: flex;

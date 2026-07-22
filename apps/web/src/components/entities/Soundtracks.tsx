@@ -26,6 +26,23 @@ interface Release {
 }
 interface Preview { releases: Release[]; release_id: string; tracks: PreviewTrack[] }
 
+/**
+ * Capa direto do Cover Art Archive. Eles servem por URL fixa
+ * (/release/<id>/front-250), então não custa request nenhum nosso — e quando o
+ * álbum não tem capa a imagem dá 404 e a gente simplesmente esconde.
+ */
+function CoverThumb({ kind, mbid, alt }: { kind: 'release' | 'release-group'; mbid: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <div className="ost-thumb ost-thumb-empty"><Disc3 size={18} aria-hidden /></div>;
+  return (
+    <img
+      className="ost-thumb"
+      src={`https://coverartarchive.org/${kind}/${mbid}/front-250`}
+      alt={alt} loading="lazy" onError={() => setFailed(true)}
+    />
+  );
+}
+
 /** "2021-11-06 · JP · 44 faixas" — o suficiente pra reconhecer a edição. */
 const releaseLabel = (r: Release) => [
   r.date ?? '?', r.country ?? (r.script === 'Latn' ? 'latim' : r.script ?? '—'),
@@ -125,6 +142,26 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
   const [edition, setEdition] = useState<
     { id: string; title: string; releases: Release[]; current: string; loading: boolean } | null
   >(null);
+  // faixas por EDIÇÃO no diálogo de troca (carregadas sob demanda)
+  const [relTracks, setRelTracks] = useState<Record<string, PreviewTrack[]>>({});
+  const [relTracksBusy, setRelTracksBusy] = useState<string | null>(null);
+
+  /** Faixas de uma edição específica — 1 request, só quando o curador abre. */
+  async function loadReleaseTracks(releaseId: string) {
+    if (relTracks[releaseId]) {
+      setRelTracks((p) => { const n = { ...p }; delete n[releaseId]; return n; });
+      return;
+    }
+    setRelTracksBusy(releaseId);
+    try {
+      const d = await invokeFn<{ tracks: PreviewTrack[] }>('soundtrack-import', {
+        action: 'tracks', release_id: releaseId,
+      });
+      setRelTracks((p) => ({ ...p, [releaseId]: d.tracks ?? [] }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally { setRelTracksBusy(null); }
+  }
 
   const albums = data?.albums ?? [];
   const tracks = data?.tracks ?? [];
@@ -270,6 +307,7 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
             <ul className="link-results">
               {results.map((c) => (
                 <li key={c.mbid} className="link-result">
+                  <CoverThumb kind="release-group" mbid={c.mbid} alt={c.title} />
                   <div className="link-result-body">
                     <span className="link-result-title">
                       {c.title}{c.first_release ? ` (${c.first_release.slice(0, 4)})` : ''}
@@ -330,10 +368,32 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
             <ul className="link-results">
               {edition.releases.map((r) => (
                 <li key={r.id} className="link-result">
+                  <CoverThumb kind="release" mbid={r.id} alt={releaseLabel(r)} />
                   <div className="link-result-body">
                     <span className="link-result-title">{releaseLabel(r)}</span>
                     {r.id === edition.current && (
                       <span className="link-result-plats mono">{t('games:ostEditionCurrent')}</span>
+                    )}
+                    <button type="button" className="ost-toggle mono"
+                      disabled={relTracksBusy === r.id} onClick={() => void loadReleaseTracks(r.id)}>
+                      {relTracksBusy === r.id ? <Spinner /> : <ChevronDown size={13}
+                        style={{ transform: relTracks[r.id] ? 'rotate(180deg)' : undefined }} />}
+                      {relTracks[r.id] ? t('games:ostHideTracks') : t('games:ostShowTracks')}
+                    </button>
+                    {relTracks[r.id] && (
+                      relTracks[r.id].length === 0
+                        ? <span className="ost-meta mono">{t('games:ostNoTracks')}</span>
+                        : (
+                          <ol className="ost-tracks">
+                            {relTracks[r.id].map((tr) => (
+                              <li key={`${tr.disc}-${tr.position}`}>
+                                <span className="ost-tn mono">{tr.disc > 1 ? `${tr.disc}.` : ''}{tr.position}</span>
+                                <span className="ost-tt">{tr.title}</span>
+                                <span className="ost-td mono">{mmss(tr.duration_ms)}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        )
                     )}
                   </div>
                   <Button size="sm" variant={r.id === edition.current ? 'ghost' : 'primary'}
