@@ -40,6 +40,58 @@ async function mb(path: string): Promise<any> {
   return await res.json();
 }
 
+/**
+ * Edições (releases) de um álbum, com a MELHOR escolhida por padrão.
+ * Antes eu pegava a mais ANTIGA — e no Deltarune isso trazia a edição japonesa
+ * com as faixas em japonês. Agora prefere alfabeto latino e mercado ocidental,
+ * mas o curador troca na mão.
+ */
+// deno-lint-ignore no-explicit-any
+function rankReleases(releases: any[]): any[] {
+  const score = (r: any) => {
+    let s = 0;
+    if (r?.['text-representation']?.script === 'Latn') s -= 4;
+    if (['US', 'XW', 'GB', 'XE'].includes(String(r?.country ?? ''))) s -= 2;
+    if (r?.date) s -= 1; // com data é mais confiável que sem
+    return s;
+  };
+  return [...releases].filter((r) => r?.id).sort((a, b) => {
+    const d = score(a) - score(b);
+    return d !== 0 ? d : String(a.date ?? '9999').localeCompare(String(b.date ?? '9999'));
+  });
+}
+
+/** Faixas de uma edição específica. */
+async function tracksOf(releaseId: string) {
+  const rel = await mb(`/release/${releaseId}?inc=recordings&fmt=json`);
+  const out: { disc: number; position: number; title: string; duration_ms: number | null }[] = [];
+  // deno-lint-ignore no-explicit-any
+  ((rel.media ?? []) as any[]).forEach((m, di) => {
+    // deno-lint-ignore no-explicit-any
+    for (const t of (m.tracks ?? []) as any[]) {
+      out.push({
+        disc: Number(m.position ?? di + 1),
+        position: Number(t.position ?? 0),
+        title: String(t.title ?? ''),
+        duration_ms: t.length ? Number(t.length) : null,
+      });
+    }
+  });
+  return { discs: (rel.media ?? []).length as number, tracks: out.filter((t) => t.title && t.position > 0) };
+}
+
+/** Resumo das edições pro seletor do painel. */
+// deno-lint-ignore no-explicit-any
+const releaseBrief = (r: any) => ({
+  id: String(r.id),
+  date: r.date ?? null,
+  country: r.country ?? null,
+  script: r?.['text-representation']?.script ?? null,
+  language: r?.['text-representation']?.language ?? null,
+  disambiguation: r.disambiguation || null,
+  tracks: (r.media ?? []).reduce((n: number, m: { 'track-count'?: number }) => n + (m['track-count'] ?? 0), 0) || null,
+});
+
 /** Capa do Cover Art Archive (404 quando não tem — não é erro). */
 async function coverOf(kind: 'release-group' | 'release', id: string): Promise<string | null> {
   try {
@@ -97,6 +149,50 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, action, count: data.count ?? results.length, results });
     }
 
+    /* ── prévia: faixas do candidato SEM gravar nada (o modal só chama isto
+       quando o curador clica em "ver faixas" — a busca inicial segue leve) ── */
+    if (action === 'preview') {
+      const mbid = String(body.mbid ?? '');
+      if (!mbid) return json({ error: 'Informe o mbid.' }, 400);
+      const rg = await mb(`/release-group/${mbid}?inc=releases+media&fmt=json`);
+      await sleep(1100);
+      // deno-lint-ignore no-explicit-any
+      const ranked = rankReleases((rg.releases ?? []) as any[]);
+      if (ranked.length === 0) return json({ ok: true, action, releases: [], tracks: [] });
+      const chosen = String(body.release_id ?? ranked[0].id);
+      const { discs, tracks } = await tracksOf(chosen);
+      return json({
+        ok: true, action, release_id: chosen, discs, tracks,
+        releases: ranked.map(releaseBrief),
+      });
+    }
+
+    /* ── troca a EDIÇÃO de um álbum já cadastrado (regrava as faixas) ── */
+    if (action === 'set-release') {
+      const id = String(body.id ?? '');
+      const releaseId = String(body.release_id ?? '');
+      if (!id || !releaseId) return json({ error: 'Informe id e release_id.' }, 400);
+      const { data: album } = await admin.from('game_soundtracks')
+        .select('external_ids').eq('id', id).maybeSingle();
+      if (!album) return json({ error: 'Álbum não encontrado.' }, 404);
+      const { discs, tracks } = await tracksOf(releaseId);
+      await admin.from('soundtrack_tracks').delete().eq('soundtrack_id', id);
+      if (tracks.length > 0) {
+        const rows = tracks.map((t) => ({ soundtrack_id: id, ...t }));
+        for (let i = 0; i < rows.length; i += 200) {
+          await admin.from('soundtrack_tracks')
+            .upsert(rows.slice(i, i + 200), { onConflict: 'soundtrack_id,disc,position', ignoreDuplicates: true });
+        }
+      }
+      await admin.from('game_soundtracks').update({
+        disc_count: discs || null,
+        track_count: tracks.length || null,
+        external_ids: { ...((album.external_ids as Record<string, string> | null) ?? {}), mb_release: releaseId },
+        updated_at: new Date().toISOString(),
+      }).eq('id', id);
+      return json({ ok: true, action, tracks: tracks.length });
+    }
+
     /* ── remove ── */
     if (action === 'remove') {
       const id = String(body.id ?? '');
@@ -119,40 +215,25 @@ Deno.serve(async (req: Request) => {
       const rg = await mb(`/release-group/${mbid}?inc=artists+releases&fmt=json`);
       await sleep(1100); // 1 req/s: regra do MusicBrainz
 
-      // edição escolhida: a mais ANTIGA com data (costuma ser a original)
+      // edição: a que o curador escolheu no modal; senão a melhor do ranking
+      // (latim + mercado ocidental) — pegar a mais antiga trazia a japonesa.
       // deno-lint-ignore no-explicit-any
-      const releases = ((rg.releases ?? []) as any[])
-        .filter((r) => r?.id)
-        .sort((a, b) => String(a.date ?? '9999').localeCompare(String(b.date ?? '9999')));
-      const chosen = releases[0] ?? null;
+      const ranked = rankReleases((rg.releases ?? []) as any[]);
+      const chosenId = body.release_id ? String(body.release_id) : (ranked[0]?.id ?? null);
 
       let tracks: { disc: number; position: number; title: string; duration_ms: number | null }[] = [];
       let discCount: number | null = null;
-      if (chosen) {
+      if (chosenId) {
         try {
-          const rel = await mb(`/release/${chosen.id}?inc=recordings&fmt=json`);
+          const r = await tracksOf(chosenId);
           await sleep(1100);
-          // deno-lint-ignore no-explicit-any
-          const media = (rel.media ?? []) as any[];
-          discCount = media.length || null;
-          media.forEach((m, di) => {
-            // deno-lint-ignore no-explicit-any
-            for (const t of (m.tracks ?? []) as any[]) {
-              tracks.push({
-                disc: Number(m.position ?? di + 1),
-                position: Number(t.position ?? 0),
-                title: String(t.title ?? ''),
-                duration_ms: t.length ? Number(t.length) : null,
-              });
-            }
-          });
-          // sem posição não dá pra formar a PK (soundtrack_id, disc, position)
-          tracks = tracks.filter((t) => t.position > 0 && t.title);
+          tracks = r.tracks;
+          discCount = r.discs || null;
         } catch { /* álbum sem tracklist: grava mesmo assim */ }
       }
 
       const cover = (await coverOf('release-group', mbid))
-        ?? (chosen ? await coverOf('release', chosen.id) : null);
+        ?? (chosenId ? await coverOf('release', chosenId) : null);
 
       // deno-lint-ignore no-explicit-any
       const artists = ((rg['artist-credit'] ?? []) as any[]).map((a) => String(a.name)).filter(Boolean);
@@ -168,7 +249,7 @@ Deno.serve(async (req: Request) => {
         disc_count: discCount,
         track_count: tracks.length || null,
         cover_url: cover,
-        external_ids: { musicbrainz: mbid },
+        external_ids: chosenId ? { musicbrainz: mbid, mb_release: chosenId } : { musicbrainz: mbid },
         added_by: user.id,
       };
       const { data: created, error: insErr } = await admin

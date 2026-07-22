@@ -209,7 +209,16 @@
     "ostKind_other": "Outro",
     "logPlay": "Joguei hoje",
     "logPlayHint": "Registra uma sessão de hoje (retrô, emulador, físico) no seu histórico",
-    "logPlayDone": "Sessão de hoje registrada no histórico."
+    "logPlayDone": "Sessão de hoje registrada no histórico.",
+    "tabSoundtrack": "Trilha sonora",
+    "ostNoTracks": "Esta edição não tem faixas cadastradas no MusicBrainz.",
+    "ostEdition": "Edição",
+    "ostChangeEdition": "trocar edição",
+    "ostEditionTitle": "Edições de \"{{title}}\"",
+    "ostEditionHint": "Um mesmo álbum tem edições por país (a japonesa vem com as faixas em japonês). Escolha a que preferir; as faixas são regravadas.",
+    "ostEditionCurrent": "edição atual",
+    "ostEditionUse": "Usar esta",
+    "ostEditionSet": "Edição trocada ({{count}} faixas)."
   },
   "entities": {
     "kindGame": "Jogo",

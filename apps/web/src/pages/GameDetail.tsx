@@ -7,7 +7,8 @@ import { Gamepad2, Languages as LanguagesIcon, CalendarCheck, ChevronDown, Star,
 import { getSupabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/auth/AuthProvider';
-import { useIsAdmin } from '@/hooks/useProfile';
+import { useIsAdmin, useIsCurator } from '@/hooks/useProfile';
+import { useSoundtracks } from '@/hooks/useSoundtracks';
 import { useLogPlay, useSetCustomArt } from '@/hooks/useTracks';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -93,6 +94,9 @@ export function GameDetail() {
   const translations = useGameTranslations(gameId);
   const documents = useGameDocuments(gameId);
   const related = useRelatedGames(game);
+  // mesma chave de cache do componente: a guia sabe se há álbum sem 2ª consulta
+  const canCurate = useIsCurator();
+  const ostCount = useSoundtracks(gameId ?? '').data?.albums.length ?? 0;
 
   const rc = romhacks.data?.length ?? 0;
   const tc = translations.data?.length ?? 0;
@@ -118,6 +122,10 @@ export function GameDetail() {
   const tabs: TabItem[] = [
     { id: 'overview', label: t('games:tabOverview') },
     { id: 'images', label: t('games:tabImages') },
+    // a guia só aparece quando há álbum — ou pro curador, que é quem cadastra
+    ...(ostCount > 0 || canCurate
+      ? [{ id: 'soundtrack', label: withCount(t('games:tabSoundtrack'), ostCount) }]
+      : []),
     { id: 'releases', label: t('games:tabReleases') },
     { id: 'translations', label: withCount(t('games:tabTranslations'), tc) },
     { id: 'romhacks', label: withCount(t('games:tabRomhacks'), rc) },
@@ -259,12 +267,11 @@ export function GameDetail() {
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
       <div className="tab-panel" role="tabpanel">
         {tab === 'overview' && (
-          <>
-            <OverviewTab game={game} completion={completion} />
-            {/* trilha fica na visão geral (aba padrão): é onde se procura, e
-                estava escondida na aba Imagens */}
-            {game && <Soundtracks gameId={game.id} gameTitle={game.title} />}
-          </>
+          <OverviewTab game={game} completion={completion} />
+        )}
+
+        {tab === 'soundtrack' && game && (
+          <Soundtracks gameId={game.id} gameTitle={game.title} />
         )}
 
         {tab === 'images' && (

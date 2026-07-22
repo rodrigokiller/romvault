@@ -4336,6 +4336,16 @@ button.heat-cell::after {
   font-size: 0.78rem;
   border-top: 1px solid var(--line);
 }
+.ost-links { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; }
+.ost-edition {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.ost-edition select { max-width: 260px; }
 .ost-tn { color: var(--muted); min-width: 30px; font-variant-numeric: tabular-nums; }
 .ost-tt { flex: 1; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ost-td { color: var(--muted); font-variant-numeric: tabular-nums; }
