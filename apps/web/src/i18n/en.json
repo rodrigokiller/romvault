@@ -223,7 +223,11 @@
     "ostEditionUse": "Use this one",
     "ostEditionSet": "Edition changed ({{count}} tracks).",
     "ostProvider": "Provider",
-    "ostEditionDefault": "(default edition)"
+    "ostEditionDefault": "(default edition)",
+    "ostListen": "Listen on Deezer",
+    "ostFindStream": "find on Deezer",
+    "ostStreamFound": "Found on Deezer!",
+    "ostStreamNone": "This album is not on Deezer."
   },
   "entities": {
     "kindGame": "Game",

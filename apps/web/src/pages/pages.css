@@ -4418,6 +4418,17 @@ button.heat-cell::after {
 }
 .ost-thumb-empty { display: flex; align-items: center; justify-content: center; color: var(--muted); }
 .ost-links { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; }
+.ost-listen {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  color: var(--bg);
+  background: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.ost-listen:hover { filter: brightness(1.08); }
 .ost-edition {
   display: flex;
   align-items: center;

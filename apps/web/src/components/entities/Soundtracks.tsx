@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { Disc3, Plus, Search, Trash2, ChevronDown } from 'lucide-react';
+import { Disc3, Plus, Search, Trash2, ChevronDown, Play } from 'lucide-react';
 import { invokeFn } from '@/lib/invokeFn';
 import { useIsCurator } from '@/hooks/useProfile';
 import { useSoundtracks, type Soundtrack, type Track } from '@/hooks/useSoundtracks';
@@ -67,9 +67,10 @@ const mmss = (ms: number | null) => {
 };
 
 /** Um álbum: capa, dados e faixas (recolhidas por padrão). */
-function AlbumCard({ album, tracks, canCurate, onRemove, onChangeEdition }: {
+function AlbumCard({ album, tracks, canCurate, onRemove, onChangeEdition, onFindStream, findingStream }: {
   album: Soundtrack; tracks: Track[]; canCurate: boolean;
   onRemove: (id: string) => void; onChangeEdition: (a: Soundtrack) => void;
+  onFindStream: (id: string) => void; findingStream: boolean;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -77,6 +78,7 @@ function AlbumCard({ album, tracks, canCurate, onRemove, onChangeEdition }: {
   // o álbum sabe de onde veio; os dois provedores têm página e edições
   const mbid = album.external_ids?.musicbrainz;
   const dgid = album.external_ids?.discogs;
+  const deezer = album.external_ids?.deezer;
   return (
     <article className="ost-card">
       <div className="ost-cover">
@@ -126,6 +128,17 @@ function AlbumCard({ album, tracks, canCurate, onRemove, onChangeEdition }: {
             <a className="section-link mono" href={`https://www.discogs.com/master/${dgid}`}
               target="_blank" rel="noreferrer">Discogs →</a>
           )}
+          {deezer && (
+            <a className="ost-listen mono" href={deezer} target="_blank" rel="noreferrer">
+              <Play size={12} /> {t('games:ostListen')}
+            </a>
+          )}
+          {canCurate && !deezer && (
+            <button type="button" className="ost-toggle mono" disabled={findingStream}
+              onClick={() => onFindStream(album.id)}>
+              {findingStream ? <Spinner /> : <Play size={12} />} {t('games:ostFindStream')}
+            </button>
+          )}
           {canCurate && (mbid || dgid) && (
             <button type="button" className="ost-toggle mono" onClick={() => onChangeEdition(album)}>
               <Disc3 size={13} /> {t('games:ostChangeEdition')}
@@ -155,6 +168,7 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
   const [results, setResults] = useState<Candidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [streaming, setStreaming] = useState<string | null>(null);
   // prévia por candidato: buscada só quando o curador pede
   const [preview, setPreview] = useState<Record<string, Preview>>({});
   const [previewing, setPreviewing] = useState<string | null>(null);
@@ -290,6 +304,18 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
     }
   }
 
+  /** Procura o álbum no Deezer (só linka quando existe com confiança). */
+  async function findStream(id: string) {
+    setStreaming(id);
+    try {
+      const d = await invokeFn<{ deezer?: string | null }>('soundtrack-import', { action: 'streaming', id });
+      toast.success(d?.deezer ? t('games:ostStreamFound') : t('games:ostStreamNone'));
+      void qc.invalidateQueries({ queryKey: ['soundtracks', gameId] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally { setStreaming(null); }
+  }
+
   // principais primeiro, cada um seguido das suas derivações
   const mains = albums.filter((a) => !a.parent_id);
   const ordered = [...mains.flatMap((m) => [m, ...albums.filter((a) => a.parent_id === m.id)]),
@@ -313,6 +339,7 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
           {ordered.map((a) => (
             <AlbumCard key={a.id} album={a} canCurate={canCurate} onRemove={(id) => void remove(id)}
               onChangeEdition={(al) => void openEdition(al)}
+              onFindStream={(id) => void findStream(id)} findingStream={streaming === a.id}
               tracks={tracks.filter((tr) => tr.soundtrack_id === a.id)} />
           ))}
         </div>
