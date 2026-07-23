@@ -208,31 +208,55 @@ Deno.serve(async (req: Request) => {
      * re-gastar request em quem não tem match.
      */
     if (action === 'enrich-batch') {
-      const cap = Math.min(Math.max(Number(body.limit ?? 25), 1), 60);
-      const WINDOW = 1500;
-      // janela DESLOCADA a cada rodada: varrendo sempre as mesmas primeiras
-      // linhas, o resto do catálogo nunca seria enriquecido.
-      const { count: poolCount } = await admin.from('games')
-        .select('id', { count: 'exact', head: true }).not('igdb_id', 'is', null);
-      const maxOffset = Math.max(0, (poolCount ?? 0) - WINDOW);
-      const offset = maxOffset > 0 ? Math.floor(Math.random() * maxOffset) : 0;
-      const { data: pool } = await admin.from('games')
-        .select('id, title, release_date, metadata, completion_times, igdb_id')
-        .not('igdb_id', 'is', null)
-        .order('id')
-        .range(offset, offset + WINDOW - 1);
+      const cap = Math.min(Math.max(Number(body.limit ?? 40), 1), 60);
       type Row = {
         id: string; title: string; release_date: string | null; igdb_id: number | null;
         metadata: Record<string, unknown> | null;
         completion_times: { main_story?: string | null; completionist?: string | null } | null;
       };
-      const pending = ((pool ?? []) as Row[]).filter((g) => {
+      const isPending = (g: Row) => {
         const md = (g.metadata ?? {}) as { scores?: { metacritic?: unknown }; mc_miss?: boolean; hltb_miss?: boolean };
         const ct = g.completion_times;
         const hasMc = Boolean(md.scores?.metacritic) || md.mc_miss === true;
         const hasHltb = Boolean(ct && (ct.main_story || ct.completionist)) || md.hltb_miss === true;
         return !hasMc || !hasHltb;
-      }).slice(0, cap);
+      };
+
+      /*
+       * PRIORIDADE — antes era uma janela aleatória sobre 84 mil jogos, então o
+       * jogo que o usuário abre quase nunca era sorteado (ele olhava e não tinha
+       * nada). Agora vem primeiro o que aparece nas ESTANTES (jogos que alguém
+       * tem), depois os recém-adicionados, e só então a cauda longa aleatória.
+       * O Set preserva a ordem de inserção, então o cap é preenchido dos mais
+       * relevantes pros menos.
+       */
+      const ids = new Set<string>();
+      const { data: owned } = await admin.from('game_copies').select('game_id').limit(6000);
+      for (const o of (owned ?? []) as { game_id: string }[]) ids.add(o.game_id);
+      const { data: recent } = await admin.from('games')
+        .select('id').not('igdb_id', 'is', null).order('created_at', { ascending: false }).limit(600);
+      for (const r of (recent ?? []) as { id: string }[]) ids.add(r.id);
+      // cauda longa: janela aleatória pra o resto também ser coberto com o tempo
+      const { count: poolCount } = await admin.from('games')
+        .select('id', { count: 'exact', head: true }).not('igdb_id', 'is', null);
+      const maxOffset = Math.max(0, (poolCount ?? 0) - 1000);
+      const offset = maxOffset > 0 ? Math.floor(Math.random() * maxOffset) : 0;
+      const { data: tail } = await admin.from('games')
+        .select('id').not('igdb_id', 'is', null).order('id').range(offset, offset + 999);
+      for (const r of (tail ?? []) as { id: string }[]) ids.add(r.id);
+
+      // busca os dados em lotes e para assim que junta `cap` pendentes
+      const allIds = [...ids];
+      const pending: Row[] = [];
+      for (let i = 0; i < allIds.length && pending.length < cap; i += 300) {
+        const { data } = await admin.from('games')
+          .select('id, title, release_date, metadata, completion_times, igdb_id')
+          .in('id', allIds.slice(i, i + 300));
+        for (const g of ((data ?? []) as Row[])) {
+          if (pending.length >= cap) break;
+          if (g.igdb_id != null && isPending(g)) pending.push(g);
+        }
+      }
 
       let hltbOk = 0; let mcOk = 0;
       for (const g of pending) {

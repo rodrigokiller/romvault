@@ -1041,7 +1041,10 @@
     "linkPick": "Vincular",
     "linkNone": "O IGDB não retornou candidatos: ajuste o termo.",
     "linkDone": "Vinculado a \"{{title}}\"!",
-    "addEnriched": "Enriquecido: {{list}}."
+    "addEnriched": "Enriquecido: {{list}}.",
+    "enrichNow": "Enriquecer agora",
+    "enrichHint": "Roda o lote de Metacritic + HowLongToBeat (o mesmo do cron diario), priorizando os jogos das estantes",
+    "enrichDone": "Enriquecidos: {{hltb}} HLTB + {{mc}} Metacritic (de {{tried}})."
   },
   "community": {
     "reviewsTitle": "Avaliações",

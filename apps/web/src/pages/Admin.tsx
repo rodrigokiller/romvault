@@ -746,6 +746,27 @@ function LinkQueuePanel() {
   const [aliasPick, setAliasPick] = useState<Record<string, string>>({});
   const [bulkSync, setBulkSync] = useState<{ done: number; total: number } | null>(null);
   const [merging, setMerging] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+
+  /**
+   * "Enriquecer agora": roda o MESMO lote do cron diário (Metacritic + HLTB),
+   * priorizando os jogos que aparecem nas estantes. Serve pra testar sem
+   * esperar o cron e pra dar um empurrão quando faltar dado.
+   */
+  async function runEnrich() {
+    setEnriching(true);
+    try {
+      const d = await invokeFn<{ tried?: number; hltb?: number; metacritic?: number }>(
+        'game-sync', { action: 'enrich-batch', limit: 50 },
+      );
+      toast.success(t('admin:enrichDone', { hltb: d?.hltb ?? 0, mc: d?.metacritic ?? 0, tried: d?.tried ?? 0 }));
+      void qc.invalidateQueries({ queryKey: ['game'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setEnriching(false);
+    }
+  }
 
   /**
    * "Sincronizar IGDB da fila": pega os jogos de sync SEM igdb_id e roda o
@@ -917,6 +938,10 @@ function LinkQueuePanel() {
         <span style={{ display: 'flex', gap: 'var(--s2)', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Button variant="primary" size="sm" onClick={() => void bulkSyncIgdb()} disabled={bulkSync !== null}>
             {bulkSync ? `${bulkSync.done}/${bulkSync.total}` : t('admin:bulkSyncNow')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void runEnrich()} disabled={enriching}
+            title={t('admin:enrichHint')}>
+            {enriching ? <Spinner /> : t('admin:enrichNow')}
           </Button>
           <Button variant="secondary" size="sm" onClick={() => void autoMergeIdentical()} disabled={merging}>
             {merging ? <Spinner /> : t('admin:mergeIdenticalNow')}

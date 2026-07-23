@@ -1041,7 +1041,10 @@
     "linkPick": "Link",
     "linkNone": "IGDB returned no candidates: adjust the term.",
     "linkDone": "Linked to \"{{title}}\"!",
-    "addEnriched": "Enriched: {{list}}."
+    "addEnriched": "Enriched: {{list}}.",
+    "enrichNow": "Enrich now",
+    "enrichHint": "Runs the Metacritic + HowLongToBeat batch (same as the daily cron), prioritizing shelf games",
+    "enrichDone": "Enriched: {{hltb}} HLTB + {{mc}} Metacritic (of {{tried}})."
   },
   "community": {
     "reviewsTitle": "Reviews",
