@@ -99,7 +99,11 @@ function loadEnv() {
       if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
         val = val.slice(1, -1);
       }
-      if (out[key] === undefined) out[key] = val; // process.env vence
+      // o .env da RAIZ manda: se voce editou a chave aqui, e ela que vale.
+      // (antes o process.env vencia — e um SUPABASE_SERVICE_KEY velho setado no
+      // ambiente do Windows sobrescrevia a chave certa do .env em silencio,
+      // dando "Invalid API key" mesmo com o .env correto.)
+      out[key] = val;
     }
   }
   return out;
