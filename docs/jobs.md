@@ -48,6 +48,7 @@ select public.setup_import_cron('steam-sync',
 | Job | Onde | O que faz | Atualiza existentes? |
 |---|---|---|---|
 | `igdb-sync` | edge (admin dispara na UI) | cria jogos novos do IGDB por plataforma (cursor) | **NÃO** — `ignoreDuplicates`; só preenche capa faltante |
+| `igdb-refresh` | `igdb-refresh` (cron diário) | pega o que MUDOU no IGDB (`updated_at`) em todas as plataformas | **SIM** — cria novos + atualiza data/plataformas/hypes/tba dos existentes |
 | `enrich-cron` | `game-sync` action `enrich-batch` | Metacritic + HowLongToBeat de quem falta | preenche o que falta; ~40/dia, priorizando estantes |
 | `game-relevance` | SQL puro (cron diário 04:00 UTC) | recalcula a nota de relevância (ordenação das listas) | sim (recalcula tudo) |
 
@@ -57,6 +58,16 @@ select public.setup_import_cron('enrich-cron',
   'https://SEU-PROJETO.supabase.co/functions/v1/game-sync',
   'SEU-CRON-SECRET', '{"action":"enrich-batch","limit":40}'::jsonb, '0 8 * * *');
 ```
+
+Agendar o refresh do catálogo (o que pega jogo novo + adiamento, TODAS as
+plataformas):
+```sql
+select public.setup_import_cron('igdb-refresh',
+  'https://SEU-PROJETO.supabase.co/functions/v1/igdb-refresh',
+  'SEU-CRON-SECRET', '{}'::jsonb, '0 6 * * *');
+```
+Carga inicial de TUDO (uma vez, local — o refresh mantém depois):
+`npm run import -- --source=igdb --platform=all --all`
 
 ### Isto NÃO tem cron — roda só quando VOCÊ chama `npm run import` (local):
 
@@ -83,10 +94,9 @@ select public.setup_import_cron('enrich-cron',
 
 ## Lacunas conhecidas (honestidade)
 
-1. **Jogos já no catálogo NÃO se atualizam.** Se um jogo mudar de data ou for
-   adiado no IGDB, o nosso registro fica como estava — o `igdb-sync` ignora
-   duplicados. A ÚNICA exceção é o `igdb-upcoming` (CLI), que atualiza os
-   não-lançados. Um cron de "refresh" resolveria; ainda não existe.
+1. ~~Jogos já no catálogo não se atualizam~~ → **RESOLVIDO** pelo `igdb-refresh`
+   (cron diário): pega o que mudou no IGDB por `updated_at` e atualiza data,
+   plataformas, hypes e tba. Falta agendar (comando acima).
 2. **Hacks/traduções/tools dependem de você rodar o import local.** Não há cron
    puxando o RHDN todo dia.
 3. **Metacritic/HLTB é incremental.** São 84 mil jogos; o cron faz ~40/dia

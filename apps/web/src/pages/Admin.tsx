@@ -747,6 +747,24 @@ function LinkQueuePanel() {
   const [bulkSync, setBulkSync] = useState<{ done: number; total: number } | null>(null);
   const [merging, setMerging] = useState(false);
   const [enriching, setEnriching] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  /**
+   * "Buscar novos (IGDB)": roda o mesmo refresh do cron diário — pega os jogos
+   * criados/alterados no IGDB desde a última vez, em todas as plataformas.
+   */
+  async function runIgdbRefresh() {
+    setRefreshing(true);
+    try {
+      const d = await invokeFn<{ criados?: number; atualizados?: number }>('igdb-refresh', {});
+      toast.success(t('admin:refreshDone', { criados: d?.criados ?? 0, atualizados: d?.atualizados ?? 0 }));
+      void qc.invalidateQueries({ queryKey: ['games'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   /**
    * "Enriquecer agora": roda o MESMO lote do cron diário (Metacritic + HLTB),
@@ -938,6 +956,10 @@ function LinkQueuePanel() {
         <span style={{ display: 'flex', gap: 'var(--s2)', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Button variant="primary" size="sm" onClick={() => void bulkSyncIgdb()} disabled={bulkSync !== null}>
             {bulkSync ? `${bulkSync.done}/${bulkSync.total}` : t('admin:bulkSyncNow')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void runIgdbRefresh()} disabled={refreshing}
+            title={t('admin:refreshHint')}>
+            {refreshing ? <Spinner /> : t('admin:refreshNow')}
           </Button>
           <Button variant="secondary" size="sm" onClick={() => void runEnrich()} disabled={enriching}
             title={t('admin:enrichHint')}>

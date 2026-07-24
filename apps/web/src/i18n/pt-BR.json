@@ -1048,7 +1048,10 @@
     "addEnriched": "Enriquecido: {{list}}.",
     "enrichNow": "Enriquecer agora",
     "enrichHint": "Roda o lote de Metacritic + HowLongToBeat (o mesmo do cron diario), priorizando os jogos das estantes",
-    "enrichDone": "Enriquecidos: {{hltb}} HLTB + {{mc}} Metacritic (de {{tried}})."
+    "enrichDone": "Enriquecidos: {{hltb}} HLTB + {{mc}} Metacritic (de {{tried}}).",
+    "refreshNow": "Buscar novos (IGDB)",
+    "refreshHint": "Pega os jogos criados/alterados no IGDB desde a última vez, em todas as plataformas (o mesmo do cron diário)",
+    "refreshDone": "IGDB: {{criados}} novos, {{atualizados}} atualizados."
   },
   "community": {
     "reviewsTitle": "Avaliações",

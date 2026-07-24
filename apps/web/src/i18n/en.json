@@ -1048,7 +1048,10 @@
     "addEnriched": "Enriched: {{list}}.",
     "enrichNow": "Enrich now",
     "enrichHint": "Runs the Metacritic + HowLongToBeat batch (same as the daily cron), prioritizing shelf games",
-    "enrichDone": "Enriched: {{hltb}} HLTB + {{mc}} Metacritic (of {{tried}})."
+    "enrichDone": "Enriched: {{hltb}} HLTB + {{mc}} Metacritic (of {{tried}}).",
+    "refreshNow": "Fetch new (IGDB)",
+    "refreshHint": "Pulls games created/changed on IGDB since last time, across all platforms (same as the daily cron)",
+    "refreshDone": "IGDB: {{criados}} new, {{atualizados}} updated."
   },
   "community": {
     "reviewsTitle": "Reviews",
