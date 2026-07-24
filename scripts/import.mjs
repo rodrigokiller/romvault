@@ -398,6 +398,85 @@ async function importIgdb(sb) {
   return igdbSweepPlatform(sb, platformKey, platformId);
 }
 
+/**
+ * REFRESH incremental do catalogo: pega o que MUDOU no IGDB (updated_at) em
+ * TODAS as plataformas acompanhadas. Espelha a edge igdb-refresh (o cron):
+ * cria os novos e atualiza SO o volatil dos existentes (data/plataformas/
+ * hypes/tba). Cursor compartilhado com o cron em sync_state (entity='refresh').
+ *   npm run import -- --source=igdb-refresh
+ *   npm run import -- --source=igdb-refresh --pages=20   # janela maior
+ */
+async function importIgdbRefresh(sb) {
+  const auth = await igdbToken();
+  const perPage = 500;
+  const maxPages = Math.min(Number(flag('pages', 6)) || 6, 60);
+  const trackedIds = [...new Set(Object.values(IGDB_PLATFORMS))];
+
+  step('IGDB refresh — jogos criados/alterados (updated_at), todas as plataformas');
+  let cursor = 0;
+  if (!DRY) {
+    const { data: ss } = await sb.from('sync_state').select('cursor').eq('source', 'igdb').eq('entity', 'refresh').maybeSingle();
+    cursor = Number(ss?.cursor ?? 0) || 0;
+  }
+  if (!cursor) cursor = Math.floor(Date.now() / 1000) - 3 * 86400; // 1a vez: 3 dias
+  const start = cursor;
+  log(`  cursor inicial: ${cursor} (${new Date(cursor * 1000).toISOString().slice(0, 10)})`);
+
+  const fields =
+    'fields id,name,updated_at,summary,first_release_date,hypes,slug,cover.url,screenshots.url,genres.name,' +
+    'platforms.id,platforms.name,game_modes.name,themes.name,franchises.name,collection.name,game_type,' +
+    'alternative_names.name,involved_companies.developer,involved_companies.publisher,involved_companies.company.name;';
+  const stats = { criados: 0, atualizados: 0, pulados: 0 };
+
+  for (let page = 0; page < maxPages; page++) {
+    const games = await igdbQuery(auth, 'games',
+      `${fields} where updated_at > ${cursor} & game_type = (0,8,9,10,11) & platforms = (${trackedIds.join(',')}); sort updated_at asc; limit ${perPage};`);
+    if (games.length === 0) { log(c.amber('  (sem mais alteracoes)')); break; }
+
+    const { data: have } = await sb.from('games')
+      .select('id, igdb_id, cover_url, platforms, release_date').in('igdb_id', games.map((g) => g.id));
+    const byIgdb = new Map((have ?? []).map((h) => [Number(h.igdb_id), h]));
+
+    for (const g of games) {
+      cursor = Math.max(cursor, Number(g.updated_at) || cursor);
+      const shorts = (g.platforms ?? []).map((p) => PLATFORM_SHORT[p.id]).filter(Boolean);
+      const row = igdbToGame(g, shorts[0] ?? 'PC');
+      const extra = { hypes: typeof g.hypes === 'number' ? g.hypes : null, tba: !g.first_release_date };
+      const cur = byIgdb.get(g.id);
+
+      if (cur) {
+        const patch = { ...extra };
+        if (row.release_date !== cur.release_date) patch.release_date = row.release_date;
+        const union = [...new Set([...(cur.platforms ?? []), ...row.platforms])];
+        if (union.length !== (cur.platforms ?? []).length) patch.platforms = union;
+        if (!cur.cover_url && row.cover_url) { patch.cover_url = row.cover_url; patch.thumbnail = row.thumbnail; }
+        if (!DRY) await sb.from('games').update(patch).eq('id', cur.id);
+        stats.atualizados++;
+        continue;
+      }
+      if (DRY) { stats.criados++; itemLog(stats.criados, `  ${c.dim('[dry]')} ${row.slug} ${c.dim('igdb:' + g.id)}`); continue; }
+      let ins = await sb.from('games').insert({ ...row, ...extra }).select('id').single();
+      if (ins.error && /duplicate|unique/i.test(ins.error.message)) {
+        if (/igdb_id/i.test(ins.error.message)) { stats.pulados++; continue; }
+        ins = await sb.from('games').insert({ ...row, ...extra, slug: `${row.slug}-${g.id}` }).select('id').single();
+      }
+      if (ins.error) { stats.pulados++; continue; }
+      stats.criados++;
+      itemLog(stats.criados, `  ${c.green('+')} ${row.title} ${c.dim('igdb:' + g.id)}`);
+    }
+    log(c.dim(`  … pagina ${page + 1}: +${stats.criados} / ~${stats.atualizados} (cursor ${cursor})`));
+    if (games.length < perPage) break;
+  }
+
+  if (!DRY && cursor > start) {
+    await sb.from('sync_state').upsert(
+      { source: 'igdb', entity: 'refresh', cursor: String(cursor), status: 'idle', last_sync_at: new Date().toISOString(), items_processed: stats.criados + stats.atualizados },
+      { onConflict: 'source,entity' },
+    );
+  }
+  return stats;
+}
+
 /** Varre UMA plataforma do IGDB (cursor incremental proprio). */
 async function igdbSweepPlatform(sb, platformKey, platformId) {
   const limit = Math.min(Number(flag('limit', 50)) || 50, 500);
@@ -1342,6 +1421,8 @@ async function main() {
     stats = await importPurgeMods(sb);
   } else if (SOURCE === 'igdb-upcoming') {
     stats = await importIgdbUpcoming(sb);
+  } else if (SOURCE === 'igdb-refresh') {
+    stats = await importIgdbRefresh(sb);
   } else if (SOURCE === 'igdb-backfill') {
     stats = await importIgdbBackfill(sb);
   } else if (SOURCE === 'reset-sync') {
@@ -1401,7 +1482,7 @@ async function main() {
     log(c.red(`✖ source desconhecido: "${SOURCE}" — falta um git pull?`));
     log('  Conhecidos: dataset, igdb, igdb-backfill, smwc, rhdn, pobre, covers,');
     log('  covers-libretro, mobygames, screenscraper, langs-igdb, purge-mods,');
-    log('  dedupe, enrich, platform-wiki, igdb-upcoming, soundtracks, reset-sync, all');
+    log('  dedupe, enrich, platform-wiki, igdb-upcoming, igdb-refresh, soundtracks, reset-sync, all');
     process.exit(1);
   }
 
