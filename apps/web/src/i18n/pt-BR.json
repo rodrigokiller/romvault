@@ -224,10 +224,10 @@
     "ostEditionSet": "Edição trocada ({{count}} faixas).",
     "ostProvider": "Provedor",
     "ostEditionDefault": "(edição padrão)",
-    "ostListen": "Ouvir no Deezer",
-    "ostFindStream": "buscar no Deezer",
-    "ostStreamFound": "Encontrado no Deezer!",
-    "ostStreamNone": "Este álbum não está no Deezer."
+    "ostFindStream": "buscar streaming",
+    "ostStreamFound": "Achado em {{n}} serviço(s)!",
+    "ostStreamNone": "Não achei em nenhum serviço de streaming.",
+    "ostRefreshStream": "atualizar streaming"
   },
   "entities": {
     "kindGame": "Jogo",

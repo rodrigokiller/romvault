@@ -78,7 +78,9 @@ function AlbumCard({ album, tracks, canCurate, onRemove, onChangeEdition, onFind
   // o álbum sabe de onde veio; os dois provedores têm página e edições
   const mbid = album.external_ids?.musicbrainz;
   const dgid = album.external_ids?.discogs;
-  const deezer = album.external_ids?.deezer;
+  const ext = album.external_ids ?? {};
+  const streams = ([['deezer', 'Deezer'], ['spotify', 'Spotify'], ['tidal', 'Tidal']] as const)
+    .filter(([k]) => ext[k]);
   return (
     <article className="ost-card">
       <div className="ost-cover">
@@ -128,15 +130,16 @@ function AlbumCard({ album, tracks, canCurate, onRemove, onChangeEdition, onFind
             <a className="section-link mono" href={`https://www.discogs.com/master/${dgid}`}
               target="_blank" rel="noreferrer">Discogs →</a>
           )}
-          {deezer && (
-            <a className="ost-listen mono" href={deezer} target="_blank" rel="noreferrer">
-              <Play size={12} /> {t('games:ostListen')}
+          {streams.map(([k, label]) => (
+            <a key={k} className="ost-listen mono" href={ext[k]} target="_blank" rel="noreferrer">
+              <Play size={12} /> {label}
             </a>
-          )}
-          {canCurate && !deezer && (
+          ))}
+          {canCurate && (
             <button type="button" className="ost-toggle mono" disabled={findingStream}
               onClick={() => onFindStream(album.id)}>
-              {findingStream ? <Spinner /> : <Play size={12} />} {t('games:ostFindStream')}
+              {findingStream ? <Spinner /> : <Play size={12} />}
+              {streams.length > 0 ? t('games:ostRefreshStream') : t('games:ostFindStream')}
             </button>
           )}
           {canCurate && (mbid || dgid) && (
@@ -308,8 +311,9 @@ export function Soundtracks({ gameId, gameTitle }: { gameId: string; gameTitle: 
   async function findStream(id: string) {
     setStreaming(id);
     try {
-      const d = await invokeFn<{ deezer?: string | null }>('soundtrack-import', { action: 'streaming', id });
-      toast.success(d?.deezer ? t('games:ostStreamFound') : t('games:ostStreamNone'));
+      const d = await invokeFn<{ streaming?: string[] }>('soundtrack-import', { action: 'streaming', id });
+      const n = d?.streaming?.length ?? 0;
+      toast.success(n > 0 ? t("games:ostStreamFound", { n }) : t('games:ostStreamNone'));
       void qc.invalidateQueries({ queryKey: ['soundtracks', gameId] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('forms:submitError'));

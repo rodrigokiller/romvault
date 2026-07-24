@@ -117,6 +117,74 @@ async function deezerFor(title: string, artist: string | null): Promise<string |
   } catch { return null; }
 }
 
+/* ── Spotify (client-credentials: só catálogo, sem login de usuário) ── */
+async function oauthToken(tokenUrl: string, id?: string, secret?: string): Promise<string | null> {
+  if (!id || !secret) return null;
+  try {
+    const r = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { Authorization: `Basic ${btoa(`${id}:${secret}`)}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'grant_type=client_credentials',
+    });
+    if (!r.ok) return null;
+    return String((await r.json())?.access_token ?? '') || null;
+  } catch { return null; }
+}
+
+async function spotifyFor(title: string, artist: string | null): Promise<string | null> {
+  const tok = await oauthToken('https://accounts.spotify.com/api/token',
+    Deno.env.get('SPOTIFY_CLIENT_ID'), Deno.env.get('SPOTIFY_CLIENT_SECRET'));
+  if (!tok) return null;
+  try {
+    const q = `${artist ?? ''} ${title}`.trim();
+    const r = await fetch(`https://api.spotify.com/v1/search?type=album&limit=10&q=${encodeURIComponent(q)}`,
+      { headers: { Authorization: `Bearer ${tok}` } });
+    if (!r.ok) return null;
+    // deno-lint-ignore no-explicit-any
+    const items = ((await r.json())?.albums?.items ?? []) as any[];
+    const nosso = albumCore(title);
+    if (nosso.length === 0) return null;
+    const hit = items.find((a) => {
+      const dt = norm(a?.name ?? '');
+      // deno-lint-ignore no-explicit-any
+      const da = (a?.artists ?? []).map((x: any) => norm(x?.name ?? '')).join(' ');
+      return nosso.every((w) => dt.includes(w)) && (!artist || da.includes(norm(artist).split(' ')[0]));
+    });
+    return hit?.external_urls?.spotify ?? null;
+  } catch { return null; }
+}
+
+/* ── Tidal (API v2 openapi.tidal.com, JSON:API). Best-effort: qualquer forma
+   inesperada vira null, nunca derruba o resto. Sem checagem de artista (o search
+   deles não devolve o artista junto do álbum sem includes extras). ── */
+async function tidalFor(title: string): Promise<string | null> {
+  const tok = await oauthToken('https://auth.tidal.com/v1/oauth2/token',
+    Deno.env.get('TIDAL_CLIENT_ID'), Deno.env.get('TIDAL_CLIENT_SECRET'));
+  if (!tok) return null;
+  try {
+    const q = encodeURIComponent(`${title}`.trim());
+    const r = await fetch(`https://openapi.tidal.com/v2/searchResults/${q}?countryCode=US&include=albums`,
+      { headers: { Authorization: `Bearer ${tok}`, Accept: 'application/vnd.api+json' } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    // deno-lint-ignore no-explicit-any
+    const albums = ((j?.included ?? []) as any[]).filter((x) => x?.type === 'albums');
+    const nosso = albumCore(title);
+    if (nosso.length === 0) return null;
+    const hit = albums.find((a) => nosso.every((w) => norm(a?.attributes?.title ?? '').includes(w)));
+    return hit?.id ? `https://tidal.com/browse/album/${hit.id}` : null;
+  } catch { return null; }
+}
+
+/** Procura o álbum nos serviços de streaming — só devolve o que existe lá. */
+async function resolveStreaming(title: string, artist: string | null): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  const dz = await deezerFor(title, artist); if (dz) out.deezer = dz;
+  const sp = await spotifyFor(title, artist); if (sp) out.spotify = sp;
+  const td = await tidalFor(title); if (td) out.tidal = td;
+  return out;
+}
+
 /* ─────────────────────────── DISCOGS ────────────────────────────────────────
  * API oficial. O token (DISCOGS_TOKEN, pessoal e grátis) sobe o limite de 25
  * pra 60 req/min E é o que faz a busca devolver CAPA — sem ele `thumb` volta
@@ -423,14 +491,14 @@ Deno.serve(async (req: Request) => {
               .upsert(rows.slice(i, i + 200), { onConflict: 'soundtrack_id,disc,position', ignoreDuplicates: true });
           }
         }
-        // streaming (best-effort): só linka se existir com confiança
-        const dz = await deezerFor(String(master.title ?? ''), artists[0] ?? null);
-        if (dz) {
+        // streaming (best-effort): só linka os serviços onde o álbum existe
+        const streams = await resolveStreaming(String(master.title ?? ''), artists[0] ?? null);
+        if (Object.keys(streams).length > 0) {
           await admin.from('game_soundtracks')
-            .update({ external_ids: { ...(relId ? { discogs: mbid, discogs_release: relId } : { discogs: mbid }), deezer: dz } })
+            .update({ external_ids: { ...(relId ? { discogs: mbid, discogs_release: relId } : { discogs: mbid }), ...streams } })
             .eq('id', created.id);
         }
-        return json({ ok: true, action, provider, id: created.id, title: created.title, tracks: tracks.length, deezer: Boolean(dz) });
+        return json({ ok: true, action, provider, id: created.id, title: created.title, tracks: tracks.length, streaming: Object.keys(streams) });
       }
 
       const { data: dup } = await admin.from('game_soundtracks')
@@ -488,26 +556,28 @@ Deno.serve(async (req: Request) => {
             .upsert(rows.slice(i, i + 200), { onConflict: 'soundtrack_id,disc,position', ignoreDuplicates: true });
         }
       }
-      const dz = await deezerFor(String(rg.title ?? ''), artists[0] ?? null);
-      if (dz) {
+      const streams = await resolveStreaming(String(rg.title ?? ''), artists[0] ?? null);
+      if (Object.keys(streams).length > 0) {
         await admin.from('game_soundtracks')
-          .update({ external_ids: { ...row.external_ids, deezer: dz } }).eq('id', created.id);
+          .update({ external_ids: { ...row.external_ids, ...streams } }).eq('id', created.id);
       }
-      return json({ ok: true, action, id: created.id, title: created.title, tracks: tracks.length, cover: Boolean(cover), deezer: Boolean(dz) });
+      return json({ ok: true, action, id: created.id, title: created.title, tracks: tracks.length, cover: Boolean(cover), streaming: Object.keys(streams) });
     }
 
-    /* ── streaming: (re)procura o álbum no Deezer p/ um já cadastrado ── */
+    /* ── streaming: (re)procura o álbum nos serviços p/ um já cadastrado ── */
     if (action === 'streaming') {
       const id = String(body.id ?? '');
       if (!id) return json({ error: 'Informe o id do álbum.' }, 400);
       const { data: alb } = await admin.from('game_soundtracks')
         .select('title, composer, external_ids').eq('id', id).maybeSingle();
       if (!alb) return json({ error: 'Álbum não encontrado.' }, 404);
-      const dz = await deezerFor(String(alb.title), (alb.composer as string | null) ?? null);
+      const streams = await resolveStreaming(String(alb.title), (alb.composer as string | null) ?? null);
       const ext = { ...((alb.external_ids as Record<string, string> | null) ?? {}) };
-      if (dz) ext.deezer = dz; else delete ext.deezer;
+      for (const k of ['deezer', 'spotify', 'tidal']) {
+        if (streams[k]) ext[k] = streams[k]; else delete ext[k];
+      }
       await admin.from('game_soundtracks').update({ external_ids: ext }).eq('id', id);
-      return json({ ok: true, action, deezer: dz });
+      return json({ ok: true, action, streaming: Object.keys(streams) });
     }
 
     return json({ error: `Ação desconhecida: ${action}` }, 400);

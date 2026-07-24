@@ -373,12 +373,33 @@ function igdbToGame(g, primaryShort) {
 
 async function importIgdb(sb) {
   const platformKey = String(flag('platform', 'snes')).toLowerCase();
+  // --platform=all varre TODAS as plataformas conhecidas. Antes, `--all` sozinho
+  // pegava todas as PAGINAS de UMA plataforma (a default = snes) — o que dava a
+  // impressao de "importei tudo" quando na verdade so importava SNES. Um jogo de
+  // PC (ex.: Phonopolis) nunca entrava porque a plataforma PC nunca era varrida.
+  if (platformKey === 'all') {
+    const seen = new Set();
+    const totals = { games: 0, enriched: 0, skipped: 0, mapped: 0 };
+    for (const [key, pid] of Object.entries(IGDB_PLATFORMS)) {
+      if (seen.has(pid)) continue; // ignora aliases do mesmo id (pc/windows, gb/gameboy)
+      seen.add(pid);
+      const s = await igdbSweepPlatform(sb, key, pid);
+      for (const k of Object.keys(totals)) totals[k] += (s[k] ?? 0);
+    }
+    step('IGDB — todas as plataformas concluidas');
+    return totals;
+  }
   const platformId = IGDB_PLATFORMS[platformKey];
   if (!platformId) {
     log(c.red(`✖ plataforma desconhecida: ${platformKey}`));
-    log('  Conhecidas: ' + Object.keys(IGDB_PLATFORMS).join(', '));
+    log('  Conhecidas: ' + Object.keys(IGDB_PLATFORMS).join(', ') + ', all');
     process.exit(1);
   }
+  return igdbSweepPlatform(sb, platformKey, platformId);
+}
+
+/** Varre UMA plataforma do IGDB (cursor incremental proprio). */
+async function igdbSweepPlatform(sb, platformKey, platformId) {
   const limit = Math.min(Number(flag('limit', 50)) || 50, 500);
   const all = Boolean(flag('all', false));
   const pages = all ? 1000 : (Number(flag('pages', 1)) || 1);
