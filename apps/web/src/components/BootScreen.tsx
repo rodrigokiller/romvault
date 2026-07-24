@@ -39,9 +39,10 @@ export function BootScreen({ minMs = 2400 }: { minMs?: number }) {
       <svg className="boot-glyph" viewBox="0 0 32 32" width="104" height="104" aria-label={t('common:appName')}>
         <rect className="boot-sq" x="1.5" y="1.5" width="29" height="29" fill="none"
           stroke="var(--accent)" strokeWidth="2" />
-        <path className="boot-prompt" d="M8 11 L12 16 L8 21" fill="none"
+        {/* o ">" aparece e FICA; só o "_" pisca, como o cursor de um terminal */}
+        <path className="boot-arrow" d="M8 11 L12 16 L8 21" fill="none"
           stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="square" />
-        <rect className="boot-prompt" x="15" y="19.8" width="9" height="2.4" fill="var(--accent)" />
+        <rect className="boot-cursor" x="15" y="19.8" width="9" height="2.4" fill="var(--accent)" />
       </svg>
       <span className="boot-word mono">ROMVAULT</span>
       <ul className="boot-steps">

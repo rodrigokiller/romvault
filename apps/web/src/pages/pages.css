@@ -4303,10 +4303,16 @@ button.heat-cell::after {
   animation: boot-draw 800ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
 @keyframes boot-draw { to { stroke-dashoffset: 0; } }
-/* o ">_" fica escondido enquanto o quadrado desenha, depois pisca junto */
-.boot-prompt {
+/* o ">" aparece depois do quadrado e FICA aceso */
+.boot-arrow {
   opacity: 0;
-  animation: boot-blink 1.05s steps(1) 0.9s infinite;
+  animation: boot-appear 260ms ease-out 0.82s forwards;
+}
+@keyframes boot-appear { to { opacity: 1; } }
+/* só o "_" pisca — o cursor do terminal */
+.boot-cursor {
+  opacity: 0;
+  animation: boot-blink 1.05s steps(1) 0.95s infinite;
 }
 @keyframes boot-blink { 0%, 55% { opacity: 1; } 55.01%, 100% { opacity: 0; } }
 .boot-word {
@@ -4338,7 +4344,7 @@ button.heat-cell::after {
 .boot-step.is-on .boot-dot { background: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   .boot-sq { animation: none; stroke-dashoffset: 0; }
-  .boot-prompt { animation: none; opacity: 1; }
+  .boot-arrow, .boot-cursor { animation: none; opacity: 1; }
   .boot-step { transition: none; opacity: 1; }
 }
 

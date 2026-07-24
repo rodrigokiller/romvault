@@ -317,10 +317,6 @@
     padding: 0 var(--s4);
     gap: var(--s3);
   }
-  /* logo só o glifo (sem o "ROMVault"): devolve espaço */
-  .logo-word {
-    display: none;
-  }
   /* busca vira um ícone quadrado — abre o Ctrl+K, não é campo */
   .header-search-btn {
     flex: 0 0 auto;

@@ -122,6 +122,11 @@
   gap: 3px;
   flex-shrink: 0;
 }
+/* no mobile só cabe UMA plataforma por resultado — esconde o resto (o
+   aria-label da .cmdk-badges continua listando todas pro leitor de tela) */
+@media (max-width: 640px) {
+  .cmdk-badge:not(:first-child) { display: none; }
+}
 /*
  * Nome de plataforma é INFORMAÇÃO, não enfeite: precisa ser lido de relance.
  * Antes: 0.62rem (~10px), fundo transparente e, na linha selecionada, texto
