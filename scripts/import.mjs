@@ -438,7 +438,8 @@ async function importIgdbRefresh(sb) {
     if (games.length === 0) { log(c.amber('  (sem mais alteracoes)')); break; }
 
     const { data: have } = await sb.from('games')
-      .select('id, igdb_id, cover_url, platforms, release_date').in('igdb_id', games.map((g) => g.id));
+      .select('id, igdb_id, cover_url, platforms, release_date, screenshots, genres, description, developer, franchise')
+      .in('igdb_id', games.map((g) => g.id));
     const byIgdb = new Map((have ?? []).map((h) => [Number(h.igdb_id), h]));
 
     for (const g of games) {
@@ -449,11 +450,17 @@ async function importIgdbRefresh(sb) {
       const cur = byIgdb.get(g.id);
 
       if (cur) {
+        // volátil sempre; texto/mídia só PREENCHE se estiver vazio (sem pisar em curadoria)
         const patch = { ...extra };
         if (row.release_date !== cur.release_date) patch.release_date = row.release_date;
         const union = [...new Set([...(cur.platforms ?? []), ...row.platforms])];
         if (union.length !== (cur.platforms ?? []).length) patch.platforms = union;
         if (!cur.cover_url && row.cover_url) { patch.cover_url = row.cover_url; patch.thumbnail = row.thumbnail; }
+        if (!(cur.screenshots?.length) && row.screenshots.length) patch.screenshots = row.screenshots;
+        if (!(cur.genres?.length) && row.genres.length) patch.genres = row.genres;
+        if (!cur.description && row.description) patch.description = row.description;
+        if (!cur.developer && row.developer) { patch.developer = row.developer; patch.developers = row.developers; }
+        if (!cur.franchise && row.franchise) patch.franchise = row.franchise;
         if (!DRY) await sb.from('games').update(patch).eq('id', cur.id);
         stats.atualizados++;
         continue;
