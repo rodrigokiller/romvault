@@ -1,44 +1,17 @@
 import { Link, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  Settings, LogIn, LogOut, User as UserIcon, Shield, Upload, Search, ChevronDown,
+  LogIn, Search, ChevronDown, User as UserIcon,
   Gamepad2, Languages, Sparkles, Wrench, FileText, Layers, Newspaper,
   Users, Trophy, BarChart3, Library, Store, MonitorPlay, CalendarClock,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { getSupabase } from '@/lib/supabase';
-import { env } from '@/lib/env';
 import { Logo } from './Logo';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { openPalette } from './CommandPalette';
 import { NotificationsBell } from './NotificationsBell';
+import { UserMenu } from './UserMenu';
 import { useAuth } from '@/auth/AuthProvider';
-import { useIsAdmin } from '@/hooks/useProfile';
 import './header.css';
-
-/** Escudo do admin com contador de reportes abertos (a fila te acha). */
-function AdminShield({ label }: { label: string }) {
-  const { data: open = 0 } = useQuery({
-    queryKey: ['openReports'],
-    enabled: env.configured,
-    staleTime: 60_000,
-    refetchInterval: 5 * 60_000,
-    queryFn: async () => {
-      const { count } = await (getSupabase() as unknown as SupabaseClient)
-        .from('reports')
-        .select('*', { count: 'exact', head: true })
-        .is('resolved_at', null);
-      return count ?? 0; // RLS: não-admin recebe 0
-    },
-  });
-  return (
-    <Link to="/admin" className="header-icon-btn bell-btn" aria-label={label} title={label}>
-      <Shield aria-hidden />
-      {open > 0 && <span className="bell-dot mono">{open > 9 ? '9+' : open}</span>}
-    </Link>
-  );
-}
 
 /** Item de dropdown da nav (submenu terminal: hover/focus abre pra baixo). */
 interface DropItem {
@@ -70,8 +43,7 @@ function NavDrop({ label, items }: { label: string; items: DropItem[] }) {
 /** Cabeçalho reutilizável, presente em todas as páginas. */
 export function Header() {
   const { t } = useTranslation();
-  const { session, user, signOut } = useAuth();
-  const isAdmin = useIsAdmin();
+  const { session, user } = useAuth();
 
   const username =
     (user?.user_metadata?.username as string | undefined) ??
@@ -131,48 +103,22 @@ export function Header() {
           <kbd className="header-search-kbd">Ctrl K</kbd>
         </button>
 
+        {/* direita enxuta: logado = sino + avatar (o resto vive no menu do
+            usuário). Deslogado = idioma + entrar. */}
         <div className="header-right">
-          <NotificationsBell />
-          <LanguageSwitcher />
-          {isAdmin && <AdminShield label={t('nav:admin')} />}
-          {/* Enviar saiu da nav (catálogo ocupou o espaço) — ícone sempre visível */}
-          <Link
-            to="/submit"
-            className="header-icon-btn"
-            aria-label={t('nav:submit')}
-            title={t('nav:submit')}
-          >
-            <Upload aria-hidden />
-          </Link>
-          <Link
-            to="/settings"
-            className="header-icon-btn"
-            aria-label={t('nav:settings')}
-            title={t('nav:settings')}
-          >
-            <Settings aria-hidden />
-          </Link>
           {session ? (
             <>
-              <Link to={`/u/${username}`} className="header-user" title={t('nav:profile')}>
-                <UserIcon aria-hidden />
-                <span className="header-user-name">{username}</span>
-              </Link>
-              <button
-                type="button"
-                className="header-icon-btn"
-                onClick={() => void signOut()}
-                aria-label={t('nav:logout')}
-                title={t('nav:logout')}
-              >
-                <LogOut aria-hidden />
-              </button>
+              <NotificationsBell />
+              <UserMenu username={username} />
             </>
           ) : (
-            <Link to="/login" className="header-login">
-              <LogIn aria-hidden />
-              <span>{t('nav:login')}</span>
-            </Link>
+            <>
+              <LanguageSwitcher />
+              <Link to="/login" className="header-login">
+                <LogIn aria-hidden />
+                <span>{t('nav:login')}</span>
+              </Link>
+            </>
           )}
         </div>
       </div>

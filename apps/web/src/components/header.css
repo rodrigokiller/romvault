@@ -224,6 +224,56 @@
   white-space: nowrap;
 }
 
+/* Menu do usuário (avatar → dropdown com tudo) */
+.user-menu { position: relative; }
+.user-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 var(--s2) 0 var(--s3);
+  background: transparent;
+  border: 1px solid var(--line-bright);
+  border-radius: var(--radius);
+  color: var(--ink-bright);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color var(--t-fast);
+}
+.user-menu-btn:hover { border-color: var(--accent); }
+.user-menu-btn > svg:first-child { width: 15px; height: 15px; color: var(--accent); flex-shrink: 0; }
+.user-menu-name {
+  font-family: var(--mono);
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-menu-caret { width: 12px; height: 12px; color: var(--muted); transition: transform var(--t-fast); }
+.user-menu-btn[aria-expanded='true'] .user-menu-caret { transform: rotate(180deg); }
+.user-menu-btn .bell-dot { position: absolute; top: -5px; right: -5px; }
+.user-menu-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 210px;
+  padding: var(--s1) 0;
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.user-menu-pop .nav-drop-item { width: 100%; background: transparent; border: none; cursor: pointer; text-align: left; }
+.user-menu-sep { height: 1px; margin: var(--s1) 0; background: var(--line); }
+.user-menu-badge {
+  margin-left: auto;
+  padding: 0 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-bright);
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
 .header-login {
   display: inline-flex;
   align-items: center;
@@ -263,14 +313,27 @@
   .header-nav {
     display: none;
   }
-  .header-user-name {
-    display: none;
-  }
-  .header-icon-btn-mobile {
-    display: inline-flex;
-  }
   .site-header-inner {
     padding: 0 var(--s4);
     gap: var(--s3);
+  }
+  /* logo só o glifo (sem o "ROMVault"): devolve espaço */
+  .logo-word {
+    display: none;
+  }
+  /* busca vira um ícone quadrado — abre o Ctrl+K, não é campo */
+  .header-search-btn {
+    flex: 0 0 auto;
+    width: 34px;
+    max-width: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+  /* nome do usuário some; fica só o avatar + chevron */
+  .user-menu-name {
+    display: none;
+  }
+  .user-menu-btn {
+    padding: 0 var(--s2);
   }
 }

@@ -4281,7 +4281,8 @@ button.heat-cell::after {
   border: 1px solid color-mix(in oklab, var(--plat-accent, var(--line)) 40%, var(--line));
 }
 /* ── tela de abertura (F5 / pós-login) ──────────────────────────────────────
-   A marca é um chip de ROM se preenchendo: é o que o site faz de verdade. */
+   O glifo do site se desenha (o quadrado traça a borda) e o prompt ">_" pisca,
+   como um terminal ligando. Backup da versão "chip" em BootScreen.chip.bak.tsx. */
 .boot {
   position: fixed;
   inset: 0;
@@ -4292,49 +4293,39 @@ button.heat-cell::after {
   justify-content: center;
   gap: var(--s4);
   background: var(--bg);
+  text-align: center;
 }
-.boot-mark {
-  display: grid;
-  grid-template-columns: repeat(4, 14px);
-  gap: 3px;
+.boot-glyph { display: block; }
+/* o quadrado se desenha: dasharray = perímetro (4×29 ≈ 116) */
+.boot-sq {
+  stroke-dasharray: 116;
+  stroke-dashoffset: 116;
+  animation: boot-draw 800ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
-.boot-bit {
-  width: 14px;
-  height: 14px;
-  background: var(--line);
-  animation: boot-fill 1.5s var(--t-ease, cubic-bezier(0.22, 1, 0.36, 1)) infinite;
+@keyframes boot-draw { to { stroke-dashoffset: 0; } }
+/* o ">_" fica escondido enquanto o quadrado desenha, depois pisca junto */
+.boot-prompt {
+  opacity: 0;
+  animation: boot-blink 1.05s steps(1) 0.9s infinite;
 }
-@keyframes boot-fill {
-  0%, 100% { background: var(--line); transform: scale(0.82); }
-  40%, 60% { background: var(--accent); transform: scale(1); }
-}
+@keyframes boot-blink { 0%, 55% { opacity: 1; } 55.01%, 100% { opacity: 0; } }
 .boot-word {
   color: var(--ink-bright);
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: 0.22em;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  letter-spacing: 0.24em;
 }
-.boot-caret {
-  width: 9px;
-  height: 1.05em;
-  background: var(--accent);
-  animation: boot-caret 1s steps(1) infinite;
-}
-@keyframes boot-caret { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
 .boot-steps {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 6px;
-  width: 15rem;
 }
 .boot-step {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--s2);
   color: var(--muted);
@@ -4346,8 +4337,8 @@ button.heat-cell::after {
 .boot-dot { width: 6px; height: 6px; flex-shrink: 0; background: var(--line-bright); }
 .boot-step.is-on .boot-dot { background: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
-  .boot-bit, .boot-caret { animation: none; }
-  .boot-bit { background: var(--accent); transform: none; }
+  .boot-sq { animation: none; stroke-dashoffset: 0; }
+  .boot-prompt { animation: none; opacity: 1; }
   .boot-step { transition: none; opacity: 1; }
 }
 

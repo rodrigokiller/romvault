@@ -4,20 +4,14 @@ import { useTranslation } from 'react-i18next';
 /**
  * Tela de abertura do ROMVault (F5 e logo após o login).
  *
- * A ideia é a mesma do Jhourney: a espera mostra o PRODUTO em vez de um círculo
- * girando. Aqui a marca é um chip de ROM — os blocos de memória vão sendo
- * preenchidos, que é literalmente o que o site faz (carregar o acervo). Depois
- * o nome aparece, em monoespaçado, como um terminal.
+ * A marca É o produto: o glifo do site — um quadrado de terminal com o prompt
+ * ">_" dentro — se DESENHA (o quadrado traça a borda, linha por linha) e então
+ * o ">_" pisca, como um console ligando. A espera vira "o terminal bootando" em
+ * vez de um círculo girando.
  *
- * As etapas existem porque a espera tem causa: verificar a sessão e carregar o
- * catálogo são duas idas ao servidor. Dizer em qual delas está transforma
- * "travou" em "está fazendo algo".
+ * Backup da versão anterior (chip de ROM se preenchendo) em
+ * BootScreen.chip.bak.tsx — o Killer gostou dela e quis poder voltar.
  */
-
-/* 4x4: a ordem de preenchimento é em diagonal, fica mais orgânico que linha a linha */
-const BLOCOS = Array.from({ length: 16 }, (_, i) => i);
-const atraso = (i: number) => ((i % 4) + Math.floor(i / 4)) * 90;
-
 export function BootScreen({ minMs = 2400 }: { minMs?: number }) {
   const { t } = useTranslation();
   const [etapa, setEtapa] = useState(0);
@@ -41,12 +35,15 @@ export function BootScreen({ minMs = 2400 }: { minMs?: number }) {
 
   return (
     <div className="boot" role="status" aria-live="polite">
-      <div className="boot-mark" aria-hidden>
-        {BLOCOS.map((i) => (
-          <span key={i} className="boot-bit" style={{ animationDelay: `${atraso(i)}ms` }} />
-        ))}
-      </div>
-      <span className="boot-word mono">ROMVAULT<span className="boot-caret" aria-hidden /></span>
+      {/* o próprio logo, em grande, se desenhando */}
+      <svg className="boot-glyph" viewBox="0 0 32 32" width="104" height="104" aria-label={t('common:appName')}>
+        <rect className="boot-sq" x="1.5" y="1.5" width="29" height="29" fill="none"
+          stroke="var(--accent)" strokeWidth="2" />
+        <path className="boot-prompt" d="M8 11 L12 16 L8 21" fill="none"
+          stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="square" />
+        <rect className="boot-prompt" x="15" y="19.8" width="9" height="2.4" fill="var(--accent)" />
+      </svg>
+      <span className="boot-word mono">ROMVAULT</span>
       <ul className="boot-steps">
         {ETAPAS.map((texto, i) => (
           <li key={texto} className={`boot-step${i <= etapa ? ' is-on' : ''}`}>
