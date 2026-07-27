@@ -375,19 +375,21 @@ function igdbToGame(g, primaryShort) {
   };
 }
 
-async function importIgdb(sb) {
-  const platformKey = String(flag('platform', 'snes')).toLowerCase();
-  // --platform=all varre TODAS as plataformas conhecidas. Antes, `--all` sozinho
-  // pegava todas as PAGINAS de UMA plataforma (a default = snes) — o que dava a
-  // impressao de "importei tudo" quando na verdade so importava SNES. Um jogo de
-  // PC (ex.: Phonopolis) nunca entrava porque a plataforma PC nunca era varrida.
+async function importIgdb(sb, { allPlatforms = false } = {}) {
+  const platformKey = allPlatforms ? 'all' : String(flag('platform', 'snes')).toLowerCase();
+  // --platform=all (ou --source=igdb-all) varre TODAS as plataformas conhecidas.
+  // Antes, `--all` sozinho pegava todas as PAGINAS de UMA plataforma (a default =
+  // snes) — o que dava a impressao de "importei tudo" quando so importava SNES.
+  // Um jogo de PC (Phonopolis, FEZ) nunca entrava porque PC nunca era varrido.
   if (platformKey === 'all') {
+    // varredura completa => todas as paginas de cada plataforma
+    const forceAllPages = allPlatforms || Boolean(flag('all', false));
     const seen = new Set();
     const totals = { games: 0, enriched: 0, skipped: 0, mapped: 0 };
     for (const [key, pid] of Object.entries(IGDB_PLATFORMS)) {
       if (seen.has(pid)) continue; // ignora aliases do mesmo id (pc/windows, gb/gameboy)
       seen.add(pid);
-      const s = await igdbSweepPlatform(sb, key, pid);
+      const s = await igdbSweepPlatform(sb, key, pid, forceAllPages);
       for (const k of Object.keys(totals)) totals[k] += (s[k] ?? 0);
     }
     step('IGDB — todas as plataformas concluidas');
@@ -489,9 +491,9 @@ async function importIgdbRefresh(sb) {
 }
 
 /** Varre UMA plataforma do IGDB (cursor incremental proprio). */
-async function igdbSweepPlatform(sb, platformKey, platformId) {
+async function igdbSweepPlatform(sb, platformKey, platformId, forceAllPages = false) {
   const limit = Math.min(Number(flag('limit', 50)) || 50, 500);
-  const all = Boolean(flag('all', false));
+  const all = forceAllPages || Boolean(flag('all', false));
   const pages = all ? 1000 : (Number(flag('pages', 1)) || 1);
   const primaryShort = PLATFORM_SHORT[platformId] ?? platformKey.toUpperCase();
   // cursor SEPARADO por plataforma (senao trocar de plataforma pularia ids)
@@ -1416,6 +1418,7 @@ async function main() {
   const ENRICH = Boolean(flag('enrich', false));
   let stats;
   if (SOURCE === 'igdb') stats = await importIgdb(sb);
+  else if (SOURCE === 'igdb-all') stats = await importIgdb(sb, { allPlatforms: true });
   else if (SOURCE === 'smwc' || SOURCE === 'smwcentral') {
     stats = ENRICH ? await enrichSmwc(sb) : await importSmwc(sb);
   } else if (SOURCE === 'rhdn' || SOURCE === 'romhacking') {
@@ -1475,6 +1478,7 @@ async function main() {
     const { importCoversLibretro } = await import('./lib/libretro.mjs');
     const { importEnrich } = await import('./lib/enrich.mjs');
     log(c.cyan('\n══ PIPELINE COMPLETO: dataset → dedupe → covers → libretro → enrich ══'));
+    log(c.amber('  (NAO puxa jogos novos do IGDB — pra isso rode --source=igdb-all)'));
     const s1 = await importDataset(sb);
     const s2 = await dedupeGames(ctx);
     const s3 = await importCovers(sb);
@@ -1493,7 +1497,7 @@ async function main() {
     log(c.red(`✖ source desconhecido: "${SOURCE}" — falta um git pull?`));
     log('  Conhecidos: dataset, igdb, igdb-backfill, smwc, rhdn, pobre, covers,');
     log('  covers-libretro, mobygames, screenscraper, langs-igdb, purge-mods,');
-    log('  dedupe, enrich, platform-wiki, igdb-upcoming, igdb-refresh, soundtracks, reset-sync, all');
+    log('  dedupe, enrich, platform-wiki, igdb-upcoming, igdb-refresh, igdb-all, soundtracks, reset-sync, all');
     process.exit(1);
   }
 
