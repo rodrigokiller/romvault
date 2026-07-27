@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFlip } from '@/hooks/useFlip';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages, RefreshCw, Lock, LockOpen, Check, CheckSquare, X, Layers, Trash2 } from 'lucide-react';
+import { Library as LibraryIcon, Clock, Trophy, Gamepad2, Coins, Copy as CopyIcon, Sparkles, Store, Target, Download, Eye, Languages, RefreshCw, Lock, LockOpen, Check, CheckSquare, X, Layers, Trash2, LayoutGrid, Grid2x2 } from 'lucide-react';
 import { GameQuickView } from '@/components/entities/GameQuickView';
 import { useToast } from '@/components/ui/Toast';
 import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
@@ -74,6 +74,16 @@ export function Library() {
   const [order, setOrder] = useState<'recent' | 'az' | 'platform' | 'activity'>('recent');
   // arte da vitrine: capa de loja (retrato) ou box art física
   const [artMode, setArtMode] = useState<'store' | 'box'>('box');
+  // densidade da estante (persistida): confortável (menos por linha, capas
+  // maiores) x compacta (mais por linha). Resolve o "estranho" no mobile.
+  const [density, setDensity] = useState<'cozy' | 'compact'>(
+    () => (localStorage.getItem('libDensity') as 'cozy' | 'compact') ?? 'cozy',
+  );
+  const toggleDensity = () => setDensity((d) => {
+    const next = d === 'cozy' ? 'compact' : 'cozy';
+    localStorage.setItem('libDensity', next);
+    return next;
+  });
   // modo seleção: marcar vários jogos e aplicar privacidade em massa
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -343,6 +353,15 @@ export function Library() {
               {artMode === 'box' ? t('library:artBox') : t('library:artStore')}
             </button>
           )}
+          <button
+            type="button"
+            className="lib-stat lib-showcase"
+            onClick={toggleDensity}
+            title={t('library:densityHint')}
+          >
+            {density === 'cozy' ? <LayoutGrid aria-hidden /> : <Grid2x2 aria-hidden />}
+            {density === 'cozy' ? t('library:densityCompact') : t('library:densityCozy')}
+          </button>
           {isMe && !showcase && <BatchAdd />}
           {isMe && !showcase && <ImportFile />}
           {isMe && !showcase && tracks.length > 0 && (
@@ -499,7 +518,7 @@ export function Library() {
       ) : (
         <div
           ref={shelfRef}
-          className={`shelf ${showcase ? 'shelf-showcase shelf-physical' : ''} ${platform ? 'shelf-themed' : ''}`}
+          className={`shelf shelf-${density} ${showcase ? 'shelf-showcase shelf-physical' : ''} ${platform ? 'shelf-themed' : ''}`}
           style={platform && PLATFORM_THEMES[platform]
             ? ({ '--shelf-accent': PLATFORM_THEMES[platform] } as React.CSSProperties)
             : undefined}

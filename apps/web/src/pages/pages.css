@@ -2384,6 +2384,9 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: var(--s5) var(--s4);
 }
+/* densidade escolhível: confortável (capas maiores) x compacta (mais por linha) */
+.shelf-cozy { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.shelf-compact { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--s4) var(--s3); }
 .shelf-item {
   display: flex;
   flex-direction: column;
@@ -3685,7 +3688,10 @@ button.heat-cell::after {
   /* capas (retrato): 3 por linha no telefone (eram ~2 largas) */
   .card-grid-cover { grid-template-columns: repeat(3, 1fr); gap: var(--s3) var(--s2); }
   .card-grid-tight { grid-template-columns: 1fr; }
-  .shelf { grid-template-columns: repeat(3, 1fr); gap: var(--s4) var(--s2); }
+  /* estante no mobile respeita a densidade: confortável = 2, compacta = 3 */
+  .shelf { gap: var(--s4) var(--s2); }
+  .shelf-cozy { grid-template-columns: repeat(2, 1fr); }
+  .shelf-compact { grid-template-columns: repeat(3, 1fr); }
   .vitrine-grid { columns: 3 100px; }
 
   /* filtros/abas rolam na horizontal em vez de virar um paredão vertical */
@@ -3763,9 +3769,11 @@ button.heat-cell::after {
 }
 
 /* pular layout/paint fora do viewport nos grids grandes (auditoria: perf) */
-.shelf-item,
-.vitrine-card-wrap,
-.card-grid > * {
+/* content-visibility fica SÓ na vitrine (masonry, tamanhos uniformes). Na home
+   e na biblioteca ele quebrava o layout no mobile: os cards fora da tela usavam
+   o placeholder de 260px, que não bate com a altura real, e as capas apareciam
+   com tamanhos diferentes (grande/médio/pequeno) e desalinhadas. */
+.vitrine-card-wrap {
   content-visibility: auto;
   contain-intrinsic-size: auto 260px;
 }

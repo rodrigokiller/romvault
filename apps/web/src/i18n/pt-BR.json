@@ -596,7 +596,10 @@
     "bulkRemoveConfirm_one": "Remover {{count}} jogo da biblioteca (e suas cópias)?",
     "bulkRemoveConfirm_other": "Remover {{count}} jogos da biblioteca (e suas cópias)?",
     "bulkRemoved_one": "{{count}} jogo removido da biblioteca",
-    "bulkRemoved_other": "{{count}} jogos removidos da biblioteca"
+    "bulkRemoved_other": "{{count}} jogos removidos da biblioteca",
+    "densityHint": "Densidade da estante (confortável x compacta)",
+    "densityCozy": "Confortável",
+    "densityCompact": "Compacta"
   },
   "ustats": {
     "kicker": "painel do jogador",

@@ -596,7 +596,10 @@
     "bulkRemoveConfirm_one": "Remove {{count}} game from the library (and its copies)?",
     "bulkRemoveConfirm_other": "Remove {{count}} games from the library (and their copies)?",
     "bulkRemoved_one": "{{count}} game removed from the library",
-    "bulkRemoved_other": "{{count}} games removed from the library"
+    "bulkRemoved_other": "{{count}} games removed from the library",
+    "densityHint": "Shelf density (comfortable x compact)",
+    "densityCozy": "Comfortable",
+    "densityCompact": "Compact"
   },
   "ustats": {
     "kicker": "player dashboard",
