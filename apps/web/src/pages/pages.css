@@ -210,6 +210,8 @@
   font-weight: 600;
   color: var(--ink-bright);
   line-height: 1.25;
+  /* titulo longo (jogo AAA aguardado) nao pode alargar a coluna do grid */
+  overflow-wrap: anywhere;
 }
 .tile-meta {
   display: flex;
@@ -3769,6 +3771,13 @@ button.heat-cell::after {
 }
 
 /* pular layout/paint fora do viewport nos grids grandes (auditoria: perf) */
+/* Itens do grid encolhem até a célula. Sem isto, um card com título longo ou
+   muitas plataformas (jogo AAA "mais aguardado") tem min-content grande e força
+   a coluna a alargar — quebrando o 1fr e deixando os cards de tamanhos
+   diferentes, empurrados pro lado, no mobile. */
+.card-grid > *,
+.shelf > * { min-width: 0; }
+
 /* content-visibility fica SÓ na vitrine (masonry, tamanhos uniformes). Na home
    e na biblioteca ele quebrava o layout no mobile: os cards fora da tela usavam
    o placeholder de 260px, que não bate com a altura real, e as capas apareciam
