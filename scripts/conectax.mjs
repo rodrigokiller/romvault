@@ -145,19 +145,14 @@ async function cmdExport() {
   }
 }
 
-async function cmdImport() {
-  const userId = await resolveUser(flag('user'));
-  const inPath = flag('in');
-  if (!inPath || inPath === true) { log(c.red('✖ Informe --in=arquivo.json.')); process.exit(1); }
-  const apply = Boolean(flag('apply', false)); // sem --apply = DRY-RUN
-  let incoming;
-  try { incoming = JSON.parse(readFileSync(resolve(process.cwd(), String(inPath)), 'utf8')); }
-  catch (e) { log(c.red(`✖ Não consegui ler o JSON: ${e.message}`)); process.exit(1); }
-  if (!Array.isArray(incoming)) { log(c.red('✖ O arquivo deve ser um ARRAY de jogos.')); process.exit(1); }
-
-  // índice do catálogo por TÍTULO normalizado (com as plataformas). Casar por
-  // título é mais robusto que exigir a string de plataforma idêntica dos dois
-  // lados; a plataforma vira só o desempate quando há vários jogos homônimos.
+/**
+ * Reflete um array do contrato no RomVault (possui -> owned; !possui -> backlog).
+ * Match por título; última-escrita-vence por atualizado_em; nunca apaga
+ * (divergência com data mais velha = conflito). Aplica só se `apply`.
+ */
+async function mergeIntoRomvault(userId, incoming, apply) {
+  // índice do catálogo por TÍTULO normalizado (a plataforma só desempata
+  // homônimos — mais robusto que exigir a string de plataforma idêntica).
   const catalog = await fetchAll(() => sb.from('games').select('id, title, platforms'));
   const byTitle = new Map();
   for (const g of catalog) {
@@ -176,12 +171,10 @@ async function cmdImport() {
     return (cands.find((cc) => cc.plats.has(plat)) ?? cands[0]).id;
   };
 
-  // tracks atuais do usuário (o track é por JOGO, não por plataforma)
   const tracks = await fetchAll(() => sb.from('game_tracks').select('game_id, status, updated_at').eq('user_id', userId));
   const trackByGame = new Map(tracks.map((t) => [t.game_id, t]));
 
-  // agrupa incoming por game_id do catálogo (várias plataformas => 1 jogo)
-  const wanted = new Map(); // game_id -> { possui, quando, exemplos:[] }
+  const wanted = new Map(); // game_id -> { possui, quando }
   const unmatched = [];
   for (const it of incoming) {
     const gid = matchGame(it);
@@ -192,7 +185,7 @@ async function cmdImport() {
     wanted.set(gid, w);
   }
 
-  const rep = { added: [], updated: [], conflicts: [], unchanged: 0 };
+  const rep = { added: [], updated: [], conflicts: [], unchanged: 0, unmatched };
   const ops = [];
   for (const [gid, w] of wanted) {
     const cur = trackByGame.get(gid);
@@ -201,9 +194,7 @@ async function cmdImport() {
     if (!cur) { rep.added.push(gid); ops.push({ gid, status: desejado }); continue; }
     if (nossoPossui === w.possui) { rep.unchanged++; continue; }
     // divergência: última-escrita-vence por data
-    const nosso = cur.updated_at ?? '';
-    const deles = w.quando ?? '';
-    if (deles > nosso) {
+    if ((w.quando ?? '') > (cur.updated_at ?? '')) {
       // não rebaixa quem já zerou/está jogando; só troca entre owned<->backlog
       const novo = w.possui ? (['playing', 'finished', 'abandoned'].includes(cur.status) ? cur.status : 'owned') : 'backlog';
       if (novo !== cur.status) { rep.updated.push(gid); ops.push({ gid, status: novo }); }
@@ -213,29 +204,96 @@ async function cmdImport() {
     }
   }
 
-  log(c.cyan(`\n▸ Import ConectaX ${apply ? c.green('(APLICANDO)') : c.amber('(DRY-RUN — nada gravado)')}`));
-  log(`  ${incoming.length} recebidos · ${c.green(rep.added.length + ' novos')} · ${c.cyan(rep.updated.length + ' atualizados')} · ${c.amber(rep.conflicts.length + ' conflitos')} · ${rep.unchanged} sem mudança · ${unmatched.length} sem match no catálogo`);
-  if (rep.conflicts.length) log(c.amber(`  conflitos (mantido o nosso; a data deles é mais velha): ${rep.conflicts.length}`));
-  if (unmatched.length) log(c.dim(`  sem match (amostra): ${unmatched.slice(0, 6).join(' · ')}`));
-
   if (apply && ops.length) {
     const now = new Date().toISOString();
     for (let i = 0; i < ops.length; i += 200) {
       const rows = ops.slice(i, i + 200).map((o) => ({ user_id: userId, game_id: o.gid, status: o.status, source: 'conectax', updated_at: now }));
       const { error } = await sb.from('game_tracks').upsert(rows, { onConflict: 'user_id,game_id' });
-      if (error) { log(c.red(`  ✖ upsert: ${error.message}`)); process.exit(1); }
+      if (error) throw new Error(`game_tracks upsert: ${error.message}`);
     }
-    log(c.green(`  ✓ ${ops.length} tracks gravados.`));
-  } else if (!apply && ops.length) {
-    log(c.dim(`  (rode de novo com --apply pra gravar os ${ops.length} novos/atualizados)`));
   }
+  return { ...rep, opsCount: ops.length };
+}
+
+function logMerge(rep, apply, total) {
+  log(`  ${total} recebidos · ${c.green(rep.added.length + ' novos')} · ${c.cyan(rep.updated.length + ' atualizados')} · ${c.amber(rep.conflicts.length + ' conflitos')} · ${rep.unchanged} sem mudança · ${rep.unmatched.length} sem match`);
+  if (rep.conflicts.length) log(c.amber(`  conflitos (mantido o nosso; a data deles é mais velha): ${rep.conflicts.length}`));
+  if (rep.unmatched.length) log(c.dim(`  sem match no catálogo (amostra): ${rep.unmatched.slice(0, 6).join(' · ')}`));
+  if (!apply && rep.opsCount) log(c.dim(`  (--apply pra gravar os ${rep.opsCount} novos/atualizados)`));
+}
+
+async function cmdImport() {
+  const userId = await resolveUser(flag('user'));
+  const inPath = flag('in');
+  if (!inPath || inPath === true) { log(c.red('✖ Informe --in=arquivo.json.')); process.exit(1); }
+  const apply = Boolean(flag('apply', false)); // sem --apply = DRY-RUN
+  let incoming;
+  try { incoming = JSON.parse(readFileSync(resolve(process.cwd(), String(inPath)), 'utf8')); }
+  catch (e) { log(c.red(`✖ Não consegui ler o JSON: ${e.message}`)); process.exit(1); }
+  if (!Array.isArray(incoming)) { log(c.red('✖ O arquivo deve ser um ARRAY de jogos.')); process.exit(1); }
+  log(c.cyan(`\n▸ Import ConectaX ${apply ? c.green('(APLICANDO)') : c.amber('(DRY-RUN — nada gravado)')}`));
+  const rep = await mergeIntoRomvault(userId, incoming, apply);
+  logMerge(rep, apply, incoming.length);
+}
+
+/* credenciais do ConectaX: flags ou .env (CONECTAX_URL/TOKEN/ANON_KEY) */
+const cxVal = (name, env) => (flag(name) && flag(name) !== true ? String(flag(name)) : ENV[env]);
+
+/**
+ * SYNC completo (estilo Trakt): baixa a lista do ConectaX (GET), reflete no
+ * RomVault, e sobe a nossa de volta (POST). Os dois lados fazem última-escrita
+ * -vence, então converge. Dry-run por padrão (não grava nem envia).
+ */
+async function cmdSync() {
+  const userId = await resolveUser(flag('user'));
+  const url = cxVal('url', 'CONECTAX_URL');
+  const token = cxVal('token', 'CONECTAX_TOKEN');
+  const anon = cxVal('anon', 'CONECTAX_ANON_KEY');
+  if (!url || !token || !anon) {
+    log(c.red('✖ Faltam credenciais do ConectaX (flags --url/--token/--anon ou no .env):'));
+    log('    CONECTAX_URL=https://<projeto>.supabase.co/functions/v1/sync-jogos');
+    log('    CONECTAX_TOKEN=<access_token (JWT) da sua sessao no ConectaX>');
+    log('    CONECTAX_ANON_KEY=<anon key do projeto ConectaX>');
+    process.exit(1);
+  }
+  const apply = Boolean(flag('apply', false));
+  const headers = { Authorization: `Bearer ${token}`, apikey: anon, 'content-type': 'application/json' };
+
+  log(c.cyan('▸ Sync ConectaX ⇄ RomVault') + (apply ? '' : c.amber(' (DRY-RUN — nada gravado/enviado)')));
+
+  // 1) baixa a lista deles
+  let getRes;
+  try { getRes = await fetch(url, { headers }); }
+  catch (e) { log(c.red(`✖ não conectou no ConectaX: ${e.message}`)); process.exit(1); }
+  if (!getRes.ok) { log(c.red(`✖ GET: HTTP ${getRes.status} — ${(await getRes.text()).slice(0, 140)}`)); process.exit(1); }
+  const theirs = await getRes.json().catch(() => null);
+  if (!Array.isArray(theirs)) { log(c.red('✖ o GET não devolveu um array.')); process.exit(1); }
+  log(c.dim(`  ⬇ baixados do ConectaX: ${theirs.length}`));
+
+  // 2) reflete a lista deles no RomVault
+  const rep = await mergeIntoRomvault(userId, theirs, apply);
+  logMerge(rep, apply, theirs.length);
+
+  // 3) sobe a nossa lista (o ConectaX faz o merge do lado dele)
+  const ours = await construir(userId, null);
+  if (!apply) { log(c.dim(`\n  ⬆ dry-run: enviaria ${ours.length} jogos ao ConectaX (rode com --apply)`)); return; }
+  let postRes;
+  try { postRes = await fetch(url, { method: 'POST', headers, body: JSON.stringify(ours) }); }
+  catch (e) { log(c.red(`✖ POST falhou: ${e.message}`)); process.exit(1); }
+  if (!postRes.ok) { log(c.red(`✖ POST: HTTP ${postRes.status} — ${(await postRes.text()).slice(0, 140)}`)); process.exit(1); }
+  const pr = await postRes.json().catch(() => ({}));
+  log(c.green(`\n  ⬆ ConectaX recebeu ${ours.length}: `)
+    + `${c.green((pr.added ?? 0) + ' novos')} · ${c.cyan((pr.updated ?? 0) + ' atualizados')} · ${c.amber((pr.conflicts ?? 0) + ' conflitos')} · ${pr.unchanged ?? 0} sem mudança`);
+  log(c.green('\n✓ Sync concluído.'));
 }
 
 if (cmd === 'export') await cmdExport();
 else if (cmd === 'import') await cmdImport();
+else if (cmd === 'sync') await cmdSync();
 else {
   log('Uso:');
   log('  npm run conectax export -- --user=<username> [--platform=SNES] [--out=jogos.json]');
   log('  npm run conectax import -- --user=<username> --in=jogos.json [--apply]');
+  log('  npm run conectax sync   -- --user=<username> [--apply]   (usa CONECTAX_URL/TOKEN/ANON_KEY do .env)');
   process.exit(cmd ? 1 : 0);
 }
