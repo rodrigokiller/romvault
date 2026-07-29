@@ -1054,7 +1054,8 @@
     "enrichDone": "Enriched: {{hltb}} HLTB + {{mc}} Metacritic (of {{tried}}).",
     "refreshNow": "Fetch new (IGDB)",
     "refreshHint": "Pulls games created/changed on IGDB since last time, across all platforms (same as the daily cron)",
-    "refreshDone": "IGDB: {{criados}} new, {{atualizados}} updated."
+    "refreshDone": "IGDB: {{criados}} new, {{atualizados}} updated.",
+    "linkConflictMerge": "This IGDB is already on \"{{title}}\". Merge this game into it?"
   },
   "community": {
     "reviewsTitle": "Reviews",

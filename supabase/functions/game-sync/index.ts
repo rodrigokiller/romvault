@@ -694,11 +694,13 @@ Deno.serve(async (req: Request) => {
     // "duplicate key" cru (era a causa do {"error":"[object Object]"})
     if (patch.igdb_id) {
       const { data: clash } = await admin.from('games')
-        .select('slug, title').eq('igdb_id', patch.igdb_id).neq('id', gameId).maybeSingle();
+        .select('id, slug, title').eq('igdb_id', patch.igdb_id).neq('id', gameId).maybeSingle();
       if (clash) {
+        // conflito estruturado: o front oferece FUNDIR com esse jogo em vez de
+        // so mostrar erro (o admin nao precisa ir caçar na ferramenta de fundir).
         return json({
-          error: `Este id do IGDB já está vinculado a "${clash.title}" (/games/${clash.slug}). `
-            + 'Se são o mesmo jogo duplicado, funda com: npm run import -- --source=dedupe --dry',
+          error: `Este id do IGDB já está em "${clash.title}".`,
+          conflict: { id: clash.id, slug: clash.slug, title: clash.title },
         }, 409);
       }
     }

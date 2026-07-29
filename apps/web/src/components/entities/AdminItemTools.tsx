@@ -176,15 +176,17 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
     setMergeSearching(true);
     try {
       const sb = getSupabase() as unknown as SupabaseClient;
-      // busca por TÍTULO ou TÍTULO ALTERNATIVO (o FF VI não aparecia porque
-      // no catálogo o título é "Final Fantasy III" e o VI é um alt_title)
-      const safe = mergeTerm.trim().replace(/[,()]/g, ' ');
-      const { data } = await sb.from('games')
+      // busca por TÍTULO/alt OU por IGDB ID (guardamos internamente): se o termo
+      // é só número, casa pelo igdb_id — pratico pra achar o par de um remaster.
+      const term = mergeTerm.trim();
+      const asId = /^\d+$/.test(term) ? Number(term) : null;
+      let q = sb.from('games')
         .select('id, title, slug, platforms, igdb_id, cover_url, thumbnail')
-        .or(`title.ilike.%${safe}%,alt_search.ilike.%${safe}%`)
-        .neq('id', gameId)
-        .order('relevance', { ascending: false })
-        .limit(10);
+        .neq('id', gameId);
+      q = asId
+        ? q.eq('igdb_id', asId)
+        : q.or(`title.ilike.%${term.replace(/[,()]/g, ' ')}%,alt_search.ilike.%${term.replace(/[,()]/g, ' ')}%`).order('relevance', { ascending: false });
+      const { data } = await q.limit(10);
       setMergeResults((data ?? []) as CatalogCandidate[]);
     } finally {
       setMergeSearching(false);
@@ -267,8 +269,26 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
   }
 
   async function linkTo(candidate: IgdbCandidate) {
-    await call({ game_id: gameId, action: 'igdb', igdb_id: candidate.igdb_id }, t('admin:linkDone', { title: candidate.title }));
-    setLinkOpen(false);
+    setRunning(true);
+    try {
+      const d = await invokeFn<{ note?: string }>('game-sync', { game_id: gameId, action: 'igdb', igdb_id: candidate.igdb_id });
+      toast.success(d?.note ?? t('admin:linkDone', { title: candidate.title }));
+      void qc.invalidateQueries({ queryKey: ['game'] });
+      void qc.invalidateQueries({ queryKey: ['games'] });
+      setLinkOpen(false);
+    } catch (err) {
+      // este IGDB já está em OUTRO jogo: oferece FUNDIR com ele na hora
+      // (em vez de mandar o admin caçar na ferramenta de fundir).
+      const conflict = (err as { payload?: { conflict?: { id: string; slug: string; title: string } } })?.payload?.conflict;
+      if (conflict && window.confirm(t('admin:linkConflictMerge', { title: conflict.title }))) {
+        setLinkOpen(false);
+        await mergeInto({ id: conflict.id, title: conflict.title, slug: conflict.slug, platforms: null, igdb_id: null, cover_url: null, thumbnail: null }, true);
+        return;
+      }
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setRunning(false);
+    }
   }
 
   return (

@@ -17,7 +17,12 @@ export async function invokeFn<T = Record<string, unknown>>(
     if (ctx && typeof ctx.json === 'function') {
       try {
         const payload = await ctx.json() as { error?: string };
-        if (payload?.error) throw new Error(payload.error);
+        if (payload?.error) {
+          // preserva o CORPO inteiro (ex.: { conflict } do vínculo IGDB) no erro
+          const err = new Error(payload.error) as Error & { payload?: unknown };
+          err.payload = payload;
+          throw err;
+        }
       } catch (e) {
         if (e instanceof Error && e.message && !/json/i.test(e.message)) throw e;
       }
