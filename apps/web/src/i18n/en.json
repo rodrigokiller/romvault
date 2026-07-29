@@ -449,6 +449,8 @@
     "apiRevoke": "Revoke",
     "apiRevokeConfirm": "Revoke this key? Apps using it will stop working.",
     "apiUsed": "uses",
+    "apiScopeLibrary": "Grant access to my library (for integrations like ConectaX to read and write my games)",
+    "apiScopeBadge": "library",
     "apiDocsLink": "Read the API docs",
     "steamTitle": "Import from Steam",
     "steamHint": "Brings your Steam library (games + hours) into your tracks. Never overwrites manual statuses.",
@@ -842,7 +844,12 @@
     "exampleTitle": "Example",
     "notesTitle": "Notes",
     "noteRead": "Read-only for now (GET). Writes go through the app or the importer.",
-    "noteDeploy": "Requires the public-api Edge Function deployed (see supabase/functions/README.md)."
+    "noteDeploy": "Requires the public-api Edge Function deployed (see supabase/functions/README.md).",
+    "libKicker": "LIBRARY",
+    "libTitle": "Your library API (integrations)",
+    "libIntro": "Read and write YOUR library/tracking (not the catalog). It's the source of truth external apps like ConectaX consume. Needs a key with library access, generated in Settings.",
+    "libAuth": "Authenticate with a library key (rv_...) in the Authorization header (or x-api-key). The key already identifies you.",
+    "libShape": "Each game (status: have | want | playing | beaten | dropped):"
   },
   "errors": {
     "notFoundTitle": "Page not found",

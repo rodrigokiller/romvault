@@ -449,6 +449,8 @@
     "apiRevoke": "Revogar",
     "apiRevokeConfirm": "Revogar esta chave? Apps que a usam vão parar de funcionar.",
     "apiUsed": "usos",
+    "apiScopeLibrary": "Dar acesso à minha biblioteca (para integrações como o ConectaX ler e gravar meus jogos)",
+    "apiScopeBadge": "biblioteca",
     "apiDocsLink": "Ver a documentação da API",
     "steamTitle": "Importar da Steam",
     "steamHint": "Traz sua biblioteca Steam (jogos + horas) pros seus tracks. Não sobrescreve status marcados à mão.",
@@ -842,7 +844,12 @@
     "exampleTitle": "Exemplo",
     "notesTitle": "Notas",
     "noteRead": "Somente leitura por ora (GET). Escrita é pelo app ou pelo importador.",
-    "noteDeploy": "Requer a Edge Function public-api deployada (ver supabase/functions/README.md)."
+    "noteDeploy": "Requer a Edge Function public-api deployada (ver supabase/functions/README.md).",
+    "libKicker": "BIBLIOTECA",
+    "libTitle": "API da sua biblioteca (integrações)",
+    "libIntro": "Ler e gravar a SUA biblioteca/tracking (não o catálogo). É a fonte de verdade que apps externos como o ConectaX consomem. Precisa de uma chave com acesso à biblioteca, gerada nas Configurações.",
+    "libAuth": "Autentique com uma chave de biblioteca (rv_...) no header Authorization (ou x-api-key). A chave já identifica você.",
+    "libShape": "Cada jogo (status: have | want | playing | beaten | dropped):"
   },
   "errors": {
     "notFoundTitle": "Página não encontrada",

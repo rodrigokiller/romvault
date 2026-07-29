@@ -1336,6 +1336,30 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
   flex: 1;
   max-width: 320px;
 }
+.api-scope {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  font-size: 0.85rem;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.api-scope input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+}
+.api-scope-badge {
+  margin-left: var(--s2);
+  padding: 1px 6px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  vertical-align: 1px;
+}
 .api-fresh {
   padding: var(--s3) var(--s4);
   background: var(--accent-dim);

@@ -10,9 +10,16 @@ const ENDPOINTS: { method: string; path: string; desc: string }[] = [
   { method: 'GET', path: '/tools', desc: 'Tools' },
 ];
 
+const LIB_ENDPOINTS: { method: string; path: string; desc: string }[] = [
+  { method: 'GET', path: '/?updated_since=<ISO>&cursor=<n>&limit=500', desc: 'Your library/tracking (delta + paginated) → { items, next_cursor? }' },
+  { method: 'POST', path: '/', desc: 'Upsert ONE game (match by title, platform breaks ties) → final object' },
+  { method: 'POST', path: '/bulk', desc: 'Upsert an array → { added, updated, conflicts, unchanged, unmatched }' },
+];
+
 export function ApiDocs() {
   const { t } = useTranslation();
   const base = env.configured ? `${env.supabaseUrl}/functions/v1/public-api` : 'https://<project>.supabase.co/functions/v1/public-api';
+  const libBase = env.configured ? `${env.supabaseUrl}/functions/v1/library-api` : 'https://<project>.supabase.co/functions/v1/library-api';
 
   return (
     <div className="container container-narrow">
@@ -59,6 +66,33 @@ export function ApiDocs() {
           <li>{t('apidocs:noteRead')}</li>
           <li>{t('apidocs:noteDeploy')}</li>
         </ul>
+      </section>
+
+      <section className="section" style={{ marginTop: 'var(--s5)' }}>
+        <span className="kicker">// {t('apidocs:libKicker')}</span>
+        <h2>{t('apidocs:libTitle')}</h2>
+        <p className="page-sub">{t('apidocs:libIntro')}</p>
+        <pre className="code-block">{libBase}</pre>
+        <p className="muted-text">{t('apidocs:libAuth')}</p>
+        <pre className="code-block">{`Authorization: Bearer rv_xxxxxxxxxxxxxxxx`}</pre>
+        <div className="api-endpoints">
+          {LIB_ENDPOINTS.map((e) => (
+            <div key={e.method + e.path} className="api-endpoint">
+              <span className="api-method">{e.method}</span>
+              <code className="api-path">{e.path}</code>
+              <span className="api-desc muted-text">{e.desc}</span>
+            </div>
+          ))}
+        </div>
+        <p className="muted-text" style={{ marginTop: 'var(--s3)' }}>{t('apidocs:libShape')}</p>
+        <pre className="code-block">{`{
+  "id": "…", "chave": "ps1|final fantasy vii",
+  "titulo": "Final Fantasy VII", "plataforma": "PS1", "regiao": "USA",
+  "possui": true, "status": "beaten", "horas": 42,
+  "capa_url": "https://…", "atualizado_em": "2026-07-28T12:00:00Z"
+}`}</pre>
+        <pre className="code-block">{`curl "${libBase}?limit=3" \\
+  -H "Authorization: Bearer rv_xxxxxxxxxxxxxxxx"`}</pre>
       </section>
     </div>
   );

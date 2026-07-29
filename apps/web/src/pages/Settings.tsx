@@ -762,11 +762,12 @@ function ApiKeysSection() {
   const create = useCreateApiKey();
   const revoke = useRevokeApiKey();
   const [name, setName] = useState('');
+  const [library, setLibrary] = useState(false);
   const [fresh, setFresh] = useState<string | null>(null);
 
   async function onCreate() {
     try {
-      const key = await create.mutateAsync(name);
+      const key = await create.mutateAsync({ name, library });
       setFresh(key);
       setName('');
     } catch (err) {
@@ -812,6 +813,10 @@ function ApiKeysSection() {
           <Plus /> {t('settings:apiCreate')}
         </Button>
       </div>
+      <label className="api-scope">
+        <input type="checkbox" checked={library} onChange={(e) => setLibrary(e.target.checked)} />
+        <span>{t('settings:apiScopeLibrary')}</span>
+      </label>
 
       {keys.length > 0 && (
         <div className="api-list">
@@ -819,7 +824,12 @@ function ApiKeysSection() {
             <div key={k.id} className="api-row">
               <Key aria-hidden className="api-row-icon" />
               <div className="api-row-body">
-                <span className="api-row-name">{k.name}</span>
+                <span className="api-row-name">
+                  {k.name}
+                  {k.permissions?.includes('library:write') && (
+                    <span className="api-scope-badge">{t('settings:apiScopeBadge')}</span>
+                  )}
+                </span>
                 <span className="api-row-meta mono">
                   {k.key_prefix}…· {k.usage_count} {t('settings:apiUsed')}
                 </span>

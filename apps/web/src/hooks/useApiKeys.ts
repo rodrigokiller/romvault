@@ -14,6 +14,7 @@ export interface ApiKeyRow {
   usage_count: number;
   last_used: string | null;
   created_at: string;
+  permissions: string[] | null;
 }
 
 /** SHA-256 hex (Web Crypto). Guardamos só o hash da chave, nunca o texto plano. */
@@ -36,7 +37,7 @@ export function useApiKeys() {
     queryFn: async (): Promise<ApiKeyRow[]> => {
       const { data, error } = await db()
         .from('api_keys')
-        .select('id, name, key_prefix, is_active, usage_count, last_used, created_at')
+        .select('id, name, key_prefix, is_active, usage_count, last_used, created_at, permissions')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -45,20 +46,25 @@ export function useApiKeys() {
   });
 }
 
-/** Cria uma chave; retorna o TEXTO PLANO uma única vez (não é recuperável). */
+/**
+ * Cria uma chave; retorna o TEXTO PLANO uma única vez (não é recuperável).
+ * `library: true` gera uma chave de INTEGRAÇÃO que lê E grava a sua
+ * biblioteca/tracking (usada por apps externos como o ConectaX); caso
+ * contrário a chave é só-leitura do catálogo público.
+ */
 export function useCreateApiKey() {
   const { user } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (name: string): Promise<string> => {
+    mutationFn: async (opts: { name: string; library?: boolean }): Promise<string> => {
       if (!user?.id) throw new Error('Não autenticado.');
       const key = generateKey();
       const row = {
         user_id: user.id,
-        name: name.trim() || 'API key',
+        name: opts.name.trim() || (opts.library ? 'Integração' : 'API key'),
         key_prefix: key.slice(0, 11),
         key_hash: await sha256Hex(key),
-        permissions: ['read'],
+        permissions: opts.library ? ['read', 'library:read', 'library:write'] : ['read'],
         is_active: true,
       };
       const { error } = await db().from('api_keys').insert(row);
