@@ -510,6 +510,81 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, action, target_slug: target.slug, moved });
     }
 
+    /* ── SEPARAR: o inverso do merge. Uma página absorveu tracking que é de
+       OUTRO jogo/versão (ex.: o sync da Steam grudou a versão PC no cartucho
+       de SNES). 'tracking-here' lista o que está preso; 'move-tracking' move
+       cópias/tracks (opcionalmente só de uma plataforma) pra outra página,
+       levando junto o sync_data/playthroughs dos usuários afetados. A página
+       fonte continua — depois o admin conserta o igdb_id dela pela edição. ── */
+    if (action === 'tracking-here') {
+      const [copies, tracks, sync] = await Promise.all([
+        admin.from('game_copies').select('id, user_id, platform, store, distribution').eq('game_id', gameId),
+        admin.from('game_tracks').select('user_id, platform, status, hours_played, source').eq('game_id', gameId),
+        admin.from('game_sync_data').select('user_id, provider').eq('game_id', gameId),
+      ]);
+      return json({
+        ok: true, action,
+        game: { id: gameId, title: game.title, platforms: game.platforms, igdb_id: game.igdb_id },
+        copies: copies.data ?? [], tracks: tracks.data ?? [], sync: sync.data ?? [],
+      });
+    }
+
+    if (action === 'move-tracking') {
+      const targetId = String(body.target_id ?? '');
+      if (!targetId || targetId === gameId) return json({ error: 'Informe um destino diferente.' }, 400);
+      const { data: target } = await admin.from('games').select('id, slug, title').eq('id', targetId).maybeSingle();
+      if (!target) return json({ error: 'Página de destino não encontrada.' }, 404);
+      const plat = body.platform ? String(body.platform) : null;
+
+      const moved: Record<string, number> = { game_copies: 0, game_tracks: 0, game_sync_data: 0, game_playthroughs: 0 };
+      const affected = new Set<string>();
+
+      // cópias: id PK, sem unicidade por usuário — repoint direto
+      {
+        let q = admin.from('game_copies').select('id, user_id').eq('game_id', gameId);
+        if (plat) q = q.eq('platform', plat);
+        const { data: rows } = await q;
+        for (const r of (rows ?? []) as { id: string; user_id: string }[]) {
+          const { error } = await admin.from('game_copies').update({ game_id: targetId }).eq('id', r.id);
+          if (!error) { moved.game_copies++; affected.add(r.user_id); }
+        }
+      }
+      // tracks: unicidade (user_id, game_id) — só há 1 por usuário; move quem não conflita
+      {
+        let q = admin.from('game_tracks').select('user_id').eq('game_id', gameId);
+        if (plat) q = q.eq('platform', plat);
+        const { data: rows } = await q;
+        for (const r of (rows ?? []) as { user_id: string }[]) {
+          const { count } = await admin.from('game_tracks').select('*', { count: 'exact', head: true })
+            .eq('user_id', r.user_id).eq('game_id', targetId);
+          if ((count ?? 0) === 0) {
+            const { error } = await admin.from('game_tracks').update({ game_id: targetId })
+              .eq('user_id', r.user_id).eq('game_id', gameId);
+            if (!error) { moved.game_tracks++; affected.add(r.user_id); }
+          }
+        }
+      }
+      // sync_data + playthroughs dos usuários afetados seguem junto
+      for (const uid of affected) {
+        const { data: sd } = await admin.from('game_sync_data').select('provider').eq('user_id', uid).eq('game_id', gameId);
+        for (const s of (sd ?? []) as { provider: string }[]) {
+          const { count } = await admin.from('game_sync_data').select('*', { count: 'exact', head: true })
+            .eq('user_id', uid).eq('game_id', targetId).eq('provider', s.provider);
+          if ((count ?? 0) === 0) {
+            const { error } = await admin.from('game_sync_data').update({ game_id: targetId })
+              .eq('user_id', uid).eq('game_id', gameId).eq('provider', s.provider);
+            if (!error) moved.game_sync_data++;
+          }
+        }
+        const { data: pt } = await admin.from('game_playthroughs').select('id').eq('user_id', uid).eq('game_id', gameId);
+        for (const p of (pt ?? []) as { id: string }[]) {
+          const { error } = await admin.from('game_playthroughs').update({ game_id: targetId }).eq('id', p.id);
+          if (!error) moved.game_playthroughs++;
+        }
+      }
+      return json({ ok: true, action, target_slug: target.slug, target_title: target.title, moved });
+    }
+
     /* ── FASE 4a: HowLongToBeat (sem API oficial: descoberta de token no
        bundle deles, padrão das libs da comunidade) + fallback IGDB ── */
     if (action === 'hltb') {

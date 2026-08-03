@@ -33,6 +33,12 @@ interface CatalogCandidate {
   thumbnail: string | null;
 }
 
+interface TrackingHere {
+  copies: { id: string; user_id: string; platform: string | null; store: string | null; distribution: string | null }[];
+  tracks: { user_id: string; platform: string | null; status: string; hours_played: number | null; source: string | null }[];
+  sync: { user_id: string; provider: string }[];
+}
+
 /**
  * Ferramenta de admin NA PÁGINA do jogo (estilo trakt): re-sincroniza
  * metadados/arte do IGDB, VINCULA com o registro certo (modal estilo Plex:
@@ -71,6 +77,16 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
   const [mergeSearching, setMergeSearching] = useState(false);
   // "Sincronizar tudo": passo atual mostrado no botão
   const [syncStep, setSyncStep] = useState<string | null>(null);
+
+  // modal de SEPARAR (inverso do merge): esta página absorveu tracking de outro
+  // jogo (ex.: o sync da Steam grudou a versão PC no cartucho de SNES)
+  const [splitOpen, setSplitOpen] = useState(false);
+  const [splitLoading, setSplitLoading] = useState(false);
+  const [splitData, setSplitData] = useState<TrackingHere | null>(null);
+  const [splitPlat, setSplitPlat] = useState('');
+  const [splitTerm, setSplitTerm] = useState('');
+  const [splitResults, setSplitResults] = useState<CatalogCandidate[]>([]);
+  const [splitSearching, setSplitSearching] = useState(false);
 
   // editor de campos (nome/desc/plataformas/lançamento/igdb) — edição direta
   const [editOpen, setEditOpen] = useState(false);
@@ -234,6 +250,66 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
     }
   }
 
+  /** Abre o painel de SEPARAR e busca o que está grudado nesta página. */
+  async function openSplit() {
+    setSplitOpen(true);
+    setSplitData(null); setSplitResults([]); setSplitPlat(''); setSplitTerm('');
+    setSplitLoading(true);
+    try {
+      const d = await invokeFn<TrackingHere>('game-sync', { game_id: gameId, action: 'tracking-here' });
+      setSplitData({ copies: d.copies ?? [], tracks: d.tracks ?? [], sync: d.sync ?? [] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+      setSplitOpen(false);
+    } finally {
+      setSplitLoading(false);
+    }
+  }
+
+  /** Busca a página de DESTINO (por título/alt ou igdb_id). */
+  async function searchSplitDest() {
+    setSplitSearching(true);
+    try {
+      const sb = getSupabase() as unknown as SupabaseClient;
+      const term = splitTerm.trim();
+      const asId = /^\d+$/.test(term) ? Number(term) : null;
+      let q = sb.from('games')
+        .select('id, title, slug, platforms, igdb_id, cover_url, thumbnail')
+        .neq('id', gameId);
+      q = asId
+        ? q.eq('igdb_id', asId)
+        : q.or(`title.ilike.%${term.replace(/[,()]/g, ' ')}%,alt_search.ilike.%${term.replace(/[,()]/g, ' ')}%`).order('relevance', { ascending: false });
+      const { data } = await q.limit(10);
+      setSplitResults((data ?? []) as CatalogCandidate[]);
+    } finally {
+      setSplitSearching(false);
+    }
+  }
+
+  /** Move o tracking (opcionalmente só de uma plataforma) desta página pro destino. */
+  async function moveTrackingTo(dest: CatalogCandidate) {
+    const scope = splitPlat ? splitPlat : t('admin:splitAllPlatforms');
+    if (!window.confirm(t('admin:splitConfirm', { scope, target: dest.title }))) return;
+    setRunning(true);
+    try {
+      const d = await invokeFn<{ moved?: Record<string, number> }>('game-sync', {
+        game_id: gameId, action: 'move-tracking', target_id: dest.id,
+        ...(splitPlat ? { platform: splitPlat } : {}),
+      });
+      const m = d?.moved ?? {};
+      const total = Object.values(m).reduce((a, b) => a + (b ?? 0), 0);
+      toast.success(t('admin:splitDone', { count: total, target: dest.title }));
+      void qc.invalidateQueries({ queryKey: ['game'] });
+      void qc.invalidateQueries({ queryKey: ['games'] });
+      void qc.invalidateQueries({ queryKey: ['library'] });
+      setSplitOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setRunning(false);
+    }
+  }
+
   async function call(body: Record<string, unknown>, okMsg: string) {
     setRunning(true);
     try {
@@ -324,6 +400,13 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
             </Button>
             <Button size="sm" variant="secondary" disabled={running} onClick={() => void openEdit()}>
               <SquarePen /> {t('admin:editBtn')}
+            </Button>
+            <Button
+              size="sm" variant="secondary" disabled={running}
+              title={t('admin:splitHint')}
+              onClick={() => void openSplit()}
+            >
+              <Unlink /> {t('admin:splitBtn')}
             </Button>
           </div>
           {/* individuais: pra rodar uma fonte só quando precisa */}
@@ -471,6 +554,82 @@ export function AdminItemTools({ gameId, gameTitle, dataSource, updatedAt, igdbI
               ))}
             </ul>
           )}
+        </Dialog>
+      )}
+
+      {/* modal de SEPARAR: move o tracking que caiu na página errada pra outra */}
+      {splitOpen && (
+        <Dialog open={splitOpen} onClose={() => setSplitOpen(false)} title={t('admin:splitTitle')}>
+          <p className="page-sub">{t('admin:splitText')}</p>
+          {splitLoading && <div className="admin-tools-row"><Spinner /> {t('admin:splitLoading')}</div>}
+          {!splitLoading && splitData && (() => {
+            const plats = [...new Set([
+              ...splitData.copies.map((c) => c.platform),
+              ...splitData.tracks.map((tr) => tr.platform),
+            ].filter(Boolean))] as string[];
+            const empty = splitData.copies.length === 0 && splitData.tracks.length === 0;
+            if (empty) return <p className="admin-tools-hint">{t('admin:splitNothing')}</p>;
+            return (
+              <>
+                <ul className="split-here">
+                  {splitData.copies.map((c) => (
+                    <li key={c.id} className="mono">
+                      <b>{t('admin:splitCopy')}</b> · {c.platform ?? '?'}{c.store ? ` · ${c.store}` : ''}{c.distribution ? ` · ${c.distribution}` : ''}
+                    </li>
+                  ))}
+                  {splitData.tracks.map((tr, i) => (
+                    <li key={`t${i}`} className="mono">
+                      <b>{t('admin:splitTrack')}</b> · {tr.platform ?? '?'} · {tr.status}{tr.hours_played != null ? ` · ${tr.hours_played}h` : ''}{tr.source ? ` · ${tr.source}` : ''}
+                    </li>
+                  ))}
+                </ul>
+                <div className="admin-tools-row" style={{ marginTop: 'var(--s3)' }}>
+                  <Select value={splitPlat} onChange={(e) => setSplitPlat(e.target.value)} aria-label={t('admin:splitPlatform')}>
+                    <option value="">{t('admin:splitAllPlatforms')}</option>
+                    {plats.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </Select>
+                  <span className="admin-tools-hint">{t('admin:splitPlatformHint')}</span>
+                </div>
+                <p className="page-sub" style={{ marginTop: 'var(--s3)' }}>{t('admin:splitDestLabel')}</p>
+                <div className="admin-tools-row">
+                  <Input
+                    value={splitTerm} onChange={(e) => setSplitTerm(e.target.value)}
+                    placeholder={t('admin:itemQueryPh')} aria-label={t('admin:splitDestLabel')}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void searchSplitDest(); }}
+                  />
+                  <Button size="sm" variant="primary" disabled={splitSearching || !splitTerm.trim()} onClick={() => void searchSplitDest()}>
+                    {splitSearching ? <Spinner /> : <Search />} {t('admin:addSearch')}
+                  </Button>
+                </div>
+                {splitResults.length > 0 && (
+                  <ul className="link-results">
+                    {splitResults.map((r) => (
+                      <li key={r.id} className="link-result">
+                        <div className="link-result-thumb">
+                          {r.cover_url || r.thumbnail
+                            ? <img src={r.cover_url ?? r.thumbnail ?? ''} alt="" loading="lazy" />
+                            : <span className="mono">?</span>}
+                        </div>
+                        <div className="link-result-body">
+                          <span className="link-result-title">
+                            {r.title}
+                            {r.igdb_id ? <span className="link-result-id mono"> · igdb {r.igdb_id}</span> : null}
+                          </span>
+                          {(r.platforms ?? []).length > 0 && (
+                            <span className="link-result-plats mono">{(r.platforms ?? []).slice(0, 6).join(' · ')}</span>
+                          )}
+                        </div>
+                        <Button size="sm" variant="primary" disabled={running} onClick={() => void moveTrackingTo(r)}>
+                          <Unlink /> {t('admin:splitMoveHere')}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="admin-tools-hint" style={{ marginTop: 'var(--s3)' }}>{t('admin:splitAfterHint')}</p>
+              </>
+            );
+          })()}
         </Dialog>
       )}
 

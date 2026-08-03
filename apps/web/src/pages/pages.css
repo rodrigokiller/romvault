@@ -494,6 +494,18 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
 .merge-legend li { display: flex; align-items: flex-start; gap: var(--s2); color: var(--muted); }
 .merge-legend svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: var(--accent); }
 .merge-legend b { color: var(--ink-bright); }
+.split-here {
+  list-style: none;
+  padding: var(--s3);
+  margin: var(--s3) 0 0;
+  display: grid;
+  gap: var(--s2);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.split-here b { color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
 
 /* fontes individuais (avançado) escondidas por padrão na caixa de admin */
 .admin-tools-adv { margin-top: var(--s2); }
