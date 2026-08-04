@@ -1088,6 +1088,9 @@
     "backfillNow": "Continue load (IGDB)",
     "backfillHint": "Resumes the initial load: sweeps old games from the most-behind platforms until the catalog is complete (same as the daily cron)",
     "backfillDone": "IGDB backfill: {{criados}} new across {{plats}} platforms.",
+    "scrapeNow": "Scrape scene (BR)",
+    "scrapeHint": "Reads the romhacking.net.br forum RSS (Releases board) and stores new releases, matching them to catalog games",
+    "scrapeDone": "Scene: {{gravados}} releases ({{casados}} matched to a game).",
     "linkConflictMerge": "This IGDB is already on \"{{title}}\". Merge this game into it?"
   },
   "community": {

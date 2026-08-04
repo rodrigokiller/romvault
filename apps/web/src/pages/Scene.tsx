@@ -233,12 +233,21 @@ function ReleasesFeed() {
                 {r.cover ? <img src={r.cover} alt="" loading="lazy" /> : <span className="mono">?</span>}
               </div>
               <div className="link-result-body">
-                <Link to={`/${r.kind === 'translation' ? 'translations' : 'romhacks'}/${r.id}`} className="link-result-title">
-                  {r.kind === 'translation'
-                    ? <Languages aria-hidden style={{ width: 13, height: 13, verticalAlign: '-2px' }} />
-                    : <Sparkles aria-hidden style={{ width: 13, height: 13, verticalAlign: '-2px' }} />}
-                  {' '}{r.title}
-                </Link>
+                {r.external ? (
+                  <a href={r.href} target="_blank" rel="noopener noreferrer" className="link-result-title">
+                    {r.kind === 'translation'
+                      ? <Languages aria-hidden style={{ width: 13, height: 13, verticalAlign: '-2px' }} />
+                      : <Sparkles aria-hidden style={{ width: 13, height: 13, verticalAlign: '-2px' }} />}
+                    {' '}{r.title}
+                  </a>
+                ) : (
+                  <Link to={r.href} className="link-result-title">
+                    {r.kind === 'translation'
+                      ? <Languages aria-hidden style={{ width: 13, height: 13, verticalAlign: '-2px' }} />
+                      : <Sparkles aria-hidden style={{ width: 13, height: 13, verticalAlign: '-2px' }} />}
+                    {' '}{r.title}
+                  </Link>
+                )}
                 <span className="link-result-plats mono">
                   {r.gameSlug ? <Link to={`/games/${r.gameSlug}`}>{r.gameTitle}</Link> : r.gameTitle}
                   {r.language ? ` · ${r.language}` : ''}

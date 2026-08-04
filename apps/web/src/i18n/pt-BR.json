@@ -1088,6 +1088,9 @@
     "backfillNow": "Continuar carga (IGDB)",
     "backfillHint": "Retoma a carga inicial: varre os jogos antigos das plataformas mais atrasadas até fechar o catálogo (o mesmo do cron diário)",
     "backfillDone": "Backfill IGDB: {{criados}} novos em {{plats}} plataformas.",
+    "scrapeNow": "Raspar cena (BR)",
+    "scrapeHint": "Lê o RSS do fórum romhacking.net.br (board Lançamentos) e grava os lançamentos novos, casando com os jogos do catálogo",
+    "scrapeDone": "Cena: {{gravados}} lançamentos ({{casados}} casados com jogo).",
     "linkConflictMerge": "Este IGDB já está em \"{{title}}\". Fundir este jogo com ele?"
   },
   "community": {

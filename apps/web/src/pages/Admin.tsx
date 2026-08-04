@@ -749,6 +749,7 @@ function LinkQueuePanel() {
   const [enriching, setEnriching] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
+  const [scraping, setScraping] = useState(false);
 
   /**
    * "Buscar novos (IGDB)": roda o mesmo refresh do cron diário — pega os jogos
@@ -781,6 +782,20 @@ function LinkQueuePanel() {
       toast.error(err instanceof Error ? err.message : t('forms:submitError'));
     } finally {
       setBackfilling(false);
+    }
+  }
+
+  /** "Raspar cena (BR)": lê o RSS do fórum romhacking.net.br e grava lançamentos. */
+  async function runSceneScrape() {
+    setScraping(true);
+    try {
+      const d = await invokeFn<{ gravados?: number; casados?: number; traducoes?: number }>('scene-scrape', {});
+      toast.success(t('admin:scrapeDone', { gravados: d?.gravados ?? 0, casados: d?.casados ?? 0 }));
+      void qc.invalidateQueries({ queryKey: ['sceneReleases'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setScraping(false);
     }
   }
 
@@ -982,6 +997,10 @@ function LinkQueuePanel() {
           <Button variant="secondary" size="sm" onClick={() => void runIgdbBackfill()} disabled={backfilling}
             title={t('admin:backfillHint')}>
             {backfilling ? <Spinner /> : t('admin:backfillNow')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void runSceneScrape()} disabled={scraping}
+            title={t('admin:scrapeHint')}>
+            {scraping ? <Spinner /> : t('admin:scrapeNow')}
           </Button>
           <Button variant="secondary" size="sm" onClick={() => void runEnrich()} disabled={enriching}
             title={t('admin:enrichHint')}>

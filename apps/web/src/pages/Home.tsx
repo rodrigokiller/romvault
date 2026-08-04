@@ -247,17 +247,17 @@ function SceneReleasesStrip() {
         </Link>
       </div>
       <div className="my-strip-covers">
-        {rows.map((r) => (
-          <Link
-            key={`${r.kind}-${r.id}`}
-            to={`/${r.kind === 'translation' ? 'translations' : 'romhacks'}/${r.id}`}
-            title={`${r.title}${r.gameTitle ? ` · ${r.gameTitle}` : ''}`}
-          >
-            {r.cover
-              ? <img src={r.cover} alt={r.title} loading="lazy" />
-              : <span className="my-strip-fallback">{r.gameTitle ?? r.title}</span>}
-          </Link>
-        ))}
+        {rows.map((r) => {
+          const inner = r.cover
+            ? <img src={r.cover} alt={r.title} loading="lazy" />
+            : <span className="my-strip-fallback">{r.gameTitle ?? r.title}</span>;
+          const label = `${r.title}${r.gameTitle ? ` · ${r.gameTitle}` : ''}`;
+          return r.external ? (
+            <a key={`${r.kind}-${r.id}`} href={r.href} target="_blank" rel="noopener noreferrer" title={label}>{inner}</a>
+          ) : (
+            <Link key={`${r.kind}-${r.id}`} to={r.href} title={label}>{inner}</Link>
+          );
+        })}
       </div>
     </section>
   );
