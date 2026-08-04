@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Trophy, Languages, Sparkles, Users, Download, Flame } from 'lucide-react';
+import { Trophy, Languages, Sparkles, Users, Download, Flame, Rocket } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
+import { useSceneReleases } from '@/hooks/useSceneReleases';
 import { EmptyState, LoadingPage } from '@/components/ui/feedback';
 
 const db = () => getSupabase() as unknown as SupabaseClient;
@@ -130,6 +132,8 @@ export function Scene() {
         <p className="page-sub">{t('scene:subtitle')}</p>
       </header>
 
+      <ReleasesFeed />
+
       {hot.length > 0 && (
         <section className="section">
           <div className="section-head">
@@ -190,5 +194,62 @@ export function Scene() {
         </ol>
       )}
     </div>
+  );
+}
+
+/** Feed cronológico de lançamentos da cena (traduções + hacks). */
+function ReleasesFeed() {
+  const { t } = useTranslation();
+  const [ptOnly, setPtOnly] = useState(true);
+  const { data: rows = [], isLoading } = useSceneReleases({ ptOnly, limit: 30 });
+
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div>
+          <span className="kicker">// {t('scene:releasesKicker')}</span>
+          <h2><Rocket aria-hidden style={{ width: 16, height: 16, verticalAlign: '-2px' }} /> {t('scene:releasesTitle')}</h2>
+        </div>
+        <div className="type-seg" role="tablist">
+          <button type="button" role="tab" aria-selected={ptOnly}
+            className={`type-seg-btn ${ptOnly ? 'is-active' : ''}`} onClick={() => setPtOnly(true)}>
+            {t('scene:releasesPt')}
+          </button>
+          <button type="button" role="tab" aria-selected={!ptOnly}
+            className={`type-seg-btn ${!ptOnly ? 'is-active' : ''}`} onClick={() => setPtOnly(false)}>
+            {t('scene:releasesAll')}
+          </button>
+        </div>
+      </div>
+      {isLoading ? (
+        <p className="muted-text">{t('common:loading')}</p>
+      ) : rows.length === 0 ? (
+        <p className="muted-text">{t('scene:releasesEmpty')}</p>
+      ) : (
+        <ul className="link-results">
+          {rows.map((r) => (
+            <li key={`${r.kind}-${r.id}`} className="link-result">
+              <div className="link-result-thumb">
+                {r.cover ? <img src={r.cover} alt="" loading="lazy" /> : <span className="mono">?</span>}
+              </div>
+              <div className="link-result-body">
+                <Link to={`/${r.kind === 'translation' ? 'translations' : 'romhacks'}/${r.id}`} className="link-result-title">
+                  {r.kind === 'translation'
+                    ? <Languages aria-hidden style={{ width: 13, height: 13, verticalAlign: '-2px' }} />
+                    : <Sparkles aria-hidden style={{ width: 13, height: 13, verticalAlign: '-2px' }} />}
+                  {' '}{r.title}
+                </Link>
+                <span className="link-result-plats mono">
+                  {r.gameSlug ? <Link to={`/games/${r.gameSlug}`}>{r.gameTitle}</Link> : r.gameTitle}
+                  {r.language ? ` · ${r.language}` : ''}
+                  {r.source ? ` · ${r.source}` : ''}
+                </span>
+              </div>
+              {r.date && <span className="mono" style={{ fontSize: '0.72rem', color: 'var(--muted)', flexShrink: 0 }}>{new Date(r.date).toLocaleDateString()}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Upload, TrendingUp, Newspaper, Download, Layers, Link as LinkIcon } from 'lucide-react';
+import { ArrowRight, Upload, TrendingUp, Newspaper, Download, Layers, Link as LinkIcon, Rocket } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { useMyAccounts } from '@/hooks/useAccounts';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +14,7 @@ import { useCollections } from '@/hooks/useCollections';
 import { useGamesPage, useMostAwaited } from '@/hooks/useGames';
 import { useMyProfile } from '@/hooks/useProfile';
 import { useHomeShelf, useLibraryCount } from '@/hooks/useTracks';
+import { useSceneReleases } from '@/hooks/useSceneReleases';
 import { useTranslationLangs, uiLangCode } from '@/hooks/useTranslationLangs';
 import { GameCard } from '@/components/entities/GameCard';
 import { KIND_META, type Kind } from '@/components/entities/kinds';
@@ -126,6 +127,8 @@ export function Home() {
           )}
         </section>
 
+        <SceneReleasesStrip />
+
         {/* Lançamentos recentes */}
         {(recent?.games.length ?? 0) > 0 && (
           <section className="section">
@@ -226,6 +229,40 @@ export function Home() {
  * Faixa pessoal da home (logado): "jogando agora" + backlog jogável no seu
  * idioma — o tracker como asa de primeira classe, não um anexo do perfil.
  */
+/** Prateleira de LANÇAMENTOS DA CENA (traduções/hacks recentes, PT-BR primeiro). */
+function SceneReleasesStrip() {
+  const { t } = useTranslation();
+  const { data: rows = [] } = useSceneReleases({ ptOnly: true, limit: 10 });
+  if (rows.length === 0) return null;
+
+  return (
+    <section className="section">
+      <div className="section-head">
+        <div>
+          <span className="kicker">{t('home:sceneKicker')}</span>
+          <h2><Rocket aria-hidden style={{ width: 16, height: 16, verticalAlign: '-2px' }} /> {t('home:sceneTitle')}</h2>
+        </div>
+        <Link to="/scene" className="section-link">
+          {t('common:viewAll')} <ArrowRight aria-hidden style={{ width: 14, height: 14, verticalAlign: '-2px' }} />
+        </Link>
+      </div>
+      <div className="my-strip-covers">
+        {rows.map((r) => (
+          <Link
+            key={`${r.kind}-${r.id}`}
+            to={`/${r.kind === 'translation' ? 'translations' : 'romhacks'}/${r.id}`}
+            title={`${r.title}${r.gameTitle ? ` · ${r.gameTitle}` : ''}`}
+          >
+            {r.cover
+              ? <img src={r.cover} alt={r.title} loading="lazy" />
+              : <span className="my-strip-fallback">{r.gameTitle ?? r.title}</span>}
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function MyShelfStrip() {
   const { t, i18n } = useTranslation();
   const { data: me } = useMyProfile();

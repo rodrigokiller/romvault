@@ -62,6 +62,8 @@
     "emptyHereTitle": "Nothing here yet",
     "recentKicker": "// just released",
     "recentTitle": "New releases",
+    "sceneKicker": "// straight from the scene",
+    "sceneTitle": "Scene releases",
     "trendingKicker": "// most downloaded this week",
     "trendingTitle": "Trending",
     "trendingEmpty": "The weekly ranking shows up here once downloads are recorded.",
@@ -765,7 +767,12 @@
     "emptyTitle": "No patched completions yet",
     "emptyText": "Once the community logs completions with the translation/hack used, the ranking is born here.",
     "hotTitle": "Hot this week",
-    "hotHint": "Downloads in the last 7 days"
+    "hotHint": "Downloads in the last 7 days",
+    "releasesKicker": "// just dropped",
+    "releasesTitle": "Releases",
+    "releasesPt": "PT-BR",
+    "releasesAll": "All",
+    "releasesEmpty": "No releases here yet. When a new translation/hack lands, it shows up here."
   },
   "vitrine": {
     "title": "{{user}}'s showcase",

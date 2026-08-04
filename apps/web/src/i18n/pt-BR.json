@@ -62,6 +62,8 @@
     "emptyHereTitle": "Nada por aqui ainda",
     "recentKicker": "// acabaram de sair",
     "recentTitle": "Lançamentos",
+    "sceneKicker": "// direto da cena",
+    "sceneTitle": "Lançamentos da cena",
     "trendingKicker": "// mais baixados da semana",
     "trendingTitle": "Em alta",
     "trendingEmpty": "O ranking semanal aparece aqui assim que houver downloads registrados.",
@@ -765,7 +767,12 @@
     "emptyTitle": "Ainda sem zeradas com patch",
     "emptyText": "Quando a comunidade registrar zeradas informando a tradução/hack usada, o ranking nasce aqui.",
     "hotTitle": "Em alta na semana",
-    "hotHint": "Downloads nos últimos 7 dias"
+    "hotHint": "Downloads nos últimos 7 dias",
+    "releasesKicker": "// acabou de sair",
+    "releasesTitle": "Lançamentos",
+    "releasesPt": "PT-BR",
+    "releasesAll": "Tudo",
+    "releasesEmpty": "Sem lançamentos por aqui ainda. Quando entrar tradução/hack novo, aparece aqui."
   },
   "vitrine": {
     "title": "Vitrine de {{user}}",
