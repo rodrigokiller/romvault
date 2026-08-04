@@ -748,6 +748,7 @@ function LinkQueuePanel() {
   const [merging, setMerging] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
 
   /**
    * "Buscar novos (IGDB)": roda o mesmo refresh do cron diário — pega os jogos
@@ -763,6 +764,23 @@ function LinkQueuePanel() {
       toast.error(err instanceof Error ? err.message : t('forms:submitError'));
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  /**
+   * "Continuar carga (IGDB)": roda o mesmo backfill do cron — retoma o cursor
+   * das plataformas mais atrasadas e importa a próxima leva de jogos antigos.
+   */
+  async function runIgdbBackfill() {
+    setBackfilling(true);
+    try {
+      const d = await invokeFn<{ totals?: { criados?: number; atualizados?: number }; plataformas?: number }>('igdb-backfill', {});
+      toast.success(t('admin:backfillDone', { criados: d?.totals?.criados ?? 0, plats: d?.plataformas ?? 0 }));
+      void qc.invalidateQueries({ queryKey: ['games'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setBackfilling(false);
     }
   }
 
@@ -960,6 +978,10 @@ function LinkQueuePanel() {
           <Button variant="secondary" size="sm" onClick={() => void runIgdbRefresh()} disabled={refreshing}
             title={t('admin:refreshHint')}>
             {refreshing ? <Spinner /> : t('admin:refreshNow')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void runIgdbBackfill()} disabled={backfilling}
+            title={t('admin:backfillHint')}>
+            {backfilling ? <Spinner /> : t('admin:backfillNow')}
           </Button>
           <Button variant="secondary" size="sm" onClick={() => void runEnrich()} disabled={enriching}
             title={t('admin:enrichHint')}>

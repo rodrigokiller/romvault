@@ -1078,6 +1078,9 @@
     "refreshNow": "Fetch new (IGDB)",
     "refreshHint": "Pulls games created/changed on IGDB since last time, across all platforms (same as the daily cron)",
     "refreshDone": "IGDB: {{criados}} new, {{atualizados}} updated.",
+    "backfillNow": "Continue load (IGDB)",
+    "backfillHint": "Resumes the initial load: sweeps old games from the most-behind platforms until the catalog is complete (same as the daily cron)",
+    "backfillDone": "IGDB backfill: {{criados}} new across {{plats}} platforms.",
     "linkConflictMerge": "This IGDB is already on \"{{title}}\". Merge this game into it?"
   },
   "community": {

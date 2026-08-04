@@ -39,6 +39,13 @@ const PLATFORM_SHORT: Record<number, string> = {
   6: 'PC', 13: 'DOS', 14: 'Mac', 3: 'Linux',
   52: 'Arcade', 128: 'TG-16', 80: 'Neo Geo', 59: 'Atari 2600', 62: 'Jaguar',
   16: 'Amiga', 15: 'C64', 50: '3DO', 68: 'ColecoVision', 67: 'Intellivision', 34: 'Android', 39: 'iOS',
+  // variantes regionais japonesas -> caem no console que o usuário conhece
+  58: 'SNES', 99: 'NES', 51: 'FDS', 86: 'TG-16', 137: '3DS',
+  // handhelds/consoles/computadores que faltavam (muito jogo JP e retrô)
+  57: 'WonderSwan', 123: 'WonderSwan', 124: 'WonderSwan', 119: 'NGP', 120: 'NGPC', 136: 'Neo Geo CD',
+  84: 'SG-1000', 60: 'Atari 7800', 66: 'Atari 5200', 61: 'Lynx', 114: 'Amiga CD32', 117: 'CD-i',
+  70: 'Vectrex', 127: 'Channel F', 27: 'MSX', 53: 'MSX', 121: 'X68000', 118: 'FM Towns',
+  125: 'PC-8800', 77: 'Sharp X1', 26: 'ZX Spectrum', 25: 'Amstrad CPC', 65: 'Atari 8-bit', 63: 'Atari ST',
 };
 const TRACKED_IDS = Object.keys(PLATFORM_SHORT).map(Number);
 const GAME_TYPE: Record<number, string> = {
