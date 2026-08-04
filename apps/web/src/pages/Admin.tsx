@@ -750,6 +750,7 @@ function LinkQueuePanel() {
   const [refreshing, setRefreshing] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const [scraping, setScraping] = useState(false);
+  const [srSyncing, setSrSyncing] = useState(false);
 
   /**
    * "Buscar novos (IGDB)": roda o mesmo refresh do cron diário — pega os jogos
@@ -782,6 +783,19 @@ function LinkQueuePanel() {
       toast.error(err instanceof Error ? err.message : t('forms:submitError'));
     } finally {
       setBackfilling(false);
+    }
+  }
+
+  /** "Speedruns": puxa recordes do speedrun.com pros jogos (owned/populares). */
+  async function runSpeedrunSync() {
+    setSrSyncing(true);
+    try {
+      const d = await invokeFn<{ processados?: number; com_runs?: number }>('speedrun-sync', { limit: 40 });
+      toast.success(t('admin:srDone', { proc: d?.processados ?? 0, com: d?.com_runs ?? 0 }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setSrSyncing(false);
     }
   }
 
@@ -1001,6 +1015,10 @@ function LinkQueuePanel() {
           <Button variant="secondary" size="sm" onClick={() => void runSceneScrape()} disabled={scraping}
             title={t('admin:scrapeHint')}>
             {scraping ? <Spinner /> : t('admin:scrapeNow')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void runSpeedrunSync()} disabled={srSyncing}
+            title={t('admin:srHint')}>
+            {srSyncing ? <Spinner /> : t('admin:srNow')}
           </Button>
           <Button variant="secondary" size="sm" onClick={() => void runEnrich()} disabled={enriching}
             title={t('admin:enrichHint')}>

@@ -124,6 +124,7 @@
     "tabReleases": "Releases",
     "tabTranslations": "Translations",
     "tabRomhacks": "Romhacks",
+    "tabSpeedruns": "Speedruns",
     "tabDocs": "Documents",
     "about": "About",
     "developer": "Developer",
@@ -1091,7 +1092,17 @@
     "scrapeNow": "Scrape scene (BR)",
     "scrapeHint": "Reads the romhacking.net.br forum RSS (Releases board) and stores new releases, matching them to catalog games",
     "scrapeDone": "Scene: {{gravados}} releases ({{casados}} matched to a game).",
+    "srNow": "Speedruns",
+    "srHint": "Pulls speedrun.com records for games someone owns + popular ones (same as the cron)",
+    "srDone": "Speedruns: {{proc}} games checked, {{com}} with records.",
     "linkConflictMerge": "This IGDB is already on \"{{title}}\". Merge this game into it?"
+  },
+  "speedruns": {
+    "title": "Records",
+    "watch": "Watch",
+    "note": "World records (WR) per category, straight from speedrun.com.",
+    "emptyTitle": "No speedruns here",
+    "emptyText": "This game has no records on speedrun.com yet (or we couldn't find the game there)."
   },
   "community": {
     "reviewsTitle": "Reviews",

@@ -25,6 +25,7 @@ import { PlaythroughsWidget, type PatchOption } from '@/components/entities/Play
 import { ScreenshotGrid } from '@/components/entities/ScreenshotGrid';
 import { BoxScans } from '@/components/entities/BoxScans';
 import { Soundtracks } from '@/components/entities/Soundtracks';
+import { SpeedrunsTab } from '@/components/entities/Speedruns';
 import { AdminItemTools } from '@/components/entities/AdminItemTools';
 import { ReportButton } from '@/components/entities/ReportButton';
 import { PrivacyToggle } from '@/components/entities/PrivacyToggle';
@@ -129,6 +130,7 @@ export function GameDetail() {
     { id: 'releases', label: t('games:tabReleases') },
     { id: 'translations', label: withCount(t('games:tabTranslations'), tc) },
     { id: 'romhacks', label: withCount(t('games:tabRomhacks'), rc) },
+    { id: 'speedruns', label: t('games:tabSpeedruns') },
     { id: 'docs', label: withCount(t('games:tabDocs'), dc) },
   ];
 
@@ -290,6 +292,7 @@ export function GameDetail() {
 
         {tab === 'translations' && <RelatedGrid kind="translation" query={translations} />}
         {tab === 'romhacks' && <RelatedGrid kind="romhack" query={romhacks} />}
+        {tab === 'speedruns' && game && <SpeedrunsTab gameId={game.id} />}
         {tab === 'docs' && <RelatedGrid kind="doc" query={documents} />}
       </div>
 

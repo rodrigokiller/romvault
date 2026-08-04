@@ -506,6 +506,15 @@ a.origin-badge:hover { color: var(--accent); border-color: var(--accent); }
   color: var(--muted);
 }
 .split-here b { color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
+.speedrun-list { list-style: none; margin: var(--s3) 0 0; padding: 0; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.speedrun-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s3); background: var(--panel); }
+.speedrun-medal { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent); }
+.speedrun-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.speedrun-cat { font-weight: 600; color: var(--ink-bright); overflow-wrap: anywhere; }
+.speedrun-meta { font-size: 0.76rem; color: var(--muted); }
+.speedrun-video { color: var(--muted); display: inline-flex; flex-shrink: 0; }
+.speedrun-video:hover { color: #ff0000; }
+.speedrun-time { font-size: 0.95rem; font-weight: 700; color: var(--accent); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
 /* fontes individuais (avançado) escondidas por padrão na caixa de admin */
 .admin-tools-adv { margin-top: var(--s2); }
