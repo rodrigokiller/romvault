@@ -751,6 +751,7 @@ function LinkQueuePanel() {
   const [backfilling, setBackfilling] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [srSyncing, setSrSyncing] = useState(false);
+  const [smwcing, setSmwcing] = useState(false);
 
   /**
    * "Buscar novos (IGDB)": roda o mesmo refresh do cron diário — pega os jogos
@@ -783,6 +784,20 @@ function LinkQueuePanel() {
       toast.error(err instanceof Error ? err.message : t('forms:submitError'));
     } finally {
       setBackfilling(false);
+    }
+  }
+
+  /** "SMWC": pega os hacks novos de Super Mario World do SMW Central. */
+  async function runSmwcScrape() {
+    setSmwcing(true);
+    try {
+      const d = await invokeFn<{ novos?: number }>('smwc-scrape', {});
+      toast.success(t('admin:smwcDone', { novos: d?.novos ?? 0 }));
+      void qc.invalidateQueries({ queryKey: ['sceneReleases'] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forms:submitError'));
+    } finally {
+      setSmwcing(false);
     }
   }
 
@@ -1019,6 +1034,10 @@ function LinkQueuePanel() {
           <Button variant="secondary" size="sm" onClick={() => void runSpeedrunSync()} disabled={srSyncing}
             title={t('admin:srHint')}>
             {srSyncing ? <Spinner /> : t('admin:srNow')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void runSmwcScrape()} disabled={smwcing}
+            title={t('admin:smwcHint')}>
+            {smwcing ? <Spinner /> : t('admin:smwcNow')}
           </Button>
           <Button variant="secondary" size="sm" onClick={() => void runEnrich()} disabled={enriching}
             title={t('admin:enrichHint')}>

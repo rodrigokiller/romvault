@@ -1095,6 +1095,9 @@
     "srNow": "Speedruns",
     "srHint": "Puxa os recordes do speedrun.com pros jogos que alguém tem + os populares (o mesmo do cron)",
     "srDone": "Speedruns: {{proc}} jogos checados, {{com}} com recordes.",
+    "smwcNow": "Hacks SMWC",
+    "smwcHint": "Pega os hacks NOVOS de Super Mario World do SMW Central (incremental; o resto vem do import CLI)",
+    "smwcDone": "SMW Central: {{novos}} hacks novos.",
     "linkConflictMerge": "Este IGDB já está em \"{{title}}\". Fundir este jogo com ele?"
   },
   "speedruns": {
